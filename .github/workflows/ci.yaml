@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+
+    steps:
+      # Docs- and spec-only PRs skip the build entirely. The filter still runs
+      # (and still reports a status), so a required check never hangs.
+      #
+      # Markdown is excluded wherever it lives, not just under docs/: README.md,
+      # CLAUDE.md, DEVELOPER.md and per-directory notes cannot change build or
+      # test output. Config that does affect the build (.editorconfig, props,
+      # global.json, the hooks) is deliberately NOT excluded.
+      - name: Detect non-docs changes
+        id: filter
+        uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3
+        with:
+          filters: |
+            code:
+              - "**"
+              - "!**/*.md"
+              - "!docs/**"
+              - "!openspec/**"
+              - "!LICENSE"
+              - "!.gitignore"
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore "Trainfree.slnx"
+
+      - name: Build solution
+        run: dotnet build "Trainfree.slnx" --configuration Release --no-restore
+
+      # Tests run here only for PRs from forks. A fork PR cannot read SONAR_TOKEN,
+      # so the sonarqube-analysis job (which runs the same tests with coverage) is
+      # skipped for it -- this step is the fallback so fork PRs are still tested.
+      # Same-repo PRs and pushes get their test run from sonarqube-analysis instead
+      # of running the suite twice.
+      - name: Run tests
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        run: dotnet test "Trainfree.slnx" --configuration Release --no-build --verbosity normal
+
+  sonarqube-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [changes, build]
+    if: needs.changes.outputs.code == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    permissions:
+      contents: read
+
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      # SonarCloud keys the project as <organization>_<repo-name>. Adjust if the
+      # repo name differs from the project name, or drop this job if the project
+      # is not on SonarCloud.
+      SONAR_PROJECT_KEY: farooq-teqniqly_Trainfree
+      SONAR_ORGANIZATION: farooq-teqniqly
+      SONAR_EXCLUSIONS: "**/*.Tests/**,**/*.ArchitectureTests/**,**/samples/**,**/*.py,**/Scripts/*.sql,**/wwwroot/js/*.js"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Validate SONAR_TOKEN
+        run: |
+          if [ -z "${SONAR_TOKEN}" ]; then
+            echo "SONAR_TOKEN secret is not set; configure it in repository secrets." >&2
+            exit 1
+          fi
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Install SonarQube Scanner
+        run: dotnet tool install --global dotnet-sonarscanner --version 11.2.1
+
+      - name: Restore dependencies
+        run: dotnet restore "Trainfree.slnx"
+
+      - name: Begin SonarQube analysis
+        run: |
+          dotnet sonarscanner begin \
+            /k:"${{env.SONAR_PROJECT_KEY}}" \
+            /o:"${{env.SONAR_ORGANIZATION}}" \
+            /d:sonar.token="${{env.SONAR_TOKEN}}" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.cs.cobertura.reportsPaths="**/coverage.cobertura.xml" \
+            /d:sonar.security.enableProjectScan=true \
+            /d:sonar.qualitygate.wait=true \
+            /d:sonar.coverage.exclusions="${{env.SONAR_EXCLUSIONS}}"
+
+      - name: Build solution
+        run: dotnet build "Trainfree.slnx" --configuration Release --no-restore
+
+      - name: Run tests with coverage
+        run: |
+          dotnet test "Trainfree.slnx" --configuration Release --no-build \
+            --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+
+      - name: End SonarQube analysis
+        run: dotnet sonarscanner end /d:sonar.token="${{env.SONAR_TOKEN}}"

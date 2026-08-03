@@ -1,0 +1,67 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>All</AnalysisMode>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SonarAnalyzer.CSharp">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('Tests'))">
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+        Test stack auto-injected into every *Tests project. The runner and collector are
+        PrivateAssets=all so they stop at the test project instead of flowing to anything
+        that references it.
+    -->
+  <ItemGroup Condition="$(MSBuildProjectName.EndsWith('Tests'))">
+    <Using Include="Xunit" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!--
+        Point git at the version-controlled hooks dir so the CSharpier pre-commit runs.
+        Conditioned on .githooks, not .git: in a worktree or submodule .git is a file
+        pointing elsewhere, and the hooks dir is what actually has to exist for
+        core.hooksPath to mean anything. The git call is idempotent, and
+        ContinueOnError keeps a git-less build (CI container, source archive) green.
+    -->
+  <Target
+    Name="ConfigureGitHooks"
+    BeforeTargets="Build"
+    Condition="Exists('$(MSBuildThisFileDirectory).githooks')"
+  >
+    <Exec
+      Command="git config core.hooksPath .githooks"
+      WorkingDirectory="$(MSBuildThisFileDirectory)"
+      ContinueOnError="true"
+      StandardOutputImportance="Low"
+      StandardErrorImportance="Low"
+    />
+  </Target>
+</Project>

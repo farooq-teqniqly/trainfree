@@ -1,0 +1,68 @@
+# Auto-detect text files, normalize line endings to LF on checkin
+* text=auto
+
+#
+# Source code
+#
+*.cs           text diff=csharp
+*.csx          text diff=csharp
+*.vb           text
+*.fs           text diff=csharp
+*.fsx          text
+*.sln          text eol=crlf
+*.slnx         text eol=crlf
+*.csproj       text
+*.vbproj       text
+*.fsproj       text
+*.props        text
+*.targets      text
+*.editorconfig text
+
+#
+# Config / data
+#
+*.json         text
+*.xml          text
+*.yml          text
+*.yaml         text
+*.config       text
+*.md           text diff=markdown
+*.txt          text
+
+#
+# Bruno API tests
+#
+*.bru          text eol=lf
+
+#
+# Git hooks (extensionless shell scripts) must stay LF, or Git-for-Windows sh breaks on CRLF.
+#
+.githooks/**   text eol=lf
+
+#
+# Shell / scripts
+#
+*.sh           text eol=lf
+*.ps1          text eol=crlf
+*.cmd          text eol=crlf
+*.bat          text eol=crlf
+
+#
+# Binary files (never diff or normalize)
+#
+*.dll          binary
+*.exe          binary
+*.pdb          binary
+*.snk          binary
+*.png          binary
+*.jpg          binary
+*.jpeg         binary
+*.gif          binary
+*.ico          binary
+*.zip          binary
+*.nupkg        binary
+
+#
+# Linguist / diff hints
+#
+*.Designer.cs  linguist-generated=true

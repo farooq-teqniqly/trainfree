@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# Pre-commit hook: format staged C# files with CSharpier (from dotnet-tools.json).
+# Formatted files are re-staged so the commit contains the formatted result.
+#
+set -e
+
+# CSharpier 1.x formats C# and XML project/config files; match the same set here
+# so the hook can't miss drift that `dotnet csharpier check .` would later flag in CI.
+# ACMR: include Renamed files so a rename (with or without edits) still gets formatted.
+staged=$(git diff --cached --name-only --diff-filter=ACMR \
+	-- '*.cs' '*.csproj' '*.props' '*.targets' '*.config' '*.slnx')
+[ -z "$staged" ] && exit 0
+
+# Ensure the local tool is available.
+dotnet tool restore >/dev/null
+
+# printf, not echo: echo may mangle backslash escapes or treat a leading '-' as an option.
+printf '%s\n' "$staged" | while IFS= read -r file; do
+	[ -f "$file" ] || continue
+	dotnet csharpier format "$file"
+	git add -- "$file"
+done
