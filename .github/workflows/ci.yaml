@@ -3,6 +3,16 @@ name: Build, Test & Run SonarQube Analysis
 on:
   push:
     branches: [main]
+    # The changes job below cannot filter push events (see its comment), so the
+    # docs-only skip for main is expressed at the trigger instead. GitHub skips
+    # the run only when EVERY changed path matches, which is the same semantics
+    # the filter gives PRs. Keep this list in sync with the filter's exclusions.
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "openspec/**"
+      - "LICENSE"
+      - ".gitignore"
   pull_request:
   workflow_dispatch:
 
@@ -34,6 +44,14 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3
         with:
+          # Required. The action defaults to 'some' (a file matches the rule if
+          # it matches ANY pattern), under which the leading "**" below matches
+          # everything and every "!" line becomes dead code -- the filter then
+          # reports code=true for docs-only PRs. 'every' requires a file to
+          # match all patterns, which is what makes the exclusions bite.
+          # Note: this pin only accepts 'every' or 'some'; the newer
+          # 'some-with-excludes' does not exist in v3 and would throw.
+          predicate-quantifier: "every"
           filters: |
             code:
               - "**"
