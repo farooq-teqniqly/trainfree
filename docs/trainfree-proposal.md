@@ -75,9 +75,50 @@ Follow patterns in [](https://github.com/farooq-teqniqly/blazor-cloudfare-throwa
 
 ---
 
-## Open Questions
+## Key Decisions
 
-Persistence? Leaning Sqllite. Is this possible with Cloudfare?
+- **Persistence: Cloudflare D1 (SQLite).** Data lives in a Cloudflare Worker API backed
+  by D1, not in the browser. Enables real sync and durable history across phone (workout)
+  and desktop (admin). Stays ~$0 on the free tier. Trade-off: breaks "static assets only" --
+  adds an API layer to build and secure.
+  - **API runtime: vanilla JavaScript Cloudflare Worker with native D1 binding.** No
+    TypeScript, no .NET on the server side. The Worker is a thin JSON API (routes +
+    D1 queries). The .NET-everywhere convention applies to the Blazor client only.
+
+- **Rest timer: per-exercise.** Each exercise carries its own `restSeconds`. Timed
+  exercises carry a `durationSeconds` (work interval, e.g. Skater Jump 30s). Untimed
+  exercises carry `reps`. Draft exercise shape:
+  `Exercise { name, reps? | durationSeconds?, weightLbs?, side?, note?, restSeconds }`.
+
+- **Workout selection: 2-level navigation.** Select screen shows 4 programs (A/B/C/D).
+  Tapping a program shows its day-sessions (e.g. Monday Lower Body, Tuesday Upper Body).
+  Any session can be run on any calendar day -- the backend records date/time of execution,
+  not the labeled day.
+- **Data model clarification:** "four workouts" in the spec means four *programs*, each
+  containing four day-sessions = 16 distinct sessions total.
+
+- **Seeding: manual via CRUD UI.** No migration script. The 16 sessions will be entered
+  by hand using UC5.0, which doubles as a smoke-test of the admin UI. UC5.0 must therefore
+  support creating programs, day-sessions, and exercises from scratch, not just editing
+  existing data.
+
+- **History: completion + per-exercise log.** Each completed workout writes: program,
+  day-session, startedAt, endedAt, and for each exercise: sets with actual reps and
+  weight used.
+- **Set logging flow (untimed exercises).** After End Set: show a log screen pre-filled
+  with prescribed reps/weight (editable). Confirming the log starts the rest timer.
+  Updated UC flow: Start Set -> [exercise] -> End Set -> Log Set screen -> rest timer ->
+  next set.
+- **Timed exercises** auto-complete when timer hits zero; log screen appears at that point
+  (duration is known, only weight is editable if applicable) before rest timer starts.
+
+- **Exercise advance: auto.** When the rest timer for the last set of an exercise hits
+  zero, the next exercise loads automatically and shows the Start Set button. No tap
+  required between exercises.
+- **"Categories" is the correct term** for what the workout images call sections (Warm Up,
+  A, B). Already modeled in the object model diagram.
+
+## Open Questions
 
 ## Cost Summary
 
