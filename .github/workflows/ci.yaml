@@ -14,7 +14,7 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
-      code: ${{ steps.filter.outputs.code }}
+      code: ${{ github.event_name != 'pull_request' && 'true' || steps.filter.outputs.code }}
 
     steps:
       # Docs- and spec-only PRs skip the build entirely. The filter still runs
@@ -24,8 +24,14 @@ jobs:
       # CLAUDE.md, DEVELOPER.md and per-directory notes cannot change build or
       # test output. Config that does affect the build (.editorconfig, props,
       # global.json, the hooks) is deliberately NOT excluded.
+      #
+      # PR-only: on pull_request the action diffs via the GitHub API and needs no
+      # working tree. On push/workflow_dispatch it would shell out to git (no
+      # checkout here) and, on main, diff the default branch against itself and
+      # report no changes -- so those events skip the filter and always build.
       - name: Detect non-docs changes
         id: filter
+        if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3
         with:
           filters: |
