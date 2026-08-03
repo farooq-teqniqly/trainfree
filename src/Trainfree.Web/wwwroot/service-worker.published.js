@@ -14,7 +14,7 @@ const offlineAssetsExclude = [ /^service-worker\.js$/ ];
 // Replace with your base path if you are hosting on a subfolder. Ensure there is a trailing '/'.
 const base = "/";
 const baseUrl = new URL(base, self.origin);
-const manifestUrlList = self.assetsManifest.assets.map(asset => new URL(asset.url, baseUrl).href);
+const manifestUrls = new Set(self.assetsManifest.assets.map(asset => new URL(asset.url, baseUrl).href));
 
 async function onInstall(event) {
     console.info('Service worker: Install');
@@ -44,7 +44,7 @@ async function onFetch(event) {
         // unless that request is for an offline resource.
         // If you need some URLs to be server-rendered, edit the following check to exclude those URLs
         const shouldServeIndexHtml = event.request.mode === 'navigate'
-            && !manifestUrlList.includes(event.request.url);
+            && !manifestUrls.has(event.request.url);
 
         const request = shouldServeIndexHtml ? 'index.html' : event.request;
         const cache = await caches.open(cacheName);
