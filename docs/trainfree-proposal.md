@@ -118,6 +118,11 @@ Follow patterns in [](https://github.com/farooq-teqniqly/blazor-cloudfare-throwa
 - **"Categories" is the correct term** for what the workout images call sections (Warm Up,
   A, B). Already modeled in the object model diagram.
 
+- **Exercise images: Cloudflare R2.** Uploaded per-exercise in the admin UI, stored in R2
+  (free tier). URL stored in D1 alongside the exercise record. Blazor WASM loads the image
+  directly from R2 during a workout.
+- **Side field: dropdown.** Both (default) / Left / Right. Set per-exercise in admin UI.
+
 ## Open Questions
 
 ## Cost Summary
