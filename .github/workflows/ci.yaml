@@ -1,4 +1,4 @@
-name: CI
+name: Build, Test & Run SonarQube Analysis
 
 on:
   push:
@@ -82,7 +82,7 @@ jobs:
       # SonarCloud keys the project as <organization>_<repo-name>. Adjust if the
       # repo name differs from the project name, or drop this job if the project
       # is not on SonarCloud.
-      SONAR_PROJECT_KEY: farooq-teqniqly_Trainfree
+      SONAR_PROJECT_KEY: farooq-teqniqly_trainfree
       SONAR_ORGANIZATION: farooq-teqniqly
       SONAR_EXCLUSIONS: "**/*.Tests/**,**/*.ArchitectureTests/**,**/samples/**,**/*.py,**/Scripts/*.sql,**/wwwroot/js/*.js"
 
