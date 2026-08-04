@@ -108,7 +108,12 @@ jobs:
       # is not on SonarCloud.
       SONAR_PROJECT_KEY: farooq-teqniqly_trainfree
       SONAR_ORGANIZATION: farooq-teqniqly
-      SONAR_EXCLUSIONS: "**/*.Tests/**,**/*.ArchitectureTests/**,**/samples/**,**/*.py,**/Scripts/*.sql,**/wwwroot/js/*.js"
+      # Coverage-only exclusions: these files are still analyzed for issues, they just
+      # do not count toward the coverage metric. All .js is excluded (not only
+      # wwwroot/js/) because the JavaScript here is:
+      #  - Blazor's service-worker glue which runs in the browser's service-worker scope and no .NET test can execute.
+      #  - Bootstrap JavaScript
+      SONAR_EXCLUSIONS: "**/*.Tests/**,**/*.ArchitectureTests/**,**/samples/**,**/*.py,**/Scripts/*.sql,**/*.js"
 
     steps:
       - name: Checkout code
