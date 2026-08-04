@@ -110,8 +110,9 @@ jobs:
       SONAR_ORGANIZATION: farooq-teqniqly
       # Coverage-only exclusions: these files are still analyzed for issues, they just
       # do not count toward the coverage metric. All .js is excluded (not only
-      # wwwroot/js/) because the only JavaScript here is Blazor's service-worker glue,
-      # which runs in the browser's service-worker scope and no .NET test can execute.
+      # wwwroot/js/) because the JavaScript here is:
+      #  - Blazor's service-worker glue which runs in the browser's service-worker scope and no .NET test can execute.
+      #  - Bootstrap JavaScript
       SONAR_EXCLUSIONS: "**/*.Tests/**,**/*.ArchitectureTests/**,**/samples/**,**/*.py,**/Scripts/*.sql,**/*.js"
 
     steps:
