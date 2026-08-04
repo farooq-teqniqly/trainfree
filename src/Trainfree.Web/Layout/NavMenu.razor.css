@@ -55,8 +55,11 @@
         line-height: 3rem;
     }
 
+/* Overlay opacity is capped at 0.25 so white text keeps ~6.6:1 contrast against the
+   lightest point of the sidebar gradient. At the template's original 0.37 it lands on
+   4.5:1 exactly -- WCAG AA with no margin. */
 .nav-item ::deep a.active {
-    background-color: rgba(255,255,255,0.37);
+    background-color: rgba(255,255,255,0.25);
     color: white;
 }
 
