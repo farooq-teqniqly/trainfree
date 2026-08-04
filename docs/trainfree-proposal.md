@@ -127,9 +127,11 @@ Follow patterns in [](https://github.com/farooq-teqniqly/blazor-cloudfare-throwa
 
 ## Cost Summary
 
-| Item                                                              | Cost      |
-| ----------------------------------------------------------------- | --------- |
-| Cloudflare Workers (static assets)                                | $0        |
-| Cloudflare Access (1 user)                                        | $0        |
-| Domain (optional — `*.workers.dev` works, and Access protects it) | ~$10/yr   |
-| **Total**                                                         | **$0/mo** |
+| Item                                                                                                 | Cost      |
+| ------------------------------------------------------------------------------------------------------ | --------- |
+| Cloudflare Workers (static assets)                                                                     | $0        |
+| Cloudflare D1                                                                                           | $0        |
+| Cloudflare R2 ([free tier](https://developers.cloudflare.com/r2/pricing/): 10 GB storage/mo, well within a single-user exercise-image library) | $0        |
+| Cloudflare Access (1 user)                                                                              | $0        |
+| Domain (optional — `*.workers.dev` works, and Access protects it)                                       | ~$10/yr   |
+| **Total**                                                                                                | **$0/mo** |
