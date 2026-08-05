@@ -1,0 +1,18 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+context: |
+  See CLAUDE.md, CLAUDE-baseline.md, and CLAUDE-domain-driven-design.md at repo root
+  for stack, conventions, and domain modeling rules -- do not restate them here.
+  See docs/trainfree-proposal.md, docs/screen-mockups.md, and docs/trainfree-roadmap.md
+  for product context, UI, and build order.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+rules:
+  apply:
+    - After completing each section/batch of tasks.md, stop and wait for the user to
+      review the code before continuing to the next section. Do not proceed without
+      explicit approval.
+    - Do not commit until the user explicitly approves.
