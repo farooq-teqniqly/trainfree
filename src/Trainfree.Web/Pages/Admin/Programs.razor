@@ -1,0 +1,73 @@
+@page "/admin"
+@using Trainfree.Web.Admin
+@using Trainfree.Web.Ids
+@inject IProgramsApiClient Api
+
+<PageTitle>Trainfree Admin</PageTitle>
+
+<h1>Trainfree Admin</h1>
+
+<button data-testid="add-program" @onclick="AddProgramAsync">+ Program</button>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var row in _rows)
+        {
+            <tr>
+                <td>
+                    <input
+                        data-testid="name-input-@row.Id"
+                        value="@row.Name"
+                        autofocus="@(row.Id == _editingId)"
+                        @onchange="e => row.Name = (string)e.Value!"
+                        @onblur="() => RenameAsync(row)" />
+                </td>
+                <td>
+                    <button data-testid="delete-@row.Id" @onclick="() => DeleteAsync(row)">x</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private readonly List<ProgramRow> _rows = [];
+    private ProgramId? _editingId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var programs = await Api.GetProgramsAsync();
+        _rows.AddRange(programs.Select(p => new ProgramRow(p.Id, p.Name)));
+    }
+
+    private async Task AddProgramAsync()
+    {
+        var created = await Api.CreateProgramAsync("New Program");
+        _rows.Add(new ProgramRow(created.Id, created.Name));
+        _editingId = created.Id;
+    }
+
+    private async Task RenameAsync(ProgramRow row)
+    {
+        var renamed = await Api.RenameProgramAsync(row.Id, row.Name);
+        row.Name = renamed.Name;
+    }
+
+    private async Task DeleteAsync(ProgramRow row)
+    {
+        await Api.DeleteProgramAsync(row.Id);
+        _rows.Remove(row);
+    }
+
+    private sealed class ProgramRow(ProgramId id, string name)
+    {
+        public ProgramId Id { get; } = id;
+        public string Name { get; set; } = name;
+    }
+}

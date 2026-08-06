@@ -36,25 +36,25 @@
 
 ## 3. Blazor Admin UI
 
-- [ ] 3.1 Write failing xUnit tests for a `ProgramId` readonly record struct
+- [x] 3.1 Write failing xUnit tests for a `ProgramId` readonly record struct
       (`Trainfree.Web`, mirrors trakmark's `CityId` shape but consumer-only, no
       generation): `Parse`/`TryParse` accept a well-formed `PRG-XXXXXX` value and
       reject ill-formed input; `ToString` round-trips the original value.
-- [ ] 3.2 Implement `ProgramId` and a shared `CrockfordBase32.IsValidBody` validation
+- [x] 3.2 Implement `ProgramId` and a shared `CrockfordBase32.IsValidBody` validation
       helper (reusable by later slices' ID types) to pass. No `NewId()` -- IDs are
       always Worker-assigned and arrive via the API.
-- [ ] 3.3 Write a failing bUnit test: admin page loads and renders one row per program
+- [x] 3.3 Write a failing bUnit test: admin page loads and renders one row per program
       returned by a stubbed API client.
-- [ ] 3.4 Implement the admin page's initial load (calls `GET /api/programs`, renders
+- [x] 3.4 Implement the admin page's initial load (calls `GET /api/programs`, renders
       rows) to pass.
-- [ ] 3.5 Write a failing bUnit test: clicking `[+ Program]` calls create, appends a row,
+- [x] 3.5 Write a failing bUnit test: clicking `[+ Program]` calls create, appends a row,
       and puts its name cell into edit mode.
-- [ ] 3.6 Implement `[+ Program]` create flow to pass.
-- [ ] 3.7 Write a failing bUnit test: editing a row's name and blurring calls `PATCH`
+- [x] 3.6 Implement `[+ Program]` create flow to pass.
+- [x] 3.7 Write a failing bUnit test: editing a row's name and blurring calls `PATCH`
       and updates the displayed name.
-- [ ] 3.8 Implement inline rename-on-blur to pass.
-- [ ] 3.9 Write a failing bUnit test: clicking `[x]` calls `DELETE` and removes the row.
-- [ ] 3.10 Implement `[x]` delete flow to pass.
+- [x] 3.8 Implement inline rename-on-blur to pass.
+- [x] 3.9 Write a failing bUnit test: clicking `[x]` calls `DELETE` and removes the row.
+- [x] 3.10 Implement `[x]` delete flow to pass.
 
 ## 4. Wiring and Verification
 

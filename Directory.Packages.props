@@ -23,6 +23,7 @@
     <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.28.0.143324" />
     <PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />
     <!--Testing-->
+    <PackageVersion Include="bunit" Version="2.9.0" />
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
