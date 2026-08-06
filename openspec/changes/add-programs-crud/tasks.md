@@ -8,30 +8,30 @@
 
 ## 2. Worker API
 
-- [ ] 2.1 Write failing `vitest` tests for an `ids.js` helper: generates `PRG-XXXXXX`
+- [x] 2.1 Write failing `vitest` tests for an `ids.js` helper: generates `PRG-XXXXXX`
       (6 Crockford base32 chars), and validates that shape (accept/reject cases).
-- [ ] 2.2 Implement `ids.js` (generate + validate) to pass.
-- [ ] 2.3 Write a failing `vitest` test for `GET /api/programs` (empty list) against a
+- [x] 2.2 Implement `ids.js` (generate + validate) to pass.
+- [x] 2.3 Write a failing `vitest` test for `GET /api/programs` (empty list) against a
       real D1 binding via Miniflare.
-- [ ] 2.4 Implement `GET /api/programs` (list by `created_at`, expose `program_id` as
+- [x] 2.4 Implement `GET /api/programs` (list by `created_at`, expose `program_id` as
       `id`, never the internal autoincrement key) to pass the test.
-- [ ] 2.5 Write failing tests for a `name` length validator (5-100 chars after trim):
+- [x] 2.5 Write failing tests for a `name` length validator (5-100 chars after trim):
       accepts boundary values (exactly 5, exactly 100); rejects too-short (including
       blank), too-long, and missing.
-- [ ] 2.6 Implement the length validator to pass.
-- [ ] 2.7 Write failing tests for `POST /api/programs`: valid name creates a row with a
+- [x] 2.6 Implement the length validator to pass.
+- [x] 2.7 Write failing tests for `POST /api/programs`: valid name creates a row with a
       generated `program_id` and returns `201`; name failing the length bound returns
       `400` with no row created.
-- [ ] 2.8 Implement `POST /api/programs` (generated surrogate ID via `ids.js`,
+- [x] 2.8 Implement `POST /api/programs` (generated surrogate ID via `ids.js`,
       timestamps, length validation) to pass.
-- [ ] 2.9 Write failing tests for `PATCH /api/programs/:id`: valid rename updates and
+- [x] 2.9 Write failing tests for `PATCH /api/programs/:id`: valid rename updates and
       returns `200`; unknown ID returns `404`; name failing the length bound returns
       `400`.
-- [ ] 2.10 Implement `PATCH /api/programs/:id` to pass.
-- [ ] 2.11 Write failing tests for `DELETE /api/programs/:id`: existing ID deletes and
+- [x] 2.10 Implement `PATCH /api/programs/:id` to pass.
+- [x] 2.11 Write failing tests for `DELETE /api/programs/:id`: existing ID deletes and
       returns `204`; unknown ID returns `404`.
-- [ ] 2.12 Implement `DELETE /api/programs/:id` to pass.
-- [ ] 2.13 Write a failing test confirming `GET /api/programs` returns multiple programs
+- [x] 2.12 Implement `DELETE /api/programs/:id` to pass.
+- [x] 2.13 Write a failing test confirming `GET /api/programs` returns multiple programs
       in creation order, then confirm it passes against the implementation above.
 
 ## 3. Blazor Admin UI

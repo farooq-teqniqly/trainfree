@@ -1,5 +1,6 @@
 {
     "name": "trainfree",
+    "main": "src/index.js",
     "compatibility_date": "2026-08-03",
     "d1_databases": [
         {
