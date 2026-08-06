@@ -39,14 +39,32 @@ every later CRUD slice (sessions, categories, exercises) will repeat.
 - **Validation**: `name` required, 5-100 characters after trimming leading/trailing
   whitespace, enforced in the Worker before the D1 write (SQLite has no length
   constraint). Reject with `400` and a JSON error body on failure.
+- **Name uniqueness, case-insensitive**: enforced by a `UNIQUE` D1 index on
+  `name COLLATE NOCASE` rather than a Worker-side SELECT-then-write check, which would
+  race under concurrent requests. `createProgram`/`renameProgram` catch the D1
+  `UNIQUE constraint failed` error and the Worker maps it to `409` with a JSON error
+  body. A rename to a program's own unchanged name does not conflict -- the constraint
+  only fires across distinct rows.
 - **Blazor admin page**: single page (`/admin` or similar), fetches `GET /api/programs`
-  on load, renders one row per program per mockup 11's top-level rows. Inline text edit
-  on the name cell triggers `PATCH` on blur; `[+ Program]` triggers `POST` with a
-  default name of `"New Program"` (12 chars, satisfies the 5-100 bound) then focuses
-  the name cell for immediate rename; `[x]` triggers `DELETE` with no confirmation
-  dialog (single-user, low-stakes, consistent with mockup's bare `[x]`).
+  on load, renders one row per program per mockup 11's top-level rows, each with a
+  `Delete` button (a deliberate departure from mockup 11's bare `[x]`). Editing the
+  name cell only updates local state; a row's `Save` button is rendered only while its
+  edited name differs from the last-saved value, and disappears again once `Save`
+  succeeds -- an explicit-action alternative to mockup 11's blur-to-save that avoids a
+  permanently-visible no-op button. `[+ Program]` triggers `POST` with a default name
+  of `"New Program"` (12 chars, satisfies the 5-100 bound) then focuses the name cell
+  for immediate rename. `Delete` triggers `DELETE` with no confirmation dialog
+  (single-user, low-stakes).
 - **No pagination/sorting**: program counts are small (single user, hand-authored
   programs); return all rows in creation order.
+- **Rename outcome is a type, not an exception**: `IProgramsApiClient.RenameProgramAsync`
+  returns a `RenameProgramOutcome` (`RenameProgramSucceeded` / `RenameProgramFailed`)
+  instead of calling `EnsureSuccessStatusCode()` -- per this repo's DDD rule ("Model
+  Outcomes as Types, Not Exceptions"), a `400` from the length-validation bound is an
+  expected alternate path for user-edited input, not an exceptional one, and letting it
+  throw crashed the Blazor renderer with an unhandled exception. `Programs.razor` also
+  runs the same 5-100 length check client-side before calling `Save`, so the common case
+  never round-trips to the server at all.
 
 ## Risks / Trade-offs
 
@@ -61,3 +79,10 @@ every later CRUD slice (sessions, categories, exercises) will repeat.
   so there is no risk of the two sides producing divergent values.
 - [No confirmation on delete] -> Mitigation: acceptable for a single-user app per
   CLAUDE.md context; revisit only if accidental deletes become a real problem.
+- [`DeleteProgramAsync` still calls `EnsureSuccessStatusCode()` and would crash the
+  renderer on an unexpected server error] -> Mitigation: the only realistic failure is a
+  `404` race (row already gone), a rare and low-stakes case. Left as-is for this slice;
+  revisit if it is observed to fail in practice. `CreateProgramAsync` no longer carries
+  this risk: name uniqueness makes a `409` a real, expected path (two quick `[+ Program]`
+  clicks both default to `"New Program"`), so it now returns a `CreateProgramOutcome`
+  the same way `RenameProgramAsync` returns a `RenameProgramOutcome`.

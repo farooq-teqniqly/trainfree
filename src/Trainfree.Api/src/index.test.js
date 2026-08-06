@@ -9,6 +9,29 @@ async function createProgram(name) {
     });
 }
 
+describe("CORS", () => {
+    it("responds to an OPTIONS preflight with allow headers and no body", async () => {
+        const response = await SELF.fetch("http://worker/api/programs", {
+            method: "OPTIONS",
+            headers: {
+                "Access-Control-Request-Method": "POST",
+                Origin: "http://localhost:5280",
+            },
+        });
+
+        expect(response.status).toBe(204);
+        expect(response.headers.get("access-control-allow-origin")).toBe("*");
+        expect(response.headers.get("access-control-allow-methods")).toContain("POST");
+        expect(await response.text()).toBe("");
+    });
+
+    it("includes Access-Control-Allow-Origin on normal responses", async () => {
+        const response = await SELF.fetch("http://worker/api/programs");
+
+        expect(response.headers.get("access-control-allow-origin")).toBe("*");
+    });
+});
+
 describe("GET /api/programs", () => {
     it("returns an empty array when no programs exist", async () => {
         const response = await SELF.fetch("http://worker/api/programs");
@@ -59,6 +82,18 @@ describe("POST /api/programs", () => {
 
         expect(response.status).toBe(400);
     });
+
+    it("rejects a name that already exists, case-insensitively, and creates no row", async () => {
+        await createProgram("Workout A");
+
+        const response = await createProgram("workout a");
+
+        expect(response.status).toBe(409);
+        expect((await response.json()).error).toBeTypeOf("string");
+
+        const list = await (await SELF.fetch("http://worker/api/programs")).json();
+        expect(list).toHaveLength(1);
+    });
 });
 
 describe("PATCH /api/programs/:id", () => {
@@ -100,6 +135,34 @@ describe("PATCH /api/programs/:id", () => {
 
         const list = await (await SELF.fetch("http://worker/api/programs")).json();
         expect(list[0].name).toBe("Workout A");
+    });
+
+    it("rejects renaming to another program's name, case-insensitively, and makes no change", async () => {
+        await createProgram("Workout A");
+        const other = await (await createProgram("Workout B")).json();
+
+        const response = await SELF.fetch(`http://worker/api/programs/${other.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "workout a" }),
+        });
+
+        expect(response.status).toBe(409);
+
+        const list = await (await SELF.fetch("http://worker/api/programs")).json();
+        expect(list.map((p) => p.name)).toEqual(["Workout A", "Workout B"]);
+    });
+
+    it("allows renaming a program to its own current name", async () => {
+        const created = await (await createProgram("Workout A")).json();
+
+        const response = await SELF.fetch(`http://worker/api/programs/${created.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "Workout A" }),
+        });
+
+        expect(response.status).toBe(200);
     });
 });
 

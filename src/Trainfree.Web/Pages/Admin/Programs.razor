@@ -7,12 +7,36 @@
 
 <h1>Trainfree Admin</h1>
 
-<button data-testid="add-program" @onclick="AddProgramAsync">+ Program</button>
+<button
+    class="btn btn-sm btn-outline-success"
+    data-testid="add-program"
+    @onclick="AddProgramAsync"
+>
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        fill="currentColor"
+        viewBox="0 0 16 16"
+        aria-hidden="true"
+    >
+        <path
+            d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M8.5 4.5a.5.5 0 0 0-1 0v3h-3a.5.5 0 0 0 0 1h3v3a.5.5 0 0 0 1 0v-3h3a.5.5 0 0 0 0-1h-3z"
+        />
+    </svg>
+    Add Program
+</button>
+
+@if (_addProgramError is not null)
+{
+    <div class="text-danger small" data-testid="add-program-error">@_addProgramError</div>
+}
 
 <table class="table">
     <thead>
         <tr>
             <th>Name</th>
+            <th></th>
             <th></th>
         </tr>
     </thead>
@@ -25,11 +49,63 @@
                         data-testid="name-input-@row.Id"
                         value="@row.Name"
                         autofocus="@(row.Id == _editingId)"
-                        @onchange="e => row.Name = (string)e.Value!"
-                        @onblur="() => RenameAsync(row)" />
+                        @oninput="e => row.Name = (string)e.Value!" />
+                    @if (row.Error is not null)
+                    {
+                        <div class="text-danger small" data-testid="name-error-@row.Id">
+                            @row.Error
+                        </div>
+                    }
                 </td>
                 <td>
-                    <button data-testid="delete-@row.Id" @onclick="() => DeleteAsync(row)">x</button>
+                    @if (row.IsDirty)
+                    {
+                        <button
+                            class="btn btn-sm btn-outline-primary"
+                            data-testid="save-@row.Id"
+                            title="Save"
+                            @onclick="() => RenameAsync(row)"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                fill="currentColor"
+                                viewBox="0 0 16 16"
+                                aria-hidden="true"
+                            >
+                                <path
+                                    d="M0 1.5A1.5 1.5 0 0 1 1.5 0H3v5.5A1.5 1.5 0 0 0 4.5 7h7A1.5 1.5 0 0 0 13 5.5V0h.086a1.5 1.5 0 0 1 1.06.44l1.415 1.414A1.5 1.5 0 0 1 16 2.914V14.5a1.5 1.5 0 0 1-1.5 1.5H14v-5.5A1.5 1.5 0 0 0 12.5 9h-9A1.5 1.5 0 0 0 2 10.5V16h-.5A1.5 1.5 0 0 1 0 14.5z"
+                                />
+                                <path
+                                    d="M3 16h10v-5.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5zm9-16H4v5.5a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5zM9 1h2v4H9z"
+                                />
+                            </svg>
+                            <span class="visually-hidden">Save</span>
+                        </button>
+                    }
+                </td>
+                <td>
+                    <button
+                        class="btn btn-sm btn-outline-danger"
+                        data-testid="delete-@row.Id"
+                        title="Delete"
+                        @onclick="() => DeleteAsync(row)"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            fill="currentColor"
+                            viewBox="0 0 16 16"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M2.5 1a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1H3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V4h.5a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H10a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1zm3 4a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 .5-.5M8 5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7A.5.5 0 0 1 8 5m3 .5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 1 0"
+                            />
+                        </svg>
+                        <span class="visually-hidden">Delete</span>
+                    </button>
                 </td>
             </tr>
         }
@@ -39,6 +115,7 @@
 @code {
     private readonly List<ProgramRow> _rows = [];
     private ProgramId? _editingId;
+    private string? _addProgramError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -48,15 +125,44 @@
 
     private async Task AddProgramAsync()
     {
-        var created = await Api.CreateProgramAsync("New Program");
-        _rows.Add(new ProgramRow(created.Id, created.Name));
-        _editingId = created.Id;
+        var outcome = await Api.CreateProgramAsync("New Program");
+        switch (outcome)
+        {
+            case CreateProgramSucceeded succeeded:
+                _rows.Add(new ProgramRow(succeeded.Program.Id, succeeded.Program.Name));
+                _editingId = succeeded.Program.Id;
+                _addProgramError = null;
+                break;
+            case CreateProgramFailed failed:
+                _addProgramError = failed.Error;
+                break;
+        }
     }
+
+    private const int MinNameLength = 5;
+    private const int MaxNameLength = 100;
 
     private async Task RenameAsync(ProgramRow row)
     {
-        var renamed = await Api.RenameProgramAsync(row.Id, row.Name);
-        row.Name = renamed.Name;
+        var trimmedLength = row.Name.Trim().Length;
+        if (trimmedLength is < MinNameLength or > MaxNameLength)
+        {
+            row.Error = $"Name must be between {MinNameLength} and {MaxNameLength} characters.";
+            return;
+        }
+
+        var outcome = await Api.RenameProgramAsync(row.Id, row.Name);
+        switch (outcome)
+        {
+            case RenameProgramSucceeded succeeded:
+                row.Name = succeeded.Program.Name;
+                row.SavedName = succeeded.Program.Name;
+                row.Error = null;
+                break;
+            case RenameProgramFailed failed:
+                row.Error = failed.Error;
+                break;
+        }
     }
 
     private async Task DeleteAsync(ProgramRow row)
@@ -69,5 +175,8 @@
     {
         public ProgramId Id { get; } = id;
         public string Name { get; set; } = name;
+        public string SavedName { get; set; } = name;
+        public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
+        public string? Error { get; set; }
     }
 }

@@ -14,7 +14,12 @@ internal interface IProgramsApiClient
     /// <summary>Creates a new program with the given name.</summary>
     /// <param name="name">The program name, 5-100 characters after trimming.</param>
     /// <param name="cancellationToken">Token used to cancel the request.</param>
-    Task<ProgramSummary> CreateProgramAsync(
+    /// <returns>
+    /// A <see cref="CreateProgramSucceeded"/> on success, or a <see cref="CreateProgramFailed"/>
+    /// carrying the server's error message when the server rejects the request (e.g. a
+    /// duplicate name).
+    /// </returns>
+    Task<CreateProgramOutcome> CreateProgramAsync(
         string name,
         CancellationToken cancellationToken = default
     );
@@ -23,7 +28,11 @@ internal interface IProgramsApiClient
     /// <param name="id">The program's identifier.</param>
     /// <param name="name">The new name, 5-100 characters after trimming.</param>
     /// <param name="cancellationToken">Token used to cancel the request.</param>
-    Task<ProgramSummary> RenameProgramAsync(
+    /// <returns>
+    /// A <see cref="RenameProgramSucceeded"/> on success, or a <see cref="RenameProgramFailed"/>
+    /// carrying the server's error message when the server rejects the request.
+    /// </returns>
+    Task<RenameProgramOutcome> RenameProgramAsync(
         ProgramId id,
         string name,
         CancellationToken cancellationToken = default

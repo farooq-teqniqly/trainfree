@@ -43,7 +43,9 @@ public sealed class ProgramsPageTests : BunitContext
         // Arrange
         _apiClient.GetProgramsAsync(CancellationToken.None).Returns(new List<ProgramSummary>());
         var created = new ProgramSummary(ProgramId.Parse("PRG-CCCCCC"), "New Program");
-        _apiClient.CreateProgramAsync("New Program", CancellationToken.None).Returns(created);
+        _apiClient
+            .CreateProgramAsync("New Program", CancellationToken.None)
+            .Returns(new CreateProgramSucceeded(created));
         var cut = Render<Programs>();
 
         // Act
@@ -56,7 +58,29 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
-    public async Task RenameProgram_NameBlurred_CallsRenameAndUpdatesDisplayedName()
+    public async Task AddProgram_ServerRejectsDuplicateName_ShowsErrorAndAddsNoRow()
+    {
+        // Arrange
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns(new List<ProgramSummary>());
+        _apiClient
+            .CreateProgramAsync("New Program", CancellationToken.None)
+            .Returns(new CreateProgramFailed("A program named \"New Program\" already exists."));
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-program']").Click());
+
+        // Assert
+        Assert.Contains(
+            "A program named \"New Program\" already exists.",
+            cut.Markup,
+            StringComparison.Ordinal
+        );
+        Assert.Empty(cut.FindAll("tbody tr"));
+    }
+
+    [Fact]
+    public async Task RenameProgram_NameEditedAndSaveClicked_CallsRenameAndUpdatesDisplayedName()
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
@@ -70,13 +94,13 @@ public sealed class ProgramsPageTests : BunitContext
                 "Renamed Workout",
                 CancellationToken.None
             )
-            .Returns(renamed);
+            .Returns(new RenameProgramSucceeded(renamed));
         var cut = Render<Programs>();
         var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
 
         // Act
-        await cut.InvokeAsync(() => input.Change("Renamed Workout"));
-        await cut.InvokeAsync(() => input.Blur());
+        await cut.InvokeAsync(() => input.Input("Renamed Workout"));
+        await cut.InvokeAsync(() => cut.Find("[data-testid='save-PRG-AAAAAA']").Click());
 
         // Assert
         await _apiClient
@@ -87,10 +111,101 @@ public sealed class ProgramsPageTests : BunitContext
                 CancellationToken.None
             );
         Assert.Contains("Renamed Workout", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='save-PRG-AAAAAA']"));
     }
 
     [Fact]
-    public async Task DeleteProgram_ClickX_CallsDeleteAndRemovesRow()
+    public async Task RenameProgram_NameFailsLengthBound_ShowsErrorAndDoesNotCallApi()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient
+            .GetProgramsAsync(CancellationToken.None)
+            .Returns(new List<ProgramSummary> { program });
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
+
+        // Act
+        await cut.InvokeAsync(() => input.Input("Ab"));
+        await cut.InvokeAsync(() => cut.Find("[data-testid='save-PRG-AAAAAA']").Click());
+
+        // Assert
+        await _apiClient
+            .DidNotReceive()
+            .RenameProgramAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+        Assert.NotEmpty(cut.FindAll("[data-testid='name-error-PRG-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task RenameProgram_ServerRejects_ShowsErrorWithoutThrowing()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient
+            .GetProgramsAsync(CancellationToken.None)
+            .Returns(new List<ProgramSummary> { program });
+        _apiClient
+            .RenameProgramAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                "Renamed Workout",
+                CancellationToken.None
+            )
+            .Returns(new RenameProgramFailed("name must be between 5 and 100 characters"));
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
+
+        // Act
+        await cut.InvokeAsync(() => input.Input("Renamed Workout"));
+        await cut.InvokeAsync(() => cut.Find("[data-testid='save-PRG-AAAAAA']").Click());
+
+        // Assert
+        Assert.Contains(
+            "name must be between 5 and 100 characters",
+            cut.Markup,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public void SaveButton_NoUnsavedChanges_IsNotShown()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient
+            .GetProgramsAsync(CancellationToken.None)
+            .Returns(new List<ProgramSummary> { program });
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='save-PRG-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task SaveButton_NameEdited_BecomesVisible()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient
+            .GetProgramsAsync(CancellationToken.None)
+            .Returns(new List<ProgramSummary> { program });
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
+
+        // Act
+        await cut.InvokeAsync(() => input.Input("Renamed Workout"));
+
+        // Assert
+        Assert.Single(cut.FindAll("[data-testid='save-PRG-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task DeleteProgram_ClickDelete_CallsDeleteAndRemovesRow()
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");

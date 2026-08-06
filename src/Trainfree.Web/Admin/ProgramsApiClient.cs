@@ -31,7 +31,7 @@ internal sealed class ProgramsApiClient : IProgramsApiClient
     }
 
     /// <inheritdoc/>
-    public async Task<ProgramSummary> CreateProgramAsync(
+    public async Task<CreateProgramOutcome> CreateProgramAsync(
         string name,
         CancellationToken cancellationToken = default
     )
@@ -41,16 +41,21 @@ internal sealed class ProgramsApiClient : IProgramsApiClient
             new { name },
             cancellationToken
         );
-        response.EnsureSuccessStatusCode();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return new CreateProgramFailed(await ReadErrorAsync(response, cancellationToken));
+        }
+
         var dto = await response.Content.ReadFromJsonAsync<ProgramDto>(
             JsonOptions,
             cancellationToken
         );
-        return ToSummary(dto!);
+        return new CreateProgramSucceeded(ToSummary(dto!));
     }
 
     /// <inheritdoc/>
-    public async Task<ProgramSummary> RenameProgramAsync(
+    public async Task<RenameProgramOutcome> RenameProgramAsync(
         ProgramId id,
         string name,
         CancellationToken cancellationToken = default
@@ -61,12 +66,17 @@ internal sealed class ProgramsApiClient : IProgramsApiClient
             new { name },
             cancellationToken
         );
-        response.EnsureSuccessStatusCode();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return new RenameProgramFailed(await ReadErrorAsync(response, cancellationToken));
+        }
+
         var dto = await response.Content.ReadFromJsonAsync<ProgramDto>(
             JsonOptions,
             cancellationToken
         );
-        return ToSummary(dto!);
+        return new RenameProgramSucceeded(ToSummary(dto!));
     }
 
     /// <inheritdoc/>
@@ -82,8 +92,22 @@ internal sealed class ProgramsApiClient : IProgramsApiClient
         response.EnsureSuccessStatusCode();
     }
 
+    private static async Task<string> ReadErrorAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken
+    )
+    {
+        var body = await response.Content.ReadFromJsonAsync<ErrorDto>(
+            JsonOptions,
+            cancellationToken
+        );
+        return body?.Error ?? $"Request failed with status {(int)response.StatusCode}.";
+    }
+
     private static ProgramSummary ToSummary(ProgramDto dto) =>
         new(ProgramId.Parse(dto.Id), dto.Name);
 
     private sealed record ProgramDto(string Id, string Name, string CreatedAt, string UpdatedAt);
+
+    private sealed record ErrorDto(string Error);
 }
