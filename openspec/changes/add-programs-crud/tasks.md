@@ -1,9 +1,9 @@
 ## 1. D1 Schema
 
-- [ ] 1.1 Add a `wrangler d1 migrations` migration file creating the `programs` table
+- [x] 1.1 Add a `wrangler d1 migrations` migration file creating the `programs` table
       (`id INTEGER PRIMARY KEY AUTOINCREMENT`, `program_id TEXT NOT NULL UNIQUE`,
       `name TEXT NOT NULL`, `created_at TEXT NOT NULL`, `updated_at TEXT NOT NULL`).
-- [ ] 1.2 Apply the migration locally and confirm the table exists via `wrangler d1
+- [x] 1.2 Apply the migration locally and confirm the table exists via `wrangler d1
       execute` against the local dev database.
 
 ## 2. Worker API

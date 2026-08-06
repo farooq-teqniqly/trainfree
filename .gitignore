@@ -427,3 +427,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Wrangler local dev state (local D1 sqlite, cache)
+.wrangler/
