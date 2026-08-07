@@ -23,5 +23,5 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
-      - name: Require completed changes to be archived
+      - name: Require changes to be archived
         run: bash .github/scripts/require-archived-changes.sh
