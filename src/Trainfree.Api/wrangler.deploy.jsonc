@@ -10,11 +10,11 @@
     "d1_databases": [
         {
             "binding": "DB",
-            "database_name": "programs_db",
-            // Placeholder -- replace with the real ID from a one-time `wrangler d1 create
-            // programs_db` run (see CLAUDE.md: resource creation is a separate, non-idempotent
-            // setup script, never part of the deploy pipeline).
-            "database_id": "00000000-0000-0000-0000-000000000000"
+            "database_name": "trainfree_db",
+            // Created once with `wrangler d1 create trainfree_db` (see CLAUDE.md: resource
+            // creation is a separate, non-idempotent setup script, never part of the deploy
+            // pipeline). Not a secret.
+            "database_id": "f99013f2-e1c9-48d7-9f63-cfb3c853f421"
         }
     ],
     // The Blazor project publishes into a sibling directory; deploy.yaml runs

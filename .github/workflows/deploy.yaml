@@ -16,11 +16,27 @@ concurrency:
 jobs:
     deploy:
         runs-on: ubuntu-latest
-        # wrangler.jsonc names a single fixed Worker, so a dispatch from a feature branch
-        # would overwrite the production deployment. Only main may deploy.
-        if: github.ref == 'refs/heads/main'
+        # wrangler.jsonc names a single fixed Worker, so a deploy from a feature branch
+        # would overwrite production. Only main's content may deploy -- but this workflow's
+        # main trigger is a tag push, where github.ref is refs/tags/v0.0.N, never
+        # refs/heads/main. Matching on the branch alone silently skipped every tagged
+        # deploy. Tags are admitted here and then checked against main below, since a tag
+        # can be pushed from any branch.
+        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
         steps:
             - uses: actions/checkout@v4
+              with:
+                  # Full history so the ancestry check below can see main.
+                  fetch-depth: 0
+
+            - name: Verify tag is on main
+              if: startsWith(github.ref, 'refs/tags/v')
+              run: |
+                  git fetch --no-tags origin main
+                  if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+                    echo "::error::Tag $GITHUB_REF_NAME ($GITHUB_SHA) is not an ancestor of main. Only tags on main may deploy."
+                    exit 1
+                  fi
 
             - uses: actions/setup-dotnet@v4
               with:
@@ -45,7 +61,7 @@ jobs:
                   accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
                   workingDirectory: src/Trainfree.Api
                   wranglerVersion: "4.118.0"
-                  command: d1 migrations apply programs_db --remote
+                  command: d1 migrations apply trainfree_db --remote
 
             - name: Deploy
               # Pinned to a SHA rather than a floating tag: this is the step that handles the
