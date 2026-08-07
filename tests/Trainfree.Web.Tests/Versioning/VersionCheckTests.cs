@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using Trainfree.Web.Versioning;
@@ -87,9 +88,27 @@ public sealed class VersionCheckTests : IDisposable
             Content = new StringContent(
                 "<html>Cloudflare Access login</html>",
                 Encoding.UTF8,
-                "application/json"
+                "text/html"
             ),
         };
+        var check = CreateCheck();
+
+        // Act
+        var outcome = await check.CheckAsync(CancellationToken.None);
+
+        // Assert
+        Assert.IsType<VersionUnknown>(outcome);
+    }
+
+    [Fact]
+    public async Task CheckAsync_ResponseCharsetIsUnresolvable_ReturnsVersionUnknown()
+    {
+        // Arrange
+        var content = new StringContent("{}", Encoding.UTF8);
+        content.Headers.ContentType = MediaTypeHeaderValue.Parse(
+            "application/json; charset=made-up-charset"
+        );
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
         var check = CreateCheck();
 
         // Act

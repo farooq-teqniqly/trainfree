@@ -38,8 +38,11 @@ internal sealed record VersionStamp(string Version, string Commit)
     /// </summary>
     /// <param name="informationalVersion">The assembly's informational version.</param>
     /// <returns>The parsed stamp; a build with no <c>+commit</c> suffix reports commit <c>local</c>.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="informationalVersion"/> is null.
+    /// </exception>
     /// <exception cref="ArgumentException">
-    /// Thrown when <paramref name="informationalVersion"/> is null, empty, or whitespace.
+    /// Thrown when <paramref name="informationalVersion"/> is empty or whitespace.
     /// </exception>
     public static VersionStamp FromInformationalVersion(string informationalVersion)
     {
