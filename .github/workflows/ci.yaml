@@ -93,6 +93,33 @@ jobs:
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
         run: dotnet test "Trainfree.slnx" --configuration Release --no-build --verbosity normal
 
+  worker-tests:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: src/Trainfree.Api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/Trainfree.Api
+        run: npm ci
+
+      - name: Run vitest
+        working-directory: src/Trainfree.Api
+        run: npm test
+
   sonarqube-analysis:
     runs-on: ubuntu-latest
     timeout-minutes: 30

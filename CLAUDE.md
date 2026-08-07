@@ -27,7 +27,10 @@ build next and in what order).
 - **Prod API URL is never configured.** Same-origin design means the Blazor client's API
   base address is the relative path `/api` in production -- no environment-specific URL,
   no secret. Only `appsettings.Development.json` sets an absolute override
-  (`http://localhost:8787/api`, wrangler dev's default port) for local dev.
+  (`http://127.0.0.1:9999/api/`) for local dev. Port 9999, not wrangler's stock 8787 --
+  8787 has been observed to leak orphaned listener processes on Windows across restarts,
+  silently hanging every future connection to it until reboot. `wrangler.jsonc`'s `dev.port`
+  and `src/Trainfree.Api`'s `predev` npm script (`scripts/Kill-Port.ps1`) both pin to 9999.
 - **Persistence: Cloudflare D1 (SQLite)**, reached only from the Worker via its native D1
   binding -- the Blazor client never talks to D1 directly. Exercise images: Cloudflare R2,
   URL stored on the `Exercise` record in D1.

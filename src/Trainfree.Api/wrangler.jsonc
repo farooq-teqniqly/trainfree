@@ -1,0 +1,27 @@
+{
+    "name": "trainfree",
+    "main": "src/index.js",
+    "compatibility_date": "2026-08-03",
+    // 9999, not wrangler's stock 8787: 8787 was observed to leak orphaned listener
+    // processes on Windows across restarts, silently hanging every future connection
+    // until the OS was rebooted. 9999 has shown no such issue.
+    "dev": {
+        "port": 9999
+    },
+    "d1_databases": [
+        {
+            "binding": "DB",
+            "database_name": "programs_db",
+            // Placeholder -- replace with the real ID from a one-time `wrangler d1 create
+            // programs_db` run (see CLAUDE.md: resource creation is a separate, non-idempotent
+            // setup script, never part of the deploy pipeline). Not required for
+            // `--local` migrations/dev, which use a local sqlite file regardless of this value.
+            "database_id": "00000000-0000-0000-0000-000000000000"
+        }
+    ]
+    // No `assets` block here: this config is used for local `wrangler dev` and for
+    // `vitest`/Miniflare, neither of which has (or needs) a Blazor publish output on
+    // disk. The production deploy uses wrangler.deploy.jsonc instead, which adds
+    // `assets` pointing at the published wwwroot -- see that file and CLAUDE.md
+    // ("One Worker deployment serves both").
+}

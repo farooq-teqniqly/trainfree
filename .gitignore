@@ -427,3 +427,9 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Wrangler local dev state (local D1 sqlite, cache)
+.wrangler/
+
+# PR review docs (generated locally, not for repo)
+docs/pr-reviews/

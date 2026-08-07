@@ -6,4 +6,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Trainfree.Web\Trainfree.Web.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="bunit" />
+  </ItemGroup>
 </Project>
