@@ -135,7 +135,13 @@ internal sealed partial class ProgramsApiClient : IProgramsApiClient
         catch (Exception ex)
             when (ex is JsonException or InvalidOperationException or NotSupportedException)
         {
-            LogErrorBodyUnreadable(_logger, ex);
+            LogErrorBodyUnreadable(
+                _logger,
+                response.RequestMessage?.RequestUri?.ToString(),
+                response.Content.Headers.ContentType?.MediaType,
+                (int)response.StatusCode,
+                ex
+            );
             return fallback;
         }
     }
