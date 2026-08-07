@@ -49,6 +49,14 @@ build next and in what order).
 - **Deploy: tag-per-slice, `v0.0.N`.** `deploy.yaml` triggers on `v*.*.*` tags. After
   merging a slice's PR to `main`, push a `v0.0.N` tag to deploy. Bump to `v0.1.0` when the
   first real milestone is judged complete -- not tied to a specific slice.
+- **Every deploy is stamped twice, and the two stamps must agree.** `deploy.yaml` computes
+  one `<tag>+<short-sha>` stamp and injects it both into the Blazor assembly
+  (`-p:InformationalVersion`) and into the Worker (`wrangler deploy --var APP_VERSION/APP_COMMIT`).
+  The client compares its compiled-in stamp against `GET /api/version` on startup and shows a
+  reload banner when they differ, so a stale bundle can no longer serve silently (issue #18).
+  Anything that changes how either side is stamped has to change both, or the banner fires on
+  every load. `Trainfree.Web.csproj` disables `IncludeSourceRevisionInInformationalVersion`
+  for exactly that reason.
 - **Online-only for v0.1.** No offline queuing or local-first sync for set logging/history
   writes; explicitly deferred to a future version (see roadmap's "Open items").
 - **Cloudflare Access is configured manually** in the dashboard (owner's email only) --

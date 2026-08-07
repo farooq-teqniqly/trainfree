@@ -15,7 +15,13 @@ export default defineWorkersConfig(async () => {
                 workers: {
                     wrangler: { configPath: "./wrangler.jsonc" },
                     miniflare: {
-                        bindings: { TEST_MIGRATIONS: migrations },
+                        bindings: {
+                            TEST_MIGRATIONS: migrations,
+                            // Stand in for the values deploy.yaml stamps in with
+                            // `wrangler deploy --var`.
+                            APP_VERSION: "v9.9.9",
+                            APP_COMMIT: "abc1234",
+                        },
                     },
                 },
             },

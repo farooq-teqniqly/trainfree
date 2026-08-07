@@ -1,6 +1,7 @@
 import { createProgram, deleteProgram, listPrograms, renameProgram } from "./programs.js";
 import { validateProgramName } from "./validation.js";
 import { DuplicateNameError } from "./errors.js";
+import { versionStamp } from "./version.js";
 
 // The Worker and Blazor client are the same origin in production ([assets] + main share
 // one deployment), so no request there ever carries a cross-origin Origin header and
@@ -41,6 +42,18 @@ function jsonResponse(data, status = 200) {
         status,
         headers: { "content-type": "application/json" },
     });
+}
+
+function handleVersion(request, env) {
+    if (request.method !== "GET") {
+        return new Response("Method not allowed", { status: 405 });
+    }
+
+    // no-store, not just no-cache: this response is the one thing that must never be
+    // answered from any cache, or the staleness check would itself go stale.
+    const response = jsonResponse(versionStamp(env));
+    response.headers.set("cache-control", "no-store");
+    return response;
 }
 
 async function handleProgramsCollection(request, db) {
@@ -115,6 +128,10 @@ export default {
         // asset routing didn't already intercept still gets a real response.
         const isProgramsRoute =
             segments[0] === "api" && segments[1] === "programs" && segments.length <= 3;
+
+        if (segments[0] === "api" && segments[1] === "version" && segments.length === 2) {
+            return withCors(handleVersion(request, env), request);
+        }
 
         if (!isProgramsRoute) {
             if (env.ASSETS) {

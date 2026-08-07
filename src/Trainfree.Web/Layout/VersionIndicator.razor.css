@@ -1,0 +1,16 @@
+.version-update {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.25rem;
+    background-color: #fff3cd;
+    color: #664d03;
+    font-size: 0.875rem;
+}
+
+.version-stamp {
+    color: #6c757d;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}

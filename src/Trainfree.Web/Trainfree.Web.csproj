@@ -1,6 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
   <PropertyGroup>
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <!-- The SDK otherwise appends ".<full-sha>" to whatever InformationalVersion deploy.yaml
+         passes, so the stamp compiled in here would never equal the shorter one the Worker
+         reports and the update banner would fire on every load. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
