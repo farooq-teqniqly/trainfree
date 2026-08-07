@@ -47,6 +47,14 @@ internal sealed partial class VersionCheck : IVersionCheck
             LogVersionUnreachable(ex.Message);
             return new VersionUnknown();
         }
+        // HttpClient reports its own timeout as a cancellation. The filter keeps a real
+        // cancellation by the caller propagating -- only a timeout, where the supplied token
+        // is still unsignalled, degrades to "unknown".
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            LogVersionUnreachable(ex.Message);
+            return new VersionUnknown();
+        }
         // Everything the deserialize path can throw for a response that is not the JSON we
         // expect. Cloudflare Access answers an expired session with its own HTML login page
         // (JsonException); a response whose charset the runtime cannot resolve surfaces as

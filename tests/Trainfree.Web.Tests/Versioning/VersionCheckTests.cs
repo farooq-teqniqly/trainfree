@@ -101,6 +101,35 @@ public sealed class VersionCheckTests : IDisposable
     }
 
     [Fact]
+    public async Task CheckAsync_RequestTimesOut_ReturnsVersionUnknown()
+    {
+        // Arrange
+        _handler.Exception = new TaskCanceledException(
+            "The request was canceled due to the configured HttpClient.Timeout."
+        );
+        var check = CreateCheck();
+
+        // Act
+        var outcome = await check.CheckAsync(CancellationToken.None);
+
+        // Assert
+        Assert.IsType<VersionUnknown>(outcome);
+    }
+
+    [Fact]
+    public async Task CheckAsync_CallerCancels_PropagatesTheCancellation()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+        _handler.Exception = new TaskCanceledException("canceled");
+        var check = CreateCheck();
+
+        // Act / Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => check.CheckAsync(cts.Token));
+    }
+
+    [Fact]
     public async Task CheckAsync_ResponseCharsetIsUnresolvable_ReturnsVersionUnknown()
     {
         // Arrange
