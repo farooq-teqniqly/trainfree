@@ -9,7 +9,7 @@
 //
 // Safe to delete once no browser can plausibly still be running the offline worker.
 
-self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
 
 self.addEventListener('activate', event => event.waitUntil(onActivate()));
 
