@@ -29,12 +29,23 @@ fi
 # find, not a "$changes_dir"/*/ glob: a glob skips dot-prefixed names, so a change
 # parked at openspec/changes/.wip/ would slip past a gate that claims to catch any
 # change. Sorted for deterministic output; -print0 survives odd directory names.
+#
+# The scan writes to a temp file rather than feeding the loop from a process
+# substitution, so its exit status is actually observed. A failed scan inside
+# <(...) would leave violations empty and report success -- a false green on a
+# required merge gate, which is the failure this whole check exists to prevent.
+scan="$(mktemp)"
+trap 'rm -f "$scan"' EXIT
+
+if ! find "$changes_dir" -mindepth 1 -maxdepth 1 -type d ! -name archive -print0 |
+  LC_ALL=C sort -z >"$scan"; then
+  echo "Failed to scan $changes_dir for active changes; refusing to report success." >&2
+  exit 1
+fi
+
 while IFS= read -r -d '' change; do
   violations+=("$(basename "$change")")
-done < <(
-  find "$changes_dir" -mindepth 1 -maxdepth 1 -type d ! -name archive -print0 |
-    LC_ALL=C sort -z
-)
+done <"$scan"
 
 if [[ "${#violations[@]}" -ne 0 ]]; then
   echo "The following OpenSpec change(s) are still active and must be archived:"
