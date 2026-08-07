@@ -1,8 +1,12 @@
 import { generateProgramId } from "./ids.js";
-import { DuplicateNameError, isUniqueConstraintError } from "./errors.js";
+import { DuplicateNameError, uniqueConstraintColumns } from "./errors.js";
 
 const SELECT_COLUMNS =
     "program_id as id, name, created_at as createdAt, updated_at as updatedAt";
+
+// generateProgramId draws from a ~150-bit space (31^6), so a collision is exceedingly
+// unlikely; this bound only guards against pathological bad luck, not a real retry loop.
+const MAX_ID_GENERATION_ATTEMPTS = 5;
 
 export async function listPrograms(db) {
     const { results } = await db
@@ -12,24 +16,30 @@ export async function listPrograms(db) {
 }
 
 export async function createProgram(db, name) {
-    const id = generateProgramId();
     const now = new Date().toISOString();
 
-    try {
-        await db
-            .prepare(
-                "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            )
-            .bind(id, name, now, now)
-            .run();
-    } catch (err) {
-        if (isUniqueConstraintError(err)) {
-            throw new DuplicateNameError(name);
-        }
-        throw err;
-    }
+    for (let attempt = 1; attempt <= MAX_ID_GENERATION_ATTEMPTS; attempt++) {
+        const id = generateProgramId();
 
-    return { id, name, createdAt: now, updatedAt: now };
+        try {
+            await db
+                .prepare(
+                    "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                )
+                .bind(id, name, now, now)
+                .run();
+            return { id, name, createdAt: now, updatedAt: now };
+        } catch (err) {
+            const columns = uniqueConstraintColumns(err);
+            if (columns.includes("name")) {
+                throw new DuplicateNameError(name);
+            }
+            if (columns.includes("program_id") && attempt < MAX_ID_GENERATION_ATTEMPTS) {
+                continue;
+            }
+            throw err;
+        }
+    }
 }
 
 export async function renameProgram(db, id, name) {
@@ -42,7 +52,7 @@ export async function renameProgram(db, id, name) {
             .bind(name, now, id)
             .run();
     } catch (err) {
-        if (isUniqueConstraintError(err)) {
+        if (uniqueConstraintColumns(err).includes("name")) {
             throw new DuplicateNameError(name);
         }
         throw err;

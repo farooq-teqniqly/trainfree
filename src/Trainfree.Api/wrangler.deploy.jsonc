@@ -21,6 +21,10 @@
     // `dotnet publish` before `wrangler deploy` so this path exists at deploy time.
     "assets": {
         "directory": "../Trainfree.Web/bin/Release/net10.0/publish/wwwroot",
+        // Named binding so index.js can explicitly fall back to env.ASSETS.fetch() for
+        // any request that doesn't match /api/programs, rather than relying solely on
+        // platform-level asset routing.
+        "binding": "ASSETS",
         "not_found_handling": "single-page-application",
         // Without this, /index.html 307-redirects to /. Blazor's service worker caches the
         // shell under the key "index.html", and a redirected Response cannot legally be

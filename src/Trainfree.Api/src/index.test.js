@@ -10,7 +10,7 @@ async function createProgram(name) {
 }
 
 describe("CORS", () => {
-    it("responds to an OPTIONS preflight with allow headers and no body", async () => {
+    it("responds to an OPTIONS preflight from the dev origin with allow headers and no body", async () => {
         const response = await SELF.fetch("http://worker/api/programs", {
             method: "OPTIONS",
             headers: {
@@ -20,15 +20,56 @@ describe("CORS", () => {
         });
 
         expect(response.status).toBe(204);
-        expect(response.headers.get("access-control-allow-origin")).toBe("*");
+        expect(response.headers.get("access-control-allow-origin")).toBe(
+            "http://localhost:5280",
+        );
         expect(response.headers.get("access-control-allow-methods")).toContain("POST");
         expect(await response.text()).toBe("");
     });
 
-    it("includes Access-Control-Allow-Origin on normal responses", async () => {
+    it("includes Access-Control-Allow-Origin for the dev origin on normal responses", async () => {
+        const response = await SELF.fetch("http://worker/api/programs", {
+            headers: { Origin: "http://localhost:5280" },
+        });
+
+        expect(response.headers.get("access-control-allow-origin")).toBe(
+            "http://localhost:5280",
+        );
+    });
+
+    it("omits Access-Control-Allow-Origin when there is no Origin header (same-origin request)", async () => {
         const response = await SELF.fetch("http://worker/api/programs");
 
-        expect(response.headers.get("access-control-allow-origin")).toBe("*");
+        expect(response.headers.has("access-control-allow-origin")).toBe(false);
+    });
+
+    it("omits Access-Control-Allow-Origin for an origin other than the known dev origin", async () => {
+        const response = await SELF.fetch("http://worker/api/programs", {
+            headers: { Origin: "https://evil.example" },
+        });
+
+        expect(response.headers.has("access-control-allow-origin")).toBe(false);
+    });
+});
+
+describe("routing", () => {
+    it("returns 404 for a path with segments beyond the resource id", async () => {
+        const created = await (await createProgram("Workout A")).json();
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${created.id}/extra`,
+        );
+
+        expect(response.status).toBe(404);
+    });
+
+    it("returns 404 for a non-api path when no assets binding is configured", async () => {
+        // This test's wrangler.jsonc has no `assets` block (see vitest.config.js), so
+        // env.ASSETS is undefined and the Worker falls back to a plain 404 -- the
+        // production config (wrangler.deploy.jsonc) has an ASSETS binding instead.
+        const response = await SELF.fetch("http://worker/admin");
+
+        expect(response.status).toBe(404);
     });
 });
 

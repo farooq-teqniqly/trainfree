@@ -3,9 +3,12 @@ const BODY_LENGTH = 6;
 const ALPHABET = "ABCDEFGHJKMNPQRSTVWXYZ23456789";
 
 export function generateProgramId() {
+    const randomBytes = new Uint8Array(BODY_LENGTH);
+    crypto.getRandomValues(randomBytes);
+
     let body = "";
-    for (let i = 0; i < BODY_LENGTH; i++) {
-        body += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+    for (const byte of randomBytes) {
+        body += ALPHABET[byte % ALPHABET.length];
     }
     return PREFIX + body;
 }

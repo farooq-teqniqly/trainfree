@@ -3,18 +3,34 @@ import { validateProgramName } from "./validation.js";
 import { DuplicateNameError } from "./errors.js";
 
 // The Worker and Blazor client are the same origin in production ([assets] + main share
-// one deployment), so these headers never gate a real request there. Locally, Blazor's
-// dev server and `wrangler dev` run on different ports -- without CORS the browser
-// silently blocks every fetch from the admin UI.
-const CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "content-type",
-};
+// one deployment), so no request there ever carries a cross-origin Origin header and
+// these headers are never needed. Locally, Blazor's dev server and `wrangler dev` run on
+// different ports -- without CORS the browser silently blocks every fetch from the admin
+// UI. Scoped to that one known dev origin rather than "*", so production never ships a
+// blanket allow-any-origin policy for what CLAUDE.md documents as a single-origin app.
+const DEV_ORIGIN = "http://localhost:5280";
 
-function withCors(response) {
+function corsHeadersFor(request) {
+    const origin = request.headers.get("Origin");
+    if (origin !== DEV_ORIGIN) {
+        return null;
+    }
+
+    return {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "content-type",
+    };
+}
+
+function withCors(response, request) {
+    const corsHeaders = corsHeadersFor(request);
+    if (!corsHeaders) {
+        return response;
+    }
+
     const headers = new Headers(response.headers);
-    for (const [key, value] of Object.entries(CORS_HEADERS)) {
+    for (const [key, value] of Object.entries(corsHeaders)) {
         headers.set(key, value);
     }
     return new Response(response.body, { status: response.status, headers });
@@ -86,14 +102,25 @@ async function handleProgramResource(request, db, id) {
 export default {
     async fetch(request, env) {
         if (request.method === "OPTIONS") {
-            return new Response(null, { status: 204, headers: CORS_HEADERS });
+            return new Response(null, { status: 204, headers: corsHeadersFor(request) ?? {} });
         }
 
         const url = new URL(request.url);
         const segments = url.pathname.split("/").filter(Boolean);
 
-        if (segments[0] !== "api" || segments[1] !== "programs") {
-            return withCors(new Response("Not found", { status: 404 }));
+        // Exactly /api/programs (collection, length 2) or /api/programs/:id (resource,
+        // length 3) -- anything else, including trailing segments past :id, is not a
+        // route this Worker owns. Falls through to the assets binding first (the Blazor
+        // static output) rather than a hardcoded 404, so a request the platform's own
+        // asset routing didn't already intercept still gets a real response.
+        const isProgramsRoute =
+            segments[0] === "api" && segments[1] === "programs" && segments.length <= 3;
+
+        if (!isProgramsRoute) {
+            if (env.ASSETS) {
+                return env.ASSETS.fetch(request);
+            }
+            return withCors(new Response("Not found", { status: 404 }), request);
         }
 
         const id = segments[2];
@@ -101,6 +128,6 @@ export default {
             ? await handleProgramResource(request, env.DB, id)
             : await handleProgramsCollection(request, env.DB);
 
-        return withCors(response);
+        return withCors(response, request);
     },
 };
