@@ -83,8 +83,10 @@ the same PR as the code that depends on it.
 
 You normally do not run this by hand. `deploy.yaml` runs
 `wrangler d1 migrations apply trainfree_db --remote` on every `v*.*.*` tag, before the
-Worker deploy. The manual equivalent, which needs Cloudflare credentials, is
-`npm run db:migrate:remote`.
+Worker deploy. The tag must point at a commit on `main` -- the workflow verifies this and
+fails the deploy otherwise, because a single fixed Worker name means a deploy from a
+feature branch would overwrite production. The manual equivalent, which needs Cloudflare
+credentials, is `npm run db:migrate:remote`.
 
 ### Reset the local database
 
