@@ -238,8 +238,10 @@ double-braced PROJECT_NAME token when the baseline copy is synced.
   refuse a perfectly merged branch here, and `-D` alone proves nothing.
 - When the repo uses OpenSpec, **archive a change in the same PR that ships it** --
   `openspec archive <name> -y` before merge, never deferred to a follow-up PR. The
-  `openspec-archive-check` workflow fails any PR that leaves a fully-checked `tasks.md`
-  unarchived. A change with open tasks, or no `tasks.md` yet, is exempt while in progress.
+  `openspec-archive-check` workflow fails any PR that leaves a change under
+  `openspec/changes/`, whatever state its `tasks.md` is in -- checkboxes are
+  self-reported and too easy to leave stale to gate a merge on. In-progress work stays
+  on its branch; a change too large for one PR is split into separate changes.
 
 ## Optional modules
 

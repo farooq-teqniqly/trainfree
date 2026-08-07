@@ -1,8 +1,8 @@
 name: OpenSpec archive check
 
-# Blocks a PR that leaves a completed OpenSpec change unarchived. This project
-# archives a change in the same PR that ships it, so a change whose tasks are all
-# complete must already live under openspec/changes/archive/ by merge time.
+# Blocks a PR that leaves an OpenSpec change unarchived. This project archives a
+# change in the same PR that ships it, so every change must already live under
+# openspec/changes/archive/ by merge time -- task state does not exempt it.
 
 # Runs on every PR (no path filter) so it always reports a status and can be a
 # required check -- a required check that is skipped by a path filter would leave

@@ -1,12 +1,20 @@
 #!/usr/bin/env bash
 #
-# Fails when an OpenSpec change under openspec/changes/ has all of its tasks
-# complete but has not been archived. The project archives a change in the same
-# PR that ships it (see CLAUDE.md, "Pull requests"), so a finished-but-active
-# change is an unmet merge precondition.
+# Fails when any OpenSpec change is still active under openspec/changes/. This
+# project archives a change in the same PR that ships it (see CLAUDE.md, "Pull
+# requests"), so a change that is still active at merge time is an unmet merge
+# precondition -- whatever state its tasks are in.
 #
-# A change is exempt while it is still in progress: no tasks.md yet
-# (proposal-only), or a tasks.md that still has unchecked "- [ ]" items.
+# There is deliberately no in-progress exemption. An earlier version skipped a
+# change whose tasks.md still had unchecked items, which let add-programs-crud
+# merge to main unarchived on the strength of one open manual-verification task
+# (issue #12). Task checkboxes are self-reported and easy to leave stale, so
+# they are not a trustworthy signal for a merge gate; presence under
+# openspec/changes/ is.
+#
+# Work in progress therefore lives on its branch until the change is archived.
+# A change that genuinely needs to span several PRs has to be archived before
+# the first one merges, or split into separate changes.
 #
 set -euo pipefail
 
@@ -27,27 +35,11 @@ for change in "$changes_dir"/*/; do
 
   [[ -d "$change" ]] || continue
 
-  tasks="${change}tasks.md"
-  # No tasks file yet: the change is still being drafted (proposal-only).
-  [[ -f "$tasks" ]] || continue
-
-  # Count checked and unchecked task checkboxes at the start of a list item.
-  # Accept any Markdown list marker GitHub renders as a task: -, *, + or an
-  # ordered "N." marker, with any leading indent and any spacing before the box.
-  marker='^[[:space:]]*([-*+]|[0-9]+\.)[[:space:]]+\['
-  unchecked=$(grep -cE "${marker} \]" "$tasks" || true)
-  checked=$(grep -cE "${marker}[xX]\]" "$tasks" || true)
-
-  # In progress (has open tasks) or has no tasks at all: not yet completable.
-  if [[ "$unchecked" -ne 0 || "$checked" -eq 0 ]]; then
-    continue
-  fi
-
   violations+=("$(basename "$change")")
 done
 
 if [[ "${#violations[@]}" -ne 0 ]]; then
-  echo "The following OpenSpec change(s) have all tasks complete but are not archived:"
+  echo "The following OpenSpec change(s) are still active and must be archived:"
   for v in "${violations[@]}"; do
     echo "  - $v"
   done
@@ -58,4 +50,4 @@ if [[ "${#violations[@]}" -ne 0 ]]; then
   exit 1
 fi
 
-echo "OpenSpec archive check passed: no completed-but-unarchived changes."
+echo "OpenSpec archive check passed: no active changes."
