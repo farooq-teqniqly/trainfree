@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -12,6 +13,24 @@ public sealed class ProgramsPageTests : BunitContext
     private readonly IProgramsApiClient _apiClient = Substitute.For<IProgramsApiClient>();
 
     public ProgramsPageTests() => Services.AddSingleton(_apiClient);
+
+    [Fact]
+    public void OnInitialized_ServerReturnsTheAccessLoginPage_ShowsTheLoadErrorInsteadOfFailing()
+    {
+        // Arrange
+        _apiClient
+            .GetProgramsAsync(CancellationToken.None)
+            .Returns<IReadOnlyList<ProgramSummary>>(_ =>
+                throw new JsonException("'<' is an invalid start of a value.")
+            );
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.NotNull(cut.Find("[data-testid=load-programs-error]"));
+        Assert.Empty(cut.FindAll("tbody tr"));
+    }
 
     [Fact]
     public void OnInitialized_ExistingPrograms_RendersOneRowPerProgram()

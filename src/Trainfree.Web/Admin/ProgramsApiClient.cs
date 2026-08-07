@@ -1,12 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Trainfree.Web.Ids;
 
 namespace Trainfree.Web.Admin;
 
 /// <inheritdoc cref="IProgramsApiClient"/>
-internal sealed class ProgramsApiClient : IProgramsApiClient
+internal sealed partial class ProgramsApiClient : IProgramsApiClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -14,8 +15,13 @@ internal sealed class ProgramsApiClient : IProgramsApiClient
     };
 
     private readonly HttpClient _httpClient;
+    private readonly ILogger<ProgramsApiClient> _logger;
 
-    public ProgramsApiClient(HttpClient httpClient) => _httpClient = httpClient;
+    public ProgramsApiClient(HttpClient httpClient, ILogger<ProgramsApiClient> logger)
+    {
+        _httpClient = httpClient;
+        _logger = logger;
+    }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ProgramSummary>> GetProgramsAsync(
@@ -99,16 +105,45 @@ internal sealed class ProgramsApiClient : IProgramsApiClient
         return new DeleteProgramFailed(await ReadErrorAsync(response, cancellationToken));
     }
 
-    private static async Task<string> ReadErrorAsync(
+    private async Task<string> ReadErrorAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken
     )
     {
-        var body = await response.Content.ReadFromJsonAsync<ErrorDto>(
-            JsonOptions,
-            cancellationToken
-        );
-        return body?.Error ?? $"Request failed with status {(int)response.StatusCode}.";
+        var fallback = $"Request failed with status {(int)response.StatusCode}.";
+
+        // Only the Worker's own errors are JSON. A failure that never reached it -- most
+        // often Cloudflare Access answering an expired session with a 302 and an HTML login
+        // page -- would otherwise throw out of here and take down the page, since the
+        // callers handle outcomes rather than exceptions.
+        if (response.Content.Headers.ContentType?.MediaType is not "application/json")
+        {
+            return fallback;
+        }
+
+        try
+        {
+            var body = await response.Content.ReadFromJsonAsync<ErrorDto>(
+                JsonOptions,
+                cancellationToken
+            );
+            return body?.Error ?? fallback;
+        }
+        // A body labeled JSON that is not (an intermediary's error page with the wrong
+        // content type, a truncated response). Callers handle outcomes, not exceptions, so
+        // failing to read the reason must not become a failure to report one.
+        catch (Exception ex)
+            when (ex is JsonException or InvalidOperationException or NotSupportedException)
+        {
+            LogErrorBodyUnreadable(
+                _logger,
+                response.RequestMessage?.RequestUri?.ToString(),
+                response.Content.Headers.ContentType?.MediaType,
+                (int)response.StatusCode,
+                ex
+            );
+            return fallback;
+        }
     }
 
     private static ProgramSummary ToSummary(ProgramDto dto) =>
