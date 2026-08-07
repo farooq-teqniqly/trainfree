@@ -19,4 +19,9 @@
             "database_id": "00000000-0000-0000-0000-000000000000"
         }
     ]
+    // No `assets` block here: this config is used for local `wrangler dev` and for
+    // `vitest`/Miniflare, neither of which has (or needs) a Blazor publish output on
+    // disk. The production deploy uses wrangler.deploy.jsonc instead, which adds
+    // `assets` pointing at the published wwwroot -- see that file and CLAUDE.md
+    // ("One Worker deployment serves both").
 }

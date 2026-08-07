@@ -1,7 +1,9 @@
 @page "/admin"
+@using Microsoft.Extensions.Logging
 @using Trainfree.Web.Admin
 @using Trainfree.Web.Ids
 @inject IProgramsApiClient Api
+@inject ILogger<Programs> Logger
 
 <PageTitle>Trainfree Admin</PageTitle>
 
@@ -30,6 +32,16 @@
 @if (_addProgramError is not null)
 {
     <div class="text-danger small" data-testid="add-program-error">@_addProgramError</div>
+}
+
+@if (_deleteError is not null)
+{
+    <div class="text-danger small" data-testid="delete-program-error">@_deleteError</div>
+}
+
+@if (_loadError is not null)
+{
+    <div class="text-danger small" data-testid="load-programs-error">@_loadError</div>
 }
 
 <table class="table">
@@ -116,11 +128,21 @@
     private readonly List<ProgramRow> _rows = [];
     private ProgramId? _editingId;
     private string? _addProgramError;
+    private string? _deleteError;
+    private string? _loadError;
 
     protected override async Task OnInitializedAsync()
     {
-        var programs = await Api.GetProgramsAsync();
-        _rows.AddRange(programs.Select(p => new ProgramRow(p.Id, p.Name)));
+        try
+        {
+            var programs = await Api.GetProgramsAsync();
+            _rows.AddRange(programs.Select(p => new ProgramRow(p.Id, p.Name)));
+        }
+        catch (HttpRequestException ex)
+        {
+            _loadError = "Could not load programs. Try refreshing the page.";
+            LogLoadProgramsFailed(Logger, ex);
+        }
     }
 
     private async Task AddProgramAsync()
@@ -167,8 +189,17 @@
 
     private async Task DeleteAsync(ProgramRow row)
     {
-        await Api.DeleteProgramAsync(row.Id);
-        _rows.Remove(row);
+        var outcome = await Api.DeleteProgramAsync(row.Id);
+        switch (outcome)
+        {
+            case DeleteProgramSucceeded:
+                _rows.Remove(row);
+                _deleteError = null;
+                break;
+            case DeleteProgramFailed failed:
+                _deleteError = failed.Error;
+                break;
+        }
     }
 
     private sealed class ProgramRow(ProgramId id, string name)

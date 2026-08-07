@@ -41,5 +41,13 @@ internal interface IProgramsApiClient
     /// <summary>Deletes a program.</summary>
     /// <param name="id">The program's identifier.</param>
     /// <param name="cancellationToken">Token used to cancel the request.</param>
-    Task DeleteProgramAsync(ProgramId id, CancellationToken cancellationToken = default);
+    /// <returns>
+    /// A <see cref="DeleteProgramSucceeded"/> when the program is deleted or was already
+    /// gone, or a <see cref="DeleteProgramFailed"/> carrying the server's error message for
+    /// any other non-success response.
+    /// </returns>
+    Task<DeleteProgramOutcome> DeleteProgramAsync(
+        ProgramId id,
+        CancellationToken cancellationToken = default
+    );
 }

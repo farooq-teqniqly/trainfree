@@ -214,7 +214,7 @@ public sealed class ProgramsPageTests : BunitContext
             .Returns(new List<ProgramSummary> { program });
         _apiClient
             .DeleteProgramAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns(Task.CompletedTask);
+            .Returns(new DeleteProgramSucceeded());
         var cut = Render<Programs>();
 
         // Act
@@ -224,6 +224,45 @@ public sealed class ProgramsPageTests : BunitContext
         await _apiClient
             .Received(1)
             .DeleteProgramAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None);
+        Assert.Empty(cut.FindAll("tbody tr"));
+    }
+
+    [Fact]
+    public async Task DeleteProgram_ServerRejects_ShowsErrorAndKeepsRowWithoutThrowing()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient
+            .GetProgramsAsync(CancellationToken.None)
+            .Returns(new List<ProgramSummary> { program });
+        _apiClient
+            .DeleteProgramAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns(new DeleteProgramFailed("Request failed with status 500."));
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='delete-PRG-AAAAAA']").Click());
+
+        // Assert
+        Assert.Contains("Request failed with status 500.", cut.Markup, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("tbody tr"));
+    }
+
+    [Fact]
+    public void OnInitialized_LoadFails_ShowsErrorWithoutThrowing()
+    {
+        // Arrange
+        _apiClient
+            .GetProgramsAsync(CancellationToken.None)
+            .Returns<Task<IReadOnlyList<ProgramSummary>>>(_ =>
+                throw new HttpRequestException("simulated failure")
+            );
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll("[data-testid='load-programs-error']"));
         Assert.Empty(cut.FindAll("tbody tr"));
     }
 }

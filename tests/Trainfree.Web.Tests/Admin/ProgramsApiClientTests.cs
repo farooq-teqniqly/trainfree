@@ -140,6 +140,73 @@ public sealed class ProgramsApiClientTests : IDisposable
         Assert.Equal("A program named \"New Program\" already exists.", failed.Error);
     }
 
+    [Fact]
+    public async Task DeleteProgramAsync_ServerReturns204_ReturnsDeleteProgramSucceeded()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.NoContent);
+        var client = new ProgramsApiClient(_httpClient);
+
+        // Act
+        var outcome = await client.DeleteProgramAsync(
+            ProgramId.Parse("PRG-AAAAAA"),
+            CancellationToken.None
+        );
+
+        // Assert
+        Assert.IsType<DeleteProgramSucceeded>(outcome);
+    }
+
+    [Fact]
+    public async Task DeleteProgramAsync_ServerReturns404_ReturnsDeleteProgramSucceeded()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.NotFound)
+        {
+            Content = new StringContent(
+                """{"error":"program not found"}""",
+                Encoding.UTF8,
+                "application/json"
+            ),
+        };
+        var client = new ProgramsApiClient(_httpClient);
+
+        // Act
+        var outcome = await client.DeleteProgramAsync(
+            ProgramId.Parse("PRG-AAAAAA"),
+            CancellationToken.None
+        );
+
+        // Assert -- a 404 means the caller's desired end state already holds, so it is
+        // treated as success rather than surfaced as an error.
+        Assert.IsType<DeleteProgramSucceeded>(outcome);
+    }
+
+    [Fact]
+    public async Task DeleteProgramAsync_ServerReturns500_ReturnsDeleteProgramFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.InternalServerError)
+        {
+            Content = new StringContent(
+                """{"error":"internal error"}""",
+                Encoding.UTF8,
+                "application/json"
+            ),
+        };
+        var client = new ProgramsApiClient(_httpClient);
+
+        // Act
+        var outcome = await client.DeleteProgramAsync(
+            ProgramId.Parse("PRG-AAAAAA"),
+            CancellationToken.None
+        );
+
+        // Assert
+        var failed = Assert.IsType<DeleteProgramFailed>(outcome);
+        Assert.Equal("internal error", failed.Error);
+    }
+
     private sealed class TestHttpMessageHandler : HttpMessageHandler
     {
         public HttpResponseMessage? NextResponse { get; set; }

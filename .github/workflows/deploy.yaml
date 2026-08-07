@@ -34,6 +34,19 @@ jobs:
             - name: Remove stray _redirects
               run: rm -f src/Trainfree.Web/bin/Release/net10.0/publish/wwwroot/_redirects
 
+            - name: Apply D1 migrations
+              # Runs before deploy so a slice that adds a migration (e.g.
+              # 0002_add_programs_name_unique_index.sql) reaches the remote database on
+              # every tag, per CLAUDE.md ("wrangler d1 migrations apply runs automatically
+              # in deploy.yaml on every tag").
+              uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
+              with:
+                  apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+                  workingDirectory: src/Trainfree.Api
+                  wranglerVersion: "4.118.0"
+                  command: d1 migrations apply programs_db --remote
+
             - name: Deploy
               # Pinned to a SHA rather than a floating tag: this is the step that handles the
               # Cloudflare API token. SHA is the v4 tag as of 2026-08-02.
@@ -41,8 +54,10 @@ jobs:
               with:
                   apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
                   accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-                  workingDirectory: src/Trainfree.Web
-                  # wrangler.jsonc has no `main` -- a static-assets-only deploy, which wrangler 3
-                  # rejects with "Missing entry-point". The v3 action defaulted to wrangler 3.90.0
-                  # and failed on that. Pinned rather than floating so CI matches the local CLI.
+                  # wrangler.deploy.jsonc's `main` handles /api/* and `assets` serves the
+                  # Blazor output published above -- deploying from src/Trainfree.Web
+                  # (assets-only, no `main`) previously shipped a Worker with no API and
+                  # no D1 binding under the same Worker name.
+                  workingDirectory: src/Trainfree.Api
                   wranglerVersion: "4.118.0"
+                  command: deploy --config wrangler.deploy.jsonc

@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Trainfree.Web.Ids;
@@ -80,7 +81,7 @@ internal sealed class ProgramsApiClient : IProgramsApiClient
     }
 
     /// <inheritdoc/>
-    public async Task DeleteProgramAsync(
+    public async Task<DeleteProgramOutcome> DeleteProgramAsync(
         ProgramId id,
         CancellationToken cancellationToken = default
     )
@@ -89,7 +90,13 @@ internal sealed class ProgramsApiClient : IProgramsApiClient
             new Uri($"programs/{id}", UriKind.Relative),
             cancellationToken
         );
-        response.EnsureSuccessStatusCode();
+
+        if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return new DeleteProgramSucceeded();
+        }
+
+        return new DeleteProgramFailed(await ReadErrorAsync(response, cancellationToken));
     }
 
     private static async Task<string> ReadErrorAsync(
