@@ -36,6 +36,20 @@ client's API calls at `http://127.0.0.1:9999/api/`; no further setup needed.
 
 Navigate to `http://localhost:5280/admin` for the admin UI (programs CRUD).
 
+## Running the tests
+
+```
+dotnet test Trainfree.slnx -c Release
+```
+
+```
+cd src/Trainfree.Api
+npm test
+```
+
+The .NET suite (xUnit + bUnit) and the Worker suite (vitest against a real
+Miniflare/D1 binding, no mocking) are independent -- run both before opening a PR.
+
 ### Troubleshooting
 
 - **Requests hang / never complete**: a port conflict, not your code. Run
