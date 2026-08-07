@@ -45,7 +45,7 @@ jobs:
                   accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
                   workingDirectory: src/Trainfree.Api
                   wranglerVersion: "4.118.0"
-                  command: d1 migrations apply programs_db --remote
+                  command: d1 migrations apply trainfree_db --remote
 
             - name: Deploy
               # Pinned to a SHA rather than a floating tag: this is the step that handles the
