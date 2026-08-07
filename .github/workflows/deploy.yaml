@@ -42,8 +42,21 @@ jobs:
               with:
                   dotnet-version: 10.0.x
 
+            # One stamp identifies the build in two places: compiled into the Blazor
+            # assembly (so it travels with the bundle the browser runs) and injected into
+            # the Worker as a plain var (so /api/version reports what is actually
+            # deployed). The client compares the two on startup -- see issue #18, where a
+            # stale bundle was serving indefinitely with no signal anywhere.
+            - name: Compute build stamp
+              id: stamp
+              run: |
+                  echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+                  echo "commit=$(git rev-parse --short=7 "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
+
             - name: Publish
-              run: dotnet publish src/Trainfree.Web/Trainfree.Web.csproj -c Release
+              run: |
+                  dotnet publish src/Trainfree.Web/Trainfree.Web.csproj -c Release \
+                    -p:InformationalVersion=${{ steps.stamp.outputs.version }}+${{ steps.stamp.outputs.commit }}
 
             # A stale _redirects left in publish/wwwroot from an earlier build would fail the
             # asset validator ("Infinite loop detected") against not_found_handling.
@@ -76,4 +89,4 @@ jobs:
                   # no D1 binding under the same Worker name.
                   workingDirectory: src/Trainfree.Api
                   wranglerVersion: "4.118.0"
-                  command: deploy --config wrangler.deploy.jsonc
+                  command: deploy --config wrangler.deploy.jsonc --var APP_VERSION:${{ steps.stamp.outputs.version }} --var APP_COMMIT:${{ steps.stamp.outputs.commit }}
