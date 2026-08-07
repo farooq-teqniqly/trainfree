@@ -19,13 +19,10 @@ public sealed class ProgramsPageTests : BunitContext
         // Arrange
         _apiClient
             .GetProgramsAsync(CancellationToken.None)
-            .Returns(
-                new List<ProgramSummary>
-                {
-                    new(ProgramId.Parse("PRG-AAAAAA"), "Workout A"),
-                    new(ProgramId.Parse("PRG-BBBBBB"), "Workout B"),
-                }
-            );
+            .Returns([
+                new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A"),
+                new ProgramSummary(ProgramId.Parse("PRG-BBBBBB"), "Workout B"),
+            ]);
 
         // Act
         var cut = Render<Programs>();
@@ -41,7 +38,7 @@ public sealed class ProgramsPageTests : BunitContext
     public async Task AddProgram_ClickPlusProgram_AppendsRowInEditMode()
     {
         // Arrange
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns(new List<ProgramSummary>());
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([]);
         var created = new ProgramSummary(ProgramId.Parse("PRG-CCCCCC"), "New Program");
         _apiClient
             .CreateProgramAsync("New Program", CancellationToken.None)
@@ -61,7 +58,7 @@ public sealed class ProgramsPageTests : BunitContext
     public async Task AddProgram_ServerRejectsDuplicateName_ShowsErrorAndAddsNoRow()
     {
         // Arrange
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns(new List<ProgramSummary>());
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([]);
         _apiClient
             .CreateProgramAsync("New Program", CancellationToken.None)
             .Returns(new CreateProgramFailed("A program named \"New Program\" already exists."));
@@ -84,9 +81,7 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient
-            .GetProgramsAsync(CancellationToken.None)
-            .Returns(new List<ProgramSummary> { program });
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var renamed = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Renamed Workout");
         _apiClient
             .RenameProgramAsync(
@@ -119,9 +114,7 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient
-            .GetProgramsAsync(CancellationToken.None)
-            .Returns(new List<ProgramSummary> { program });
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var cut = Render<Programs>();
         var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
 
@@ -145,9 +138,7 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient
-            .GetProgramsAsync(CancellationToken.None)
-            .Returns(new List<ProgramSummary> { program });
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         _apiClient
             .RenameProgramAsync(
                 ProgramId.Parse("PRG-AAAAAA"),
@@ -175,9 +166,7 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient
-            .GetProgramsAsync(CancellationToken.None)
-            .Returns(new List<ProgramSummary> { program });
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
 
         // Act
         var cut = Render<Programs>();
@@ -191,9 +180,7 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient
-            .GetProgramsAsync(CancellationToken.None)
-            .Returns(new List<ProgramSummary> { program });
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var cut = Render<Programs>();
         var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
 
@@ -209,9 +196,7 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient
-            .GetProgramsAsync(CancellationToken.None)
-            .Returns(new List<ProgramSummary> { program });
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         _apiClient
             .DeleteProgramAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
             .Returns(new DeleteProgramSucceeded());
@@ -232,9 +217,7 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient
-            .GetProgramsAsync(CancellationToken.None)
-            .Returns(new List<ProgramSummary> { program });
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         _apiClient
             .DeleteProgramAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
             .Returns(new DeleteProgramFailed("Request failed with status 500."));

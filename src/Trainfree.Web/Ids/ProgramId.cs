@@ -25,11 +25,11 @@ internal readonly record struct ProgramId
     /// Attempts to parse <paramref name="value"/> as a <see cref="ProgramId"/>.
     /// Returns <see langword="false"/> when the value is ill-formed.
     /// </summary>
-    public static bool TryParse(string value, out ProgramId id)
+    public static bool TryParse(string? value, out ProgramId id)
     {
         if (DomainId.IsValid(value, Prefix))
         {
-            id = new ProgramId(value);
+            id = new ProgramId(value!);
             return true;
         }
 

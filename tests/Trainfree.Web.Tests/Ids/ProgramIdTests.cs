@@ -34,7 +34,7 @@ public sealed class ProgramIdTests
     public void TryParse_IllFormedValue_ReturnsFalse(string? value)
     {
         // Act
-        var result = ProgramId.TryParse(value!, out _);
+        var result = ProgramId.TryParse(value, out _);
 
         // Assert
         Assert.False(result);
