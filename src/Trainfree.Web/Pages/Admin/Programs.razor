@@ -1,4 +1,5 @@
 @page "/admin"
+@using System.Text.Json
 @using Microsoft.Extensions.Logging
 @using Trainfree.Web.Admin
 @using Trainfree.Web.Ids
@@ -138,7 +139,18 @@
             var programs = await Api.GetProgramsAsync();
             _rows.AddRange(programs.Select(p => new ProgramRow(p.Id, p.Name)));
         }
-        catch (HttpRequestException ex)
+        // HttpRequestException alone was not enough: Cloudflare Access answers a request made
+        // before the session is established with its own HTML login page, which arrives as a
+        // JsonException and escaped, blanking the page instead of showing the load error.
+        // The charset and content-type cases come with it; a timeout arrives as a cancellation.
+        catch (Exception ex)
+            when (ex
+                    is HttpRequestException
+                        or JsonException
+                        or InvalidOperationException
+                        or NotSupportedException
+                        or OperationCanceledException
+            )
         {
             _loadError = "Could not load programs. Try refreshing the page.";
             LogLoadProgramsFailed(Logger, ex);

@@ -104,11 +104,22 @@ internal sealed class ProgramsApiClient : IProgramsApiClient
         CancellationToken cancellationToken
     )
     {
+        var fallback = $"Request failed with status {(int)response.StatusCode}.";
+
+        // Only the Worker's own errors are JSON. A failure that never reached it -- most
+        // often Cloudflare Access answering an expired session with a 302 and an HTML login
+        // page -- would otherwise throw out of here and take down the page, since the
+        // callers handle outcomes rather than exceptions.
+        if (response.Content.Headers.ContentType?.MediaType is not "application/json")
+        {
+            return fallback;
+        }
+
         var body = await response.Content.ReadFromJsonAsync<ErrorDto>(
             JsonOptions,
             cancellationToken
         );
-        return body?.Error ?? $"Request failed with status {(int)response.StatusCode}.";
+        return body?.Error ?? fallback;
     }
 
     private static ProgramSummary ToSummary(ProgramDto dto) =>

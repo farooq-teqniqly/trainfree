@@ -20,6 +20,28 @@ public sealed class ProgramsApiClientTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateProgramAsync_ServerReturnsTheAccessLoginPage_ReturnsCreateProgramFailed()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.Found)
+        {
+            Content = new StringContent(
+                "<html><head><title>302 Found</title></head></html>",
+                Encoding.UTF8,
+                "text/html"
+            ),
+        };
+        var client = new ProgramsApiClient(_httpClient);
+
+        // Act
+        var outcome = await client.CreateProgramAsync("New Program", CancellationToken.None);
+
+        // Assert
+        var failed = Assert.IsType<CreateProgramFailed>(outcome);
+        Assert.Contains("302", failed.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RenameProgramAsync_ServerReturns200_ReturnsRenameProgramSucceeded()
     {
         // Arrange
