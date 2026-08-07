@@ -40,6 +40,11 @@ export async function createProgram(db, name) {
             throw err;
         }
     }
+
+    // Unreachable: every loop iteration above either returns or throws. Kept so the
+    // function has an explicit terminal path rather than an implicit `return undefined`
+    // control-flow analysis can't rule out from the loop alone.
+    throw new Error("Failed to generate a unique program id after multiple attempts.");
 }
 
 export async function renameProgram(db, id, name) {
