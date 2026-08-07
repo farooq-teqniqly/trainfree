@@ -1,7 +1,10 @@
 # programs Specification
 
 ## Purpose
-TBD - created by archiving change add-programs-crud. Update Purpose after archive.
+Programs are the top-level container a user organizes workouts under. This spec covers
+a program's externally visible identity and name rules, the Worker's CRUD API over the
+`programs` table, and the Blazor admin page that manages them.
+
 ## Requirements
 ### Requirement: Program identifier format
 Each program SHALL be identified externally by a surrogate key in the form `PRG-`

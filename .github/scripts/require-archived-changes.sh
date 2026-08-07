@@ -26,17 +26,15 @@ if [[ ! -d "$changes_dir" ]]; then
   exit 0
 fi
 
-for change in "$changes_dir"/*/; do
-  # The archive/ folder holds already-archived changes -- skip it.
-  case "$change" in
-  "$changes_dir"/archive/) continue ;;
-  *) ;;
-  esac
-
-  [[ -d "$change" ]] || continue
-
+# find, not a "$changes_dir"/*/ glob: a glob skips dot-prefixed names, so a change
+# parked at openspec/changes/.wip/ would slip past a gate that claims to catch any
+# change. Sorted for deterministic output; -print0 survives odd directory names.
+while IFS= read -r -d '' change; do
   violations+=("$(basename "$change")")
-done
+done < <(
+  find "$changes_dir" -mindepth 1 -maxdepth 1 -type d ! -name archive -print0 |
+    LC_ALL=C sort -z
+)
 
 if [[ "${#violations[@]}" -ne 0 ]]; then
   echo "The following OpenSpec change(s) are still active and must be archived:"
