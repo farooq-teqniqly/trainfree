@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Microsoft.Extensions.Logging.Abstractions;
 using Trainfree.Web.Admin;
 using Trainfree.Web.Ids;
 
@@ -31,7 +32,7 @@ public sealed class ProgramsApiClientTests : IDisposable
                 "text/html"
             ),
         };
-        var client = new ProgramsApiClient(_httpClient);
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
 
         // Act
         var outcome = await client.CreateProgramAsync("New Program", CancellationToken.None);
@@ -39,6 +40,28 @@ public sealed class ProgramsApiClientTests : IDisposable
         // Assert
         var failed = Assert.IsType<CreateProgramFailed>(outcome);
         Assert.Contains("302", failed.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CreateProgramAsync_ErrorBodyIsMalformedJson_ReturnsCreateProgramFailed()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.BadGateway)
+        {
+            Content = new StringContent(
+                "<html>gateway error</html>",
+                Encoding.UTF8,
+                "application/json"
+            ),
+        };
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
+
+        // Act
+        var outcome = await client.CreateProgramAsync("New Program", CancellationToken.None);
+
+        // Assert
+        var failed = Assert.IsType<CreateProgramFailed>(outcome);
+        Assert.Contains("502", failed.Error, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -53,7 +76,7 @@ public sealed class ProgramsApiClientTests : IDisposable
                 "application/json"
             ),
         };
-        var client = new ProgramsApiClient(_httpClient);
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
 
         // Act
         var outcome = await client.RenameProgramAsync(
@@ -79,7 +102,7 @@ public sealed class ProgramsApiClientTests : IDisposable
                 "application/json"
             ),
         };
-        var client = new ProgramsApiClient(_httpClient);
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
 
         // Act
         var outcome = await client.RenameProgramAsync(
@@ -105,7 +128,7 @@ public sealed class ProgramsApiClientTests : IDisposable
                 "application/json"
             ),
         };
-        var client = new ProgramsApiClient(_httpClient);
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
 
         // Act
         var outcome = await client.RenameProgramAsync(
@@ -130,7 +153,7 @@ public sealed class ProgramsApiClientTests : IDisposable
                 "application/json"
             ),
         };
-        var client = new ProgramsApiClient(_httpClient);
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
 
         // Act
         var outcome = await client.CreateProgramAsync("New Program", CancellationToken.None);
@@ -152,7 +175,7 @@ public sealed class ProgramsApiClientTests : IDisposable
                 "application/json"
             ),
         };
-        var client = new ProgramsApiClient(_httpClient);
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
 
         // Act
         var outcome = await client.CreateProgramAsync("New Program", CancellationToken.None);
@@ -167,7 +190,7 @@ public sealed class ProgramsApiClientTests : IDisposable
     {
         // Arrange
         _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.NoContent);
-        var client = new ProgramsApiClient(_httpClient);
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
 
         // Act
         var outcome = await client.DeleteProgramAsync(
@@ -191,7 +214,7 @@ public sealed class ProgramsApiClientTests : IDisposable
                 "application/json"
             ),
         };
-        var client = new ProgramsApiClient(_httpClient);
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
 
         // Act
         var outcome = await client.DeleteProgramAsync(
@@ -216,7 +239,7 @@ public sealed class ProgramsApiClientTests : IDisposable
                 "application/json"
             ),
         };
-        var client = new ProgramsApiClient(_httpClient);
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
 
         // Act
         var outcome = await client.DeleteProgramAsync(
