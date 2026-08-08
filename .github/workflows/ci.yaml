@@ -120,6 +120,55 @@ jobs:
         working-directory: src/Trainfree.Api
         run: npm test
 
+  workflow-lint:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    env:
+      # Pinned by version and checksum. actionlint has no first-party action, and its
+      # documented install path pipes a remote script into bash -- an unpinned third party
+      # in the build, which is the same thing deploy.yaml's SHA-pinned wrangler-action
+      # avoids. Bump both values together; the hash is from the release's checksums.txt.
+      ACTIONLINT_VERSION: "1.7.12"
+      ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install actionlint
+        run: |
+          url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          # --proto governs the initial request only; --proto-redir is what keeps a
+          # redirect from downgrading the download to plain HTTP. Both are needed with
+          # --location (SonarCloud githubactions:S6506). The checksum below still owns
+          # integrity -- this closes the tamperable hop ahead of it.
+          curl --silent --show-error --location --fail --max-time 120 \
+            --proto '=https' --proto-redir '=https' --tlsv1.2 \
+            --output actionlint.tar.gz "$url"
+          echo "${ACTIONLINT_SHA256}  actionlint.tar.gz" | sha256sum --check --strict
+          tar -xzf actionlint.tar.gz actionlint
+          sudo mv actionlint /usr/local/bin/
+
+      # actionlint runs shellcheck over every `run:` block, but only if shellcheck is on
+      # PATH -- otherwise it silently skips that half of the check. The runner image ships
+      # it; assert that here so the day it stops shipping is a failure, not a quiet
+      # downgrade.
+      - name: Verify shellcheck is present
+        run: shellcheck --version
+
+      - name: Lint workflows
+        run: actionlint -color
+
+      # The workflows' own scripts live outside any `run:` block, so actionlint does not
+      # reach them.
+      - name: Lint shell scripts
+        run: shellcheck .github/scripts/*.sh .githooks/*
+
   sonarqube-analysis:
     runs-on: ubuntu-latest
     timeout-minutes: 30

@@ -1,92 +1,125 @@
 name: Deploy to Cloudflare Workers
 
 on:
-    push:
-        tags:
-            - "v*.*.*"
-    workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
 
 permissions:
-    contents: read
+  contents: read
 
 concurrency:
-    group: deploy-workers
-    cancel-in-progress: false
+  group: deploy-workers
+  cancel-in-progress: false
 
 jobs:
-    deploy:
-        runs-on: ubuntu-latest
-        # wrangler.jsonc names a single fixed Worker, so a deploy from a feature branch
-        # would overwrite production. Only main's content may deploy -- but this workflow's
-        # main trigger is a tag push, where github.ref is refs/tags/v0.0.N, never
-        # refs/heads/main. Matching on the branch alone silently skipped every tagged
-        # deploy. Tags are admitted here and then checked against main below, since a tag
-        # can be pushed from any branch.
-        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  # Full history so the ancestry check below can see main.
-                  fetch-depth: 0
+  deploy:
+    runs-on: ubuntu-latest
+    # wrangler.jsonc names a single fixed Worker, so a deploy from a feature branch
+    # would overwrite production. Only main's content may deploy -- but this workflow's
+    # main trigger is a tag push, where github.ref is refs/tags/v0.0.N, never
+    # refs/heads/main. Matching on the branch alone silently skipped every tagged
+    # deploy. Tags are admitted here and then checked against main below, since a tag
+    # can be pushed from any branch.
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
+    steps:
+      # Every step carries a timeout-minutes. The default is the job's six hours, which for
+      # a pipeline whose slowest step is a couple of minutes means a hung network call
+      # burns runner time all day instead of failing. Values are generous multiples of the
+      # observed runtime, so they catch hangs without flagging a slow day.
+      - uses: actions/checkout@v4
+        timeout-minutes: 5
+        with:
+          # Full history so the ancestry check below can see main.
+          fetch-depth: 0
 
-            - name: Verify tag is on main
-              if: startsWith(github.ref, 'refs/tags/v')
-              run: |
-                  git fetch --no-tags origin main
-                  if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-                    echo "::error::Tag $GITHUB_REF_NAME ($GITHUB_SHA) is not an ancestor of main. Only tags on main may deploy."
-                    exit 1
-                  fi
+      - name: Verify tag is on main
+        if: startsWith(github.ref, 'refs/tags/v')
+        timeout-minutes: 5
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag $GITHUB_REF_NAME ($GITHUB_SHA) is not an ancestor of main. Only tags on main may deploy."
+            exit 1
+          fi
 
-            - uses: actions/setup-dotnet@v4
-              with:
-                  dotnet-version: 10.0.x
+      - uses: actions/setup-dotnet@v4
+        timeout-minutes: 10
+        with:
+          dotnet-version: 10.0.x
 
-            # One stamp identifies the build in two places: compiled into the Blazor
-            # assembly (so it travels with the bundle the browser runs) and injected into
-            # the Worker as a plain var (so /api/version reports what is actually
-            # deployed). The client compares the two on startup -- see issue #18, where a
-            # stale bundle was serving indefinitely with no signal anywhere.
-            - name: Compute build stamp
-              id: stamp
-              run: |
-                  echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-                  echo "commit=$(git rev-parse --short=7 "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
+      # One stamp identifies the build in two places: compiled into the Blazor
+      # assembly (so it travels with the bundle the browser runs) and injected into
+      # the Worker as a plain var (so /api/version reports what is actually
+      # deployed). The client compares the two on startup -- see issue #18, where a
+      # stale bundle was serving indefinitely with no signal anywhere.
+      - name: Compute build stamp
+        id: stamp
+        timeout-minutes: 2
+        run: |
+          echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git rev-parse --short=7 "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
 
-            - name: Publish
-              run: |
-                  dotnet publish src/Trainfree.Web/Trainfree.Web.csproj -c Release \
-                    -p:InformationalVersion=${{ steps.stamp.outputs.version }}+${{ steps.stamp.outputs.commit }}
+      - name: Publish
+        # The longest step: a cold NuGet restore plus a WASM AOT-less publish. 20 leaves
+        # room for a slow restore without letting a wedged one run to the job limit.
+        timeout-minutes: 20
+        run: |
+          dotnet publish src/Trainfree.Web/Trainfree.Web.csproj -c Release \
+            -p:InformationalVersion=${{ steps.stamp.outputs.version }}+${{ steps.stamp.outputs.commit }}
 
-            # A stale _redirects left in publish/wwwroot from an earlier build would fail the
-            # asset validator ("Infinite loop detected") against not_found_handling.
-            - name: Remove stray _redirects
-              run: rm -f src/Trainfree.Web/bin/Release/net10.0/publish/wwwroot/_redirects
+      # A stale _redirects left in publish/wwwroot from an earlier build would fail the
+      # asset validator ("Infinite loop detected") against not_found_handling.
+      - name: Remove stray _redirects
+        timeout-minutes: 2
+        run: rm -f src/Trainfree.Web/bin/Release/net10.0/publish/wwwroot/_redirects
 
-            - name: Apply D1 migrations
-              # Runs before deploy so a slice that adds a migration (e.g.
-              # 0002_add_programs_name_unique_index.sql) reaches the remote database on
-              # every tag, per CLAUDE.md ("wrangler d1 migrations apply runs automatically
-              # in deploy.yaml on every tag").
-              uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
-              with:
-                  apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-                  accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-                  workingDirectory: src/Trainfree.Api
-                  wranglerVersion: "4.118.0"
-                  command: d1 migrations apply trainfree_db --remote
+      - name: Apply D1 migrations
+        timeout-minutes: 10
+        # Runs before deploy so a slice that adds a migration (e.g.
+        # 0002_add_programs_name_unique_index.sql) reaches the remote database on
+        # every tag, per CLAUDE.md ("wrangler d1 migrations apply runs automatically
+        # in deploy.yaml on every tag").
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: src/Trainfree.Api
+          wranglerVersion: "4.118.0"
+          command: d1 migrations apply trainfree_db --remote
 
-            - name: Deploy
-              # Pinned to a SHA rather than a floating tag: this is the step that handles the
-              # Cloudflare API token. SHA is the v4 tag as of 2026-08-02.
-              uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
-              with:
-                  apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-                  accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-                  # wrangler.deploy.jsonc's `main` handles /api/* and `assets` serves the
-                  # Blazor output published above -- deploying from src/Trainfree.Web
-                  # (assets-only, no `main`) previously shipped a Worker with no API and
-                  # no D1 binding under the same Worker name.
-                  workingDirectory: src/Trainfree.Api
-                  wranglerVersion: "4.118.0"
-                  command: deploy --config wrangler.deploy.jsonc --var APP_VERSION:${{ steps.stamp.outputs.version }} --var APP_COMMIT:${{ steps.stamp.outputs.commit }}
+      - name: Deploy
+        id: deploy
+        # Uploading the Blazor asset bundle dominates this step, so it gets more headroom
+        # than the migrations step next to it.
+        timeout-minutes: 15
+        # Pinned to a SHA rather than a floating tag: this is the step that handles the
+        # Cloudflare API token. SHA is the v4 tag as of 2026-08-02.
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # wrangler.deploy.jsonc's `main` handles /api/* and `assets` serves the
+          # Blazor output published above -- deploying from src/Trainfree.Web
+          # (assets-only, no `main`) previously shipped a Worker with no API and
+          # no D1 binding under the same Worker name.
+          workingDirectory: src/Trainfree.Api
+          wranglerVersion: "4.118.0"
+          command: deploy --config wrangler.deploy.jsonc --var APP_VERSION:${{ steps.stamp.outputs.version }} --var APP_COMMIT:${{ steps.stamp.outputs.commit }}
+
+      # Fails the job unless the live /api/version reports the stamp this job just
+      # deployed; see the script's header comment for why and for the Cloudflare Access
+      # service token it needs. APP_BASE_URL (repo variable) wins over the workers.dev URL
+      # wrangler reports, since Access is often attached to a custom hostname instead.
+      - name: Verify deployed version
+        # Backstop only: the script bounds itself to about four minutes. Without this the
+        # step would inherit the job's six-hour default if it ever hung outside curl.
+        timeout-minutes: 10
+        env:
+          BASE_URL: ${{ vars.APP_BASE_URL || steps.deploy.outputs.deployment-url }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          EXPECTED_VERSION: ${{ steps.stamp.outputs.version }}
+          EXPECTED_COMMIT: ${{ steps.stamp.outputs.commit }}
+        run: bash .github/scripts/verify-deployed-version.sh
