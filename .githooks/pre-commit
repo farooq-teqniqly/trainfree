@@ -20,7 +20,14 @@ set -e
 require_tool() {
 	command -v "$1" >/dev/null 2>&1 && return 0
 	printf '%s is required to commit changes to %s but was not found on PATH.\n' "$1" "$2" >&2
-	printf 'Install it: see "Required tooling" in README.md.\n' >&2
+	# The URL, not just a pointer to a doc section: this message is what a contributor
+	# sees at the moment they are blocked, and a repo bootstrapped from the template may
+	# not carry that section yet.
+	case "$1" in
+	actionlint) printf 'Download: https://github.com/rhysd/actionlint/releases\n' >&2 ;;
+	*) printf 'Download: https://github.com/koalaman/shellcheck/releases\n' >&2 ;;
+	esac
+	printf 'See "Required tooling" in README.md, if present.\n' >&2
 	return 1
 }
 
@@ -33,9 +40,13 @@ lint_staged() {
 		# actionlint lints `run:` blocks only when shellcheck is present, and says nothing
 		# when it is not -- so demand it here too rather than accept a half-check.
 		require_tool shellcheck "GitHub Actions workflows" || return 1
-		# Lints the whole directory, not just the staged files: a workflow is checked
-		# against its siblings, and actionlint is fast enough that scoping adds nothing.
-		actionlint || return 1
+		# Only the staged files. Linting the whole directory meant an unrelated,
+		# half-finished workflow in the working tree could block a commit that does not
+		# touch it. actionlint checks each workflow independently, so nothing is lost.
+		printf '%s\n' "$staged_yaml" | while IFS= read -r file; do
+			[ -f "$file" ] || continue
+			actionlint "$file" || exit 1
+		done || return 1
 	fi
 
 	if [ -n "$staged_sh" ]; then

@@ -88,11 +88,15 @@ for attempt in $(seq 1 "$ATTEMPTS"); do
 
   if [ "$status" = "200" ] && [ -n "$body" ]; then
     # Anything non-JSON at 200 is the app misbehaving rather than Access, which the cases
-    # above have already ruled out -- quote it so the log says what. Both keys are required:
-    # with only `version` checked, a response missing `commit` would compose "<tag>+null",
-    # then burn every retry reporting a version mismatch that is really a malformed payload.
-    if ! printf '%s' "$body" | jq -e 'type == "object" and has("version") and has("commit")' >/dev/null 2>&1; then
-      echo "::error::$url returned 200 but not a version object with both 'version' and 'commit'. Response began: $(printf '%s' "$body" | head -c 200)"
+    # above have already ruled out -- quote it so the log says what. Both fields must be
+    # non-empty strings, not merely present: `jq -r` renders a null or numeric field as
+    # "null"/"0", which would compose a plausible-looking stamp and burn every retry
+    # reporting a version mismatch that is really a malformed payload.
+    if ! printf '%s' "$body" | jq -e '
+          type == "object"
+          and (.version | type == "string" and length > 0)
+          and (.commit  | type == "string" and length > 0)' >/dev/null 2>&1; then
+      echo "::error::$url returned 200 but not a version object with non-empty string 'version' and 'commit'. Response began: $(printf '%s' "$body" | head -c 200)"
       exit 1
     fi
 
