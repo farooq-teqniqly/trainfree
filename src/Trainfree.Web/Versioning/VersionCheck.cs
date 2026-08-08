@@ -55,12 +55,13 @@ internal sealed partial class VersionCheck : IVersionCheck
             LogVersionUnreachable(ex.Message);
             return new VersionUnknown();
         }
-        // Everything the deserialize path can throw for a response that is not the JSON we
-        // expect. Cloudflare Access answers an expired session with its own HTML login page
-        // (JsonException); a response whose charset the runtime cannot resolve surfaces as
-        // InvalidOperationException, and an unsupported content type as NotSupportedException.
-        // This component renders inside MainLayout, so an escaping exception here would take
-        // down every page over a check that is only advisory.
+        // The observed ways a response can fail to be the JSON we expect: Cloudflare Access
+        // answers an expired session with its own HTML login page (JsonException), a charset
+        // the runtime cannot resolve surfaces as InvalidOperationException, and an unsupported
+        // content type as NotSupportedException. The list no longer has to be exhaustive --
+        // MainLayout wraps VersionIndicator in an ErrorBoundary, so anything not listed here
+        // costs the indicator rather than the app. It exists to distinguish "unreadable" from
+        // "unreachable" in the log.
         catch (Exception ex)
             when (ex is JsonException or InvalidOperationException or NotSupportedException)
         {

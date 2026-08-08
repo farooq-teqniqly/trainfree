@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 <div class="page">
     <div class="sidebar">
         <NavMenu />
@@ -6,12 +6,36 @@
 
     <main>
         <div class="top-row px-4">
-            <VersionIndicator />
+            @* The version banner is advisory, so its blast radius is bounded structurally
+               rather than by enumerating what the check can throw: anything that escapes
+               costs the indicator, not the app. Absence matches VersionUnknown, which is
+               already silent, so there is deliberately no error UI here. *@
+            <ErrorBoundary>
+                <ChildContent>
+                    <VersionIndicator />
+                </ChildContent>
+                <ErrorContent></ErrorContent>
+            </ErrorBoundary>
             <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
         </div>
 
         <article class="content px-4">
-            @Body
+            <ErrorBoundary @ref="_pageBoundary">
+                <ChildContent>@Body</ChildContent>
+                <ErrorContent>
+                    <div class="alert alert-danger" role="alert" data-testid="page-error">
+                        Something went wrong on this page. Try again, or reload the app.
+                    </div>
+                </ErrorContent>
+            </ErrorBoundary>
         </article>
     </main>
 </div>
+
+@code {
+    private ErrorBoundary? _pageBoundary;
+
+    // A boundary latches its error until told otherwise. Navigating hands the layout a new
+    // Body, which is the point at which the previous page's failure stops being relevant.
+    protected override void OnParametersSet() => _pageBoundary?.Recover();
+}
