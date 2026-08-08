@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 <div class="page">
     <div class="sidebar">
         <NavMenu />
@@ -6,12 +6,50 @@
 
     <main>
         <div class="top-row px-4">
-            <VersionIndicator />
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            @* The version banner is advisory, so its blast radius is bounded structurally
+               rather than by enumerating what the check can throw. A trip costs the whole
+               indicator -- stamp included, unlike VersionUnknown, which suppresses only the
+               banner -- but never the app. No error UI: a broken advisory is not worth a
+               message to the user. The empty ErrorContent is required; omitting it falls
+               back to Blazor's own visible error UI. *@
+            <ErrorBoundary @ref="_versionBoundary">
+                <ChildContent>
+                    <VersionIndicator />
+                </ChildContent>
+                <ErrorContent></ErrorContent>
+            </ErrorBoundary>
+            <a
+                href="https://learn.microsoft.com/aspnet/core/"
+                target="_blank"
+                rel="noopener noreferrer"
+            >About</a>
         </div>
 
         <article class="content px-4">
-            @Body
+            <ErrorBoundary @ref="_pageBoundary">
+                <ChildContent>@Body</ChildContent>
+                <ErrorContent>
+                    <div class="alert alert-danger" role="alert" data-testid="page-error">
+                        Something went wrong on this page. Try again, or reload the app.
+                    </div>
+                </ErrorContent>
+            </ErrorBoundary>
         </article>
     </main>
 </div>
+
+@code {
+    private ErrorBoundary? _pageBoundary;
+    private ErrorBoundary? _versionBoundary;
+
+    // A boundary latches its error until told otherwise, and this layout is the router's
+    // DefaultLayout -- one instance for the life of the tab. Without this, one transient
+    // failure would hide the page (or the build stamp, which exists precisely so a stale
+    // bundle cannot serve silently) until a full reload. Navigating hands the layout a new
+    // Body, which is the point at which the previous failure stops being relevant.
+    protected override void OnParametersSet()
+    {
+        _pageBoundary?.Recover();
+        _versionBoundary?.Recover();
+    }
+}
