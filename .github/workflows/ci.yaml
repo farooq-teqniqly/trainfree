@@ -143,7 +143,11 @@ jobs:
       - name: Install actionlint
         run: |
           url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-          curl --silent --show-error --location --fail --max-time 120 --output actionlint.tar.gz "$url"
+          # --proto '=https' with --location: without it a redirect could downgrade the
+          # download to plain HTTP, which for a binary verified only by the checksum below
+          # would be a tamperable hop (SonarCloud githubactions:S6506).
+          curl --silent --show-error --location --fail --max-time 120 \
+            --proto '=https' --tlsv1.2 --output actionlint.tar.gz "$url"
           echo "${ACTIONLINT_SHA256}  actionlint.tar.gz" | sha256sum --check --strict
           tar -xzf actionlint.tar.gz actionlint
           sudo mv actionlint /usr/local/bin/
