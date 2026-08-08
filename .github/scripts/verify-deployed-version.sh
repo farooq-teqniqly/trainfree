@@ -96,7 +96,12 @@ for attempt in $(seq 1 "$ATTEMPTS"); do
           type == "object"
           and (.version | type == "string" and length > 0)
           and (.commit  | type == "string" and length > 0)' >/dev/null 2>&1; then
-      echo "::error::$url returned 200 but not a version object with non-empty string 'version' and 'commit'. Response began: $(printf '%s' "$body" | head -c 200)"
+      # The body is untrusted input and stays out of the ::error:: command: an embedded
+      # newline would truncate the annotation, and the runner parses any line beginning
+      # with "::" as a workflow command, so a crafted response could forge one. Collapsing
+      # CR/LF keeps the snippet on the single line that already starts with safe text.
+      echo "::error::$url returned 200 but not a version object with non-empty string 'version' and 'commit'."
+      echo "Response began: $(printf '%s' "$body" | head -c 200 | tr '\r\n' '  ')"
       exit 1
     fi
 
