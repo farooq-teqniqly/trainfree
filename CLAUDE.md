@@ -56,7 +56,13 @@ build next and in what order).
   reload banner when they differ, so a stale bundle can no longer serve silently (issue #18).
   Anything that changes how either side is stamped has to change both, or the banner fires on
   every load. `Trainfree.Web.csproj` disables `IncludeSourceRevisionInInformationalVersion`
-  for exactly that reason.
+  for exactly that reason. `deploy.yaml`'s final step polls the live `GET /api/version` and
+  fails the job unless it reports that same stamp, so a Worker deployed without the vars is
+  caught in CI instead of by opening the site. That step reaches through Cloudflare Access
+  with a service token (`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` secrets, a
+  different credential from `CLOUDFLARE_API_TOKEN`) against the origin in the `APP_BASE_URL`
+  repository variable; the token and its Service Auth policy are created manually in the
+  Zero Trust dashboard, like the rest of the Access config.
 - **Online-only for v0.1.** No offline queuing or local-first sync for set logging/history
   writes; explicitly deferred to a future version (see roadmap's "Open items").
 - **Cloudflare Access is configured manually** in the dashboard (owner's email only) --

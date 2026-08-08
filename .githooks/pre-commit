@@ -1,9 +1,55 @@
 #!/bin/sh
 #
-# Pre-commit hook: format staged C# files with CSharpier (from dotnet-tools.json).
-# Formatted files are re-staged so the commit contains the formatted result.
+# Pre-commit hook:
+#   1. format staged C# files with CSharpier (from dotnet-tools.json). Formatted files
+#      are re-staged so the commit contains the formatted result.
+#   2. lint staged workflow and shell files, when the linters happen to be installed.
 #
 set -e
+
+# Both linters are required tooling (see README, "Required tooling"), so a missing binary
+# fails the commit rather than silently skipping the check -- a skipped lint locally just
+# moves the failure to CI, after the push. They are checked only when a file they cover is
+# staged, so a contributor touching neither never needs them.
+#
+# Note on the list below: a comment whose first word is "shellcheck" parses as a lint
+# directive and errors, hence the leading dashes.
+#   - actionlint: https://github.com/rhysd/actionlint/releases
+#   - shellcheck: https://github.com/koalaman/shellcheck/releases
+require_tool() {
+	command -v "$1" >/dev/null 2>&1 && return 0
+	printf '%s is required to commit changes to %s but was not found on PATH.\n' "$1" "$2" >&2
+	printf 'Install it: see "Required tooling" in README.md.\n' >&2
+	return 1
+}
+
+lint_staged() {
+	staged_yaml=$(git diff --cached --name-only --diff-filter=ACMR -- '.github/workflows/*.yaml' '.github/workflows/*.yml')
+	staged_sh=$(git diff --cached --name-only --diff-filter=ACMR -- '.github/scripts/*.sh' '.githooks/*')
+
+	if [ -n "$staged_yaml" ]; then
+		require_tool actionlint "GitHub Actions workflows" || return 1
+		# actionlint lints `run:` blocks only when shellcheck is present, and says nothing
+		# when it is not -- so demand it here too rather than accept a half-check.
+		require_tool shellcheck "GitHub Actions workflows" || return 1
+		# Lints the whole directory, not just the staged files: a workflow is checked
+		# against its siblings, and actionlint is fast enough that scoping adds nothing.
+		actionlint || return 1
+	fi
+
+	if [ -n "$staged_sh" ]; then
+		require_tool shellcheck "shell scripts" || return 1
+		# printf, not echo, for the same reason as the CSharpier loop below.
+		printf '%s\n' "$staged_sh" | while IFS= read -r file; do
+			[ -f "$file" ] || continue
+			shellcheck "$file" || exit 1
+		done || return 1
+	fi
+
+	return 0
+}
+
+lint_staged
 
 # CSharpier 1.x formats C# and XML project/config files; match the same set here
 # so the hook can't miss drift that `dotnet csharpier check .` would later flag in CI.

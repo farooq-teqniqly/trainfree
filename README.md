@@ -3,6 +3,74 @@
 Self-hosted, single-user workout tracker. Blazor WebAssembly client + Cloudflare Worker
 API, backed by D1. See `CLAUDE.md` for architecture and conventions.
 
+## Required tooling
+
+Install all four before your first commit. The pre-commit hook and CI both run the
+linters, so a missing one is a failed commit, not a degraded check.
+
+| Tool | Version | Used for |
+| --- | --- | --- |
+| .NET SDK | 10.0.x (pinned in `global.json`) | Blazor client, tests, CSharpier |
+| Node.js | 22.x | Worker, `vitest`, `wrangler` |
+| [actionlint](https://github.com/rhysd/actionlint/releases) | 1.7.12 | GitHub Actions workflows |
+| [ShellCheck](https://github.com/koalaman/shellcheck/releases) | 0.11.0 | `.github/scripts/*.sh`, `.githooks/*` |
+
+The two linters are single binaries with no runtime dependencies -- unpack them anywhere on
+your `PATH`. actionlint only lints the `run:` blocks inside workflows when ShellCheck is
+also installed, which is why neither is optional.
+
+### Windows
+
+Git for Windows adds `~\bin` to the Git Bash `PATH` when it exists, which is where the
+hooks run -- so this is enough for `pre-commit` to find the tools. Windows itself does not
+put `~\bin` on `PATH`; to call them from PowerShell too, add it once:
+
+```powershell
+[Environment]::SetEnvironmentVariable(
+    'PATH', "$env:PATH;$HOME\bin", 'User')   # restart the shell afterwards
+```
+
+```powershell
+mkdir -Force ~\bin
+curl.exe -sSL -o ~\bin\jq.exe https://github.com/jqlang/jq/releases/latest/download/jq-windows-amd64.exe
+
+curl.exe -sSL -o $env:TEMP\actionlint.zip https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_windows_amd64.zip
+Expand-Archive $env:TEMP\actionlint.zip $env:TEMP\actionlint -Force
+Copy-Item $env:TEMP\actionlint\actionlint.exe ~\bin\
+
+curl.exe -sSL -o $env:TEMP\shellcheck.zip https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.zip
+Expand-Archive $env:TEMP\shellcheck.zip $env:TEMP\shellcheck -Force
+Copy-Item $env:TEMP\shellcheck\shellcheck.exe ~\bin\
+```
+
+### macOS / Linux
+
+```sh
+brew install actionlint shellcheck jq          # macOS
+sudo apt-get install -y shellcheck jq          # Debian/Ubuntu (actionlint: see releases)
+```
+
+### Verify
+
+```sh
+actionlint --version && shellcheck --version && jq --version
+```
+
+`jq` is not required by the hook, but `.github/scripts/verify-deployed-version.sh` uses it,
+so you need it to run that script locally.
+
+## Git hooks
+
+Hooks are version-controlled in `.githooks/` and activated via `core.hooksPath`. A build
+target sets this automatically; if that has not run, do it by hand once per clone:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+`pre-commit` formats staged C# with CSharpier and lints staged workflow and shell files.
+`commit-msg` enforces Conventional Commits.
+
 ## Local development
 
 Two servers run side by side: the Worker (D1-backed API) and the Blazor dev server.
