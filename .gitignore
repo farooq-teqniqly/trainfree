@@ -433,3 +433,4 @@ FodyWeavers.xsd
 
 # PR review docs (generated locally, not for repo)
 docs/pr-reviews/
+**/PR_REVIEW*

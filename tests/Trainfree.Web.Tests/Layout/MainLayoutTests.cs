@@ -2,7 +2,9 @@ using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
+using Trainfree.Web.Admin;
 using Trainfree.Web.Layout;
+using Trainfree.Web.Pages.Admin;
 using Trainfree.Web.Versioning;
 
 namespace Trainfree.Web.Tests.Layout;
@@ -18,11 +20,21 @@ public sealed class MainLayoutTests : BunitContext
         builder.CloseComponent();
     };
 
+    // A real routed page, so the write-path containment is proven where it actually failed
+    // rather than through a stand-in that only approximates an event handler.
+    private static readonly RenderFragment AdminPage = builder =>
+    {
+        builder.OpenComponent<Programs>(0);
+        builder.CloseComponent();
+    };
+
     private readonly IVersionCheck _versionCheck = Substitute.For<IVersionCheck>();
+    private readonly IProgramsApiClient _programs = Substitute.For<IProgramsApiClient>();
 
     public MainLayoutTests()
     {
         Services.AddSingleton(_versionCheck);
+        Services.AddSingleton(_programs);
         Services.AddSingleton(new VersionStamp("v0.0.3", "e4f5g6h"));
     }
 
@@ -58,6 +70,59 @@ public sealed class MainLayoutTests : BunitContext
         Assert.NotEmpty(cut.FindAll("[data-testid=page-error]"));
         Assert.NotEmpty(cut.FindAll(".version-stamp"));
         Assert.Empty(cut.FindAll(".blazor-error-boundary"));
+    }
+
+    [Fact]
+    public void Render_PageWriteFails_ShowsThePageErrorInsteadOfBlankingTheApp()
+    {
+        // Arrange
+        _versionCheck.CheckAsync(CancellationToken.None).Returns(new VersionUnknown());
+        _programs.GetProgramsAsync(CancellationToken.None).Returns([]);
+        _programs
+            .CreateProgramAsync("New Program", CancellationToken.None)
+            .Returns<CreateProgramOutcome>(_ => throw new HttpRequestException("network down"));
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, AdminPage));
+
+        // Act
+        cut.Find("[data-testid=add-program]").Click();
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll("[data-testid=page-error]"));
+        Assert.NotEmpty(cut.FindAll(".version-stamp"));
+    }
+
+    [Fact]
+    public void Render_NavigatingAfterAPageFailure_ClearsThePageError()
+    {
+        // Arrange
+        _versionCheck.CheckAsync(CancellationToken.None).Returns(new VersionUnknown());
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, FailingPage));
+
+        // Act
+        cut.Render(p => p.Add(x => x.Body, WorkingPage));
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll("[data-testid=page-body]"));
+        Assert.Empty(cut.FindAll("[data-testid=page-error]"));
+    }
+
+    [Fact]
+    public void Render_NavigatingAfterAVersionCheckFailure_BringsTheIndicatorBack()
+    {
+        // Arrange
+        _versionCheck
+            .CheckAsync(CancellationToken.None)
+            .Returns<VersionCheckOutcome>(
+                _ => throw new InvalidTimeZoneException("arbitrary check failure"),
+                _ => new RunningLatestVersion()
+            );
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, WorkingPage));
+
+        // Act
+        cut.Render(p => p.Add(x => x.Body, WorkingPage));
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll(".version-stamp"));
     }
 
     [Fact]
