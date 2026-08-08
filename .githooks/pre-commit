@@ -3,7 +3,8 @@
 # Pre-commit hook:
 #   1. format staged C# files with CSharpier (from dotnet-tools.json). Formatted files
 #      are re-staged so the commit contains the formatted result.
-#   2. lint staged workflow and shell files, when the linters happen to be installed.
+#   2. lint staged workflow and shell files with actionlint and ShellCheck. Both are
+#      required tooling: staging a file they cover without them installed fails the commit.
 #
 set -e
 

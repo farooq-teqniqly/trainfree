@@ -49,6 +49,13 @@ if [ -z "${EXPECTED_VERSION:-}" ] || [ -z "${EXPECTED_COMMIT:-}" ]; then
   echo "::error::EXPECTED_VERSION / EXPECTED_COMMIT are not set, so there is nothing to compare the deployed stamp against."
   exit 1
 fi
+# jq ships on the GitHub-hosted runner images, so this is really about local runs and any
+# future self-hosted runner. Checked up front because a missing jq would otherwise surface
+# below as "200 but not version JSON", blaming the response for a missing tool.
+if ! command -v jq >/dev/null 2>&1; then
+  echo "::error::jq is required to parse /api/version but was not found on PATH."
+  exit 1
+fi
 
 url="${BASE_URL%/}/api/version"
 expected="${EXPECTED_VERSION}+${EXPECTED_COMMIT}"
@@ -81,9 +88,11 @@ for attempt in $(seq 1 "$ATTEMPTS"); do
 
   if [ "$status" = "200" ] && [ -n "$body" ]; then
     # Anything non-JSON at 200 is the app misbehaving rather than Access, which the cases
-    # above have already ruled out -- quote it so the log says what.
-    if ! printf '%s' "$body" | jq -e 'type == "object" and has("version")' >/dev/null 2>&1; then
-      echo "::error::$url returned 200 but not version JSON. Response began: $(printf '%s' "$body" | head -c 200)"
+    # above have already ruled out -- quote it so the log says what. Both keys are required:
+    # with only `version` checked, a response missing `commit` would compose "<tag>+null",
+    # then burn every retry reporting a version mismatch that is really a malformed payload.
+    if ! printf '%s' "$body" | jq -e 'type == "object" and has("version") and has("commit")' >/dev/null 2>&1; then
+      echo "::error::$url returned 200 but not a version object with both 'version' and 'commit'. Response began: $(printf '%s' "$body" | head -c 200)"
       exit 1
     fi
 

@@ -5,15 +5,16 @@ API, backed by D1. See `CLAUDE.md` for architecture and conventions.
 
 ## Required tooling
 
-Install all four before your first commit. The pre-commit hook and CI both run the
-linters, so a missing one is a failed commit, not a degraded check.
+Install the four required tools before your first commit. The pre-commit hook and CI both
+run the linters, so a missing one is a failed commit, not a degraded check.
 
-| Tool | Version | Used for |
-| --- | --- | --- |
-| .NET SDK | 10.0.x (pinned in `global.json`) | Blazor client, tests, CSharpier |
-| Node.js | 22.x | Worker, `vitest`, `wrangler` |
-| [actionlint](https://github.com/rhysd/actionlint/releases) | 1.7.12 | GitHub Actions workflows |
-| [ShellCheck](https://github.com/koalaman/shellcheck/releases) | 0.11.0 | `.github/scripts/*.sh`, `.githooks/*` |
+| Tool | Version | Used for | |
+| --- | --- | --- | --- |
+| .NET SDK | 10.0.x (pinned in `global.json`) | Blazor client, tests, CSharpier | required |
+| Node.js | 22.x | Worker, `vitest`, `wrangler` | required |
+| [actionlint](https://github.com/rhysd/actionlint/releases) | 1.7.12 | GitHub Actions workflows | required |
+| [ShellCheck](https://github.com/koalaman/shellcheck/releases) | 0.11.0 | `.github/scripts/*.sh`, `.githooks/*` | required |
+| [jq](https://github.com/jqlang/jq/releases) | 1.8.x | running `.github/scripts/verify-deployed-version.sh` locally | optional |
 
 The two linters are single binaries with no runtime dependencies -- unpack them anywhere on
 your `PATH`. actionlint only lints the `run:` blocks inside workflows when ShellCheck is
@@ -56,8 +57,9 @@ sudo apt-get install -y shellcheck jq          # Debian/Ubuntu (actionlint: see 
 actionlint --version && shellcheck --version && jq --version
 ```
 
-`jq` is not required by the hook, but `.github/scripts/verify-deployed-version.sh` uses it,
-so you need it to run that script locally.
+The install commands above include `jq` for convenience. Nothing in the hook or the build
+needs it -- only `.github/scripts/verify-deployed-version.sh` does, and CI gets it from the
+runner image, so skip it unless you want to run that script locally.
 
 ## Git hooks
 
