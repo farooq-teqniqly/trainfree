@@ -1,11 +1,22 @@
 @inherits LayoutComponentBase
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
-
-    <main>
-        <div class="top-row px-4">
+<header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
+    <NavLink
+        class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-5 fw-semibold"
+        href=""
+        Match="NavLinkMatch.All"
+    >Trainfree</NavLink>
+    <button
+        title="Navigation menu"
+        aria-label="Navigation menu"
+        aria-expanded="@(!_navCollapsed)"
+        class="navbar-toggler d-md-none me-3"
+        type="button"
+        @onclick="ToggleNavMenu"
+    >
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="navbar-nav flex-row ms-md-auto">
+        <div class="nav-item text-nowrap px-3 d-flex align-items-center gap-3">
             @* The version banner is advisory, so its blast radius is bounded structurally
                rather than by enumerating what the check can throw. A trip costs the whole
                indicator -- stamp included, unlike VersionUnknown, which suppresses only the
@@ -18,14 +29,15 @@
                 </ChildContent>
                 <ErrorContent></ErrorContent>
             </ErrorBoundary>
-            <a
-                href="https://learn.microsoft.com/aspnet/core/"
-                target="_blank"
-                rel="noopener noreferrer"
-            >About</a>
         </div>
+    </div>
+</header>
 
-        <article class="content px-4">
+<div class="container-fluid">
+    <div class="row">
+        <NavMenu Collapsed="_navCollapsed" />
+
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-3">
             <ErrorBoundary @ref="_pageBoundary">
                 <ChildContent>@Body</ChildContent>
                 <ErrorContent>
@@ -34,13 +46,14 @@
                     </div>
                 </ErrorContent>
             </ErrorBoundary>
-        </article>
-    </main>
+        </main>
+    </div>
 </div>
 
 @code {
     private ErrorBoundary? _pageBoundary;
     private ErrorBoundary? _versionBoundary;
+    private bool _navCollapsed = true;
 
     // A boundary latches its error until told otherwise, and this layout is the router's
     // DefaultLayout -- one instance for the life of the tab. Without this, one transient
@@ -52,4 +65,6 @@
         _pageBoundary?.Recover();
         _versionBoundary?.Recover();
     }
+
+    private void ToggleNavMenu() => _navCollapsed = !_navCollapsed;
 }

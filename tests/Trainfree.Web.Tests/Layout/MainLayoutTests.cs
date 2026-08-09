@@ -139,4 +139,19 @@ public sealed class MainLayoutTests : BunitContext
         Assert.NotEmpty(cut.FindAll(".version-stamp"));
         Assert.Empty(cut.FindAll("[data-testid=page-error]"));
     }
+
+    [Fact]
+    public void Render_ClickingTheNavToggler_ExpandsTheCollapsedSidebar()
+    {
+        // Arrange
+        _versionCheck.CheckAsync(CancellationToken.None).Returns(new RunningLatestVersion());
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, WorkingPage));
+        Assert.Contains("collapse", cut.Find("nav.sidebar").ClassList);
+
+        // Act
+        cut.Find(".navbar-toggler").Click();
+
+        // Assert
+        Assert.DoesNotContain("collapse", cut.Find("nav.sidebar").ClassList);
+    }
 }
