@@ -1,7 +1,12 @@
 {
     "name": "trainfree",
     "main": "src/index.js",
-    "compatibility_date": "2026-08-03",
+    // Pinned to the newest date the installed @cloudflare/vitest-pool-workers runtime
+    // understands (workerd 1.20250906.0) -- a later date silently falls back to this one
+    // anyway, with a warning on every test file. Bump alongside vitest-pool-workers/wrangler
+    // once a newer installed runtime supports a later date. Keep in sync with
+    // wrangler.deploy.jsonc.
+    "compatibility_date": "2025-09-06",
     // 9999, not wrangler's stock 8787: 8787 was observed to leak orphaned listener
     // processes on Windows across restarts, silently hanging every future connection
     // until the OS was rebooted. 9999 has shown no such issue.
