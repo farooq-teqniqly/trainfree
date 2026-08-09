@@ -34,11 +34,10 @@
     <div class="text-danger small" data-testid="load-programs-error">@_loadError</div>
 }
 
-<table class="table">
+<table class="table w-auto">
     <thead>
         <tr>
             <th>Name</th>
-            <th></th>
             <th></th>
         </tr>
     </thead>
@@ -59,30 +58,30 @@
                         </div>
                     }
                 </td>
-                <td>
-                    @if (row.IsDirty)
-                    {
+                <td class="text-nowrap">
+                    <div class="d-flex gap-2">
+                        @if (row.IsDirty)
+                        {
+                            <button
+                                class="btn btn-sm btn-outline-dark"
+                                data-testid="save-@row.Id"
+                                title="Save"
+                                @onclick="() => RenameAsync(row)"
+                            >
+                                <i class="bi bi-floppy" aria-hidden="true"></i>
+                                <span class="visually-hidden">Save</span>
+                            </button>
+                        }
                         <button
-                            class="btn btn-sm btn-outline-dark"
-                            data-testid="save-@row.Id"
-                            title="Save"
-                            @onclick="() => RenameAsync(row)"
+                            class="btn btn-sm btn-outline-danger"
+                            data-testid="delete-@row.Id"
+                            title="Delete"
+                            @onclick="() => DeleteAsync(row)"
                         >
-                            <i class="bi bi-floppy" aria-hidden="true"></i>
-                            <span class="visually-hidden">Save</span>
+                            <i class="bi bi-trash" aria-hidden="true"></i>
+                            <span class="visually-hidden">Delete</span>
                         </button>
-                    }
-                </td>
-                <td>
-                    <button
-                        class="btn btn-sm btn-outline-danger"
-                        data-testid="delete-@row.Id"
-                        title="Delete"
-                        @onclick="() => DeleteAsync(row)"
-                    >
-                        <i class="bi bi-trash" aria-hidden="true"></i>
-                        <span class="visually-hidden">Delete</span>
-                    </button>
+                    </div>
                 </td>
             </tr>
         }
