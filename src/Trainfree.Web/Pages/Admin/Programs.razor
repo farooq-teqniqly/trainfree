@@ -11,7 +11,7 @@
 <h1>Trainfree Admin</h1>
 
 <button
-    class="btn btn-sm btn-outline-success"
+    class="btn btn-sm btn-outline-dark"
     data-testid="add-program"
     @onclick="AddProgramAsync"
 >
@@ -63,7 +63,7 @@
                     @if (row.IsDirty)
                     {
                         <button
-                            class="btn btn-sm btn-outline-primary"
+                            class="btn btn-sm btn-outline-dark"
                             data-testid="save-@row.Id"
                             title="Save"
                             @onclick="() => RenameAsync(row)"
