@@ -6,7 +6,8 @@
     // wrangler.jsonc's `name`, `main`, `compatibility_date`, and `d1_databases`.
     "name": "trainfree",
     "main": "src/index.js",
-    "compatibility_date": "2026-08-03",
+    // Pinned to match wrangler.jsonc -- see that file's comment for why.
+    "compatibility_date": "2025-09-06",
     "d1_databases": [
         {
             "binding": "DB",
