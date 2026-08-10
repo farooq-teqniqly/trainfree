@@ -3,6 +3,26 @@ param(
     [int]$Port
 )
 
+function Get-TreeRootToKill {
+    param([int]$StartProcessId)
+
+    $current = Get-CimInstance Win32_Process -Filter "ProcessId = $StartProcessId" -ErrorAction SilentlyContinue
+    $root = $current
+
+    while ($current -and $current.ParentProcessId) {
+        $parent = Get-CimInstance Win32_Process -Filter "ProcessId = $($current.ParentProcessId)" -ErrorAction SilentlyContinue
+
+        if (-not $parent -or $parent.ProcessId -le 4 -or $parent.Name -notin @("node.exe", "workerd.exe")) {
+            break
+        }
+
+        $root = $parent
+        $current = $parent
+    }
+
+    return $root
+}
+
 $connections = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
 
 if (-not $connections) {
@@ -13,10 +33,21 @@ if (-not $connections) {
 $processIds = $connections | Select-Object -ExpandProperty OwningProcess -Unique
 
 foreach ($processId in $processIds) {
-    $proc = Get-Process -Id $processId -ErrorAction SilentlyContinue
-    $name = if ($proc) { $proc.ProcessName } else { "unknown" }
-    Write-Host "Killing PID $processId ($name) on port $Port"
-    Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+    if ($processId -le 4) {
+        Write-Host "Skipping PID $processId (system process) - stale connection entry, not owned by a live process."
+        continue
+    }
+
+    $root = Get-TreeRootToKill -StartProcessId $processId
+
+    if (-not $root) {
+        Write-Host "Killing PID $processId (unknown) on port $Port"
+        Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+        continue
+    }
+
+    Write-Host "Killing process tree rooted at PID $($root.ProcessId) ($($root.Name)), which owns port $Port"
+    taskkill /PID $root.ProcessId /T /F | Out-Null
 }
 
 Write-Host "Done."
