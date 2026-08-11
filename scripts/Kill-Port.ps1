@@ -23,7 +23,7 @@ function Get-TreeRootToKill {
     return $root
 }
 
-$connections = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
+$connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
 
 if (-not $connections) {
     Write-Host "Nothing bound to port $Port."
@@ -55,7 +55,18 @@ $stillListening = $null
 
 for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
     Start-Sleep -Milliseconds 500
-    $stillListening = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+
+    try {
+        # Get-NetTCPConnection raises a non-terminating error when the -LocalPort/-State
+        # filter matches nothing, which is the success case here -- so query unfiltered
+        # and filter in PowerShell to keep -ErrorAction Stop meaningful for real failures.
+        $stillListening = Get-NetTCPConnection -ErrorAction Stop |
+            Where-Object { $_.LocalPort -eq $Port -and $_.State -eq "Listen" }
+    }
+    catch {
+        Write-Error "Could not verify whether port $Port is free: $_"
+        exit 1
+    }
 
     if (-not $stillListening) {
         break
