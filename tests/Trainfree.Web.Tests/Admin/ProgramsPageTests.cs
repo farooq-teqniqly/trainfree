@@ -211,6 +211,55 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public void RevertButton_NoUnsavedChanges_IsNotShown()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='revert-PRG-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task RevertButton_NameEdited_BecomesVisible()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
+
+        // Act
+        await cut.InvokeAsync(() => input.Input("Renamed Workout"));
+
+        // Assert
+        Assert.Single(cut.FindAll("[data-testid='revert-PRG-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task RevertProgram_ClickRevert_RestoresOriginalNameAndHidesButtons()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Renamed Workout"));
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='revert-PRG-AAAAAA']").Click());
+
+        // Assert
+        Assert.Contains("value=\"Workout A\"", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='save-PRG-AAAAAA']"));
+        Assert.Empty(cut.FindAll("[data-testid='revert-PRG-AAAAAA']"));
+    }
+
+    [Fact]
     public async Task DeleteProgram_ClickDelete_CallsDeleteAndRemovesRow()
     {
         // Arrange
