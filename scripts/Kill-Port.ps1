@@ -50,4 +50,12 @@ foreach ($processId in $processIds) {
     taskkill /PID $root.ProcessId /T /F | Out-Null
 }
 
+Start-Sleep -Milliseconds 500
+$stillListening = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+
+if ($stillListening) {
+    Write-Error "Port $Port is still bound after kill attempts (PID(s): $($stillListening.OwningProcess -join ', '))."
+    exit 1
+}
+
 Write-Host "Done."
