@@ -64,7 +64,7 @@ The `Revert` affordance shipped in #35 without an OpenSpec change, so `specs/pro
 documents `Save` visibility but not `Revert`. No code changes -- this brings the spec up
 to behavior that is already live and already tested.
 
-- [ ] 5.1 Confirm the four new `Revert` scenarios in the change's spec delta match what
+- [x] 5.1 Confirm the four new `Revert` scenarios in the change's spec delta match what
       `ProgramsPageTests` already asserts, and that none describes behavior the code does
       not have. If a scenario has no corresponding test, either add the test or drop the
       scenario -- do not spec unverified behavior.
