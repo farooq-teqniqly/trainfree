@@ -21,9 +21,11 @@ rather than left implicit.
 
 **Non-Goals:**
 - Changing any shipped UI behavior. The `ProgramRow` refactor is observably equivalent.
-- Fixing pr-center's drift (5.3.3, no SRI). Bumping a working app's Bootstrap version is a
-  real change that deserves its own PR and its own revert boundary; burying it in a
-  conventions commit makes it un-revertable on its own. Filed as an issue instead.
+- Fixing pr-center's version drift (5.3.3 vs. this repo's 5.3.8). Bumping a working app's
+  Bootstrap version is a real change that deserves its own PR and its own revert boundary;
+  burying it in a conventions commit makes it un-revertable on its own. Filed as an issue
+  instead. (The "no SRI" claim made when this Non-Goal was written turned out to be stale
+  -- see tasks.md 6.3; both pr-center links already carry `integrity` hashes.)
 - Retrofitting `docs/screen-mockups.md` to match what shipped.
 
 ## Decisions

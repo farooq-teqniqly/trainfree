@@ -10,9 +10,10 @@ provides (#33).
 The asset-delivery decision is demonstrably cross-repo and already decaying. pr-center's
 `App.razor` carries the same CDN + Inter + preconnect block that #31 introduced here --
 its commit message says so explicitly ("matching the pattern used in pr-center") -- but
-the two have already drifted: pr-center pins Bootstrap 5.3.3 with no SRI hash, trainfree
-pins 5.3.8 with one. A pattern that propagates by copy-paste and is written down nowhere
-degrades exactly this way.
+the two have already drifted: pr-center pins Bootstrap 5.3.3, trainfree pins 5.3.8. (The
+"no SRI hash" claim originally made here turned out to be stale -- see tasks.md 6.3; both
+pr-center links already carry `integrity` hashes.) A pattern that propagates by copy-paste
+and is written down nowhere degrades exactly this way.
 
 ## What Changes
 
