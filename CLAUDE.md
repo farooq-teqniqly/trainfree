@@ -5,6 +5,7 @@ update the template first, then re-sync the copy.
 
 @CLAUDE-baseline.md
 @CLAUDE-domain-driven-design.md
+@CLAUDE-blazor-ui.md
 
 ## What this is
 
@@ -67,3 +68,8 @@ build next and in what order).
   writes; explicitly deferred to a future version (see roadmap's "Open items").
 - **Cloudflare Access is configured manually** in the dashboard (owner's email only) --
   not represented as code in this repo unless that decision changes.
+- **Bootstrap and Bootstrap Icons are CDN-pinned with SRI**, no vendored `wwwroot/lib`
+  copy -- see `CLAUDE-blazor-ui.md`'s Asset delivery rule for the pattern this follows.
+- **Brand values for the Blazor UI conventions:** Inter as the typeface, black
+  `.btn-primary` (`#000`, `#1a1a1a` on hover), and the Bootstrap dashboard shell (dark
+  sticky navbar, light `bg-body-tertiary` sidebar) -- all overridden in `app.css`.

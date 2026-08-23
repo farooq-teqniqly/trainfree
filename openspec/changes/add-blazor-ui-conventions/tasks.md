@@ -20,16 +20,16 @@ this section merges in `farooq-teqniqly/claude-templates`.
 
 ## 2. Trainfree conventions
 
-- [ ] 2.1 Copy `CLAUDE-blazor-ui.md` from claude-templates into the repo root, byte for
+- [x] 2.1 Copy `CLAUDE-blazor-ui.md` from claude-templates into the repo root, byte for
       byte. It carries no `{{PROJECT_NAME}}` token, so no substitution applies.
-- [ ] 2.2 Add `@CLAUDE-blazor-ui.md` to `CLAUDE.md`'s import block, after
+- [x] 2.2 Add `@CLAUDE-blazor-ui.md` to `CLAUDE.md`'s import block, after
       `@CLAUDE-domain-driven-design.md`.
-- [ ] 2.3 Add two bullets to `CLAUDE.md`'s Project-specific rules carrying the values the
+- [x] 2.3 Add two bullets to `CLAUDE.md`'s Project-specific rules carrying the values the
       shared module deliberately omits: CDN pins with SRI and no vendored `wwwroot/lib`
       copy; the Bootstrap dashboard shell (dark sticky navbar, light `bg-body-tertiary`
       sidebar), Inter as the brand typeface, and black `.btn-primary` (`#000`, `#1a1a1a`
       on hover) overridden in `app.css`.
-- [ ] 2.4 Re-read `CLAUDE.md` end to end and confirm no bullet restates something the
+- [x] 2.4 Re-read `CLAUDE.md` end to end and confirm no bullet restates something the
       shared module already says -- the repo file holds values and overrides only.
 
 ## 3. Decision record
