@@ -34,12 +34,12 @@ this section merges in `farooq-teqniqly/claude-templates`.
 
 ## 3. Decision record
 
-- [ ] 3.1 Add `docs/ui-decisions.md` covering, for each decision, what was chosen and why:
+- [x] 3.1 Add `docs/ui-decisions.md` covering, for each decision, what was chosen and why:
       CDN over vendored Bootstrap (#31), Inter (#31), the dashboard shell (#32), the empty
       `<a href="">` bug and why `NavLink` is mandatory (#32), Bootstrap Icons over inline
       SVG (#33), black primary and the mobile toggle position (#34), and the Save/Revert
       dirty-row affordance (#35). Cite the PR number for each.
-- [ ] 3.2 Link `docs/ui-decisions.md` from `CLAUDE.md`'s "What this is" paragraph, next to
+- [x] 3.2 Link `docs/ui-decisions.md` from `CLAUDE.md`'s "What this is" paragraph, next to
       the existing proposal/mockups/roadmap references.
 
 ## 4. ProgramRow refactor

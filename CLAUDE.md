@@ -12,9 +12,10 @@ update the template first, then re-sync the copy.
 Trainfree -- a self-hosted, single-user workout tracker replacing a paid Trainwell
 subscription. Blazor WebAssembly (.NET 10) client, deployed as static assets +
 Cloudflare Worker API to Cloudflare Workers, gated by Cloudflare Access. See
-`docs/trainfree-proposal.md` for the full one-pager, `docs/screen-mockups.md` for UI, and
+`docs/trainfree-proposal.md` for the full one-pager, `docs/screen-mockups.md` for UI,
 `docs/trainfree-roadmap.md` for the slice-by-slice build plan (source of truth for what to
-build next and in what order).
+build next and in what order), and `docs/ui-decisions.md` for why the front-end
+conventions were chosen.
 
 ## Project-specific rules
 
