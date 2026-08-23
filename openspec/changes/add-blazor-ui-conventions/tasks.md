@@ -3,19 +3,19 @@
 Per the "update the template first, then re-sync" rule, none of section 2 is valid until
 this section merges in `farooq-teqniqly/claude-templates`.
 
-- [ ] 1.1 Add `CLAUDE-blazor-ui.md` with sections: Asset delivery, Icons, Navigation and
+- [x] 1.1 Add `CLAUDE-blazor-ui.md` with sections: Asset delivery, Icons, Navigation and
       accessibility, Testability, Editable rows, Styling. No project-specific values --
       no palette, no typeface, no version pins.
-- [ ] 1.2 Add an `-IncludeBlazorUi` switch to `Initialize-Project.ps1` that copies the
+- [x] 1.2 Add an `-IncludeBlazorUi` switch to `Initialize-Project.ps1` that copies the
       module and appends its `@CLAUDE-blazor-ui.md` import, matching how `-IncludeDdd`
       and `-IncludePm` already work. The switch implies `-IncludeDdd`, since the module
       cross-references it for typed outcomes.
-- [ ] 1.3 Confirm `param()` is still the first statement in `Initialize-Project.ps1` and
+- [x] 1.3 Confirm `param()` is still the first statement in `Initialize-Project.ps1` and
       that no em dashes or smart quotes entered any string literal (Windows PowerShell 5.1
       reads UTF-8-without-BOM as Windows-1252 and corrupts them).
-- [ ] 1.4 Add a `CLAUDE-blazor-ui.md` row to the README layout table, and a note in the
+- [x] 1.4 Add a `CLAUDE-blazor-ui.md` row to the README layout table, and a note in the
       module list that it pairs with the DDD module.
-- [ ] 1.5 Run `Initialize-Project.ps1` against a scratch directory with `-IncludeBlazorUi`
+- [x] 1.5 Run `Initialize-Project.ps1` against a scratch directory with `-IncludeBlazorUi`
       and confirm the module is copied and the import appears in the generated `CLAUDE.md`.
 
 ## 2. Trainfree conventions
