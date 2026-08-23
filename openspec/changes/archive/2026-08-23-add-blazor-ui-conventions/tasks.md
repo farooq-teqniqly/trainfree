@@ -49,10 +49,10 @@ first, and `ProgramsPageTests` already covers the dirty/save/revert paths this t
 No new tests -- 4.2 is the safety net.
 
 - [x] 4.1 Replace `ProgramRow`'s primary constructor in
-      `src/Trainfree.Web/Pages/Admin/Programs.razor` with an explicit constructor using
-      `_field` backing fields, so `name` no longer stays in scope where `SavedName` is
-      meant. `Id` stays get-only; `Name` and `SavedName` stay settable; `IsDirty` keeps
-      its `StringComparison.Ordinal` comparison.
+      `src/Trainfree.Web/Pages/Admin/Programs.razor` with an explicit constructor, so
+      `name` no longer stays in scope where `SavedName` is meant. `Id` stays get-only;
+      `Name` and `SavedName` stay settable; `IsDirty` keeps its `StringComparison.Ordinal`
+      comparison.
 - [x] 4.2 Run `dotnet test` and confirm `ProgramsPageTests` passes unchanged -- an
       assertion change here would mean the refactor was not behavior-preserving.
 - [x] 4.3 Run `dotnet csharpier check .` (or the `check` subcommand as configured) and
