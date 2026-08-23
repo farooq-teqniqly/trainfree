@@ -2,7 +2,7 @@
 
 Why the front-end conventions in `CLAUDE-blazor-ui.md` and `CLAUDE.md`'s Project-specific
 rules were chosen, recorded once here rather than left implicit in commit messages. See
-`openspec/changes/add-blazor-ui-conventions/design.md` for why these rules live in an
+`openspec/changes/archive/2026-08-23-add-blazor-ui-conventions/design.md` for why these rules live in an
 always-on module rather than an on-demand skill.
 
 ## CDN over vendored Bootstrap (#31)
@@ -55,7 +55,7 @@ indicator, which read as misplaced on narrow viewports.
 Editing a program name shows both `Save` and `Revert` once the row's working value
 differs from its last-saved value; `Revert` restores the saved value and clears any
 validation error without calling the API. This shipped as a plain `fix` PR without an
-OpenSpec change -- `openspec/changes/add-blazor-ui-conventions/specs/programs/spec.md`
+OpenSpec change -- `openspec/changes/archive/2026-08-23-add-blazor-ui-conventions/specs/programs/spec.md`
 backfills the four `Revert` scenarios the `programs` spec was missing. The row's
 working-value/saved-value/`IsDirty` shape is generalized in `CLAUDE-blazor-ui.md`'s
 Editable rows section.
