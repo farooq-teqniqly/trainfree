@@ -48,14 +48,14 @@ Non-behavioral: the baseline exempts non-behavioral edits from writing a failing
 first, and `ProgramsPageTests` already covers the dirty/save/revert paths this touches.
 No new tests -- 4.2 is the safety net.
 
-- [ ] 4.1 Replace `ProgramRow`'s primary constructor in
+- [x] 4.1 Replace `ProgramRow`'s primary constructor in
       `src/Trainfree.Web/Pages/Admin/Programs.razor` with an explicit constructor using
       `_field` backing fields, so `name` no longer stays in scope where `SavedName` is
       meant. `Id` stays get-only; `Name` and `SavedName` stay settable; `IsDirty` keeps
       its `StringComparison.Ordinal` comparison.
-- [ ] 4.2 Run `dotnet test` and confirm `ProgramsPageTests` passes unchanged -- an
+- [x] 4.2 Run `dotnet test` and confirm `ProgramsPageTests` passes unchanged -- an
       assertion change here would mean the refactor was not behavior-preserving.
-- [ ] 4.3 Run `dotnet csharpier check .` (or the `check` subcommand as configured) and
+- [x] 4.3 Run `dotnet csharpier check .` (or the `check` subcommand as configured) and
       confirm the file is formatted; the pre-commit hook enforces this.
 
 ## 5. Spec backfill
