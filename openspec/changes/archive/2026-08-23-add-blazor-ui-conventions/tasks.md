@@ -76,14 +76,13 @@ to behavior that is already live and already tested.
 - [x] 6.2 Confirm no rule in the new module contradicts `CLAUDE-baseline.md` or
       `CLAUDE-domain-driven-design.md`. The primary-constructor conflict resolved in
       section 4 is the known instance; check the file for others before merge.
-- [x] 6.3 File a pr-center issue: bump Bootstrap 5.3.3 to match, add the missing `integrity`
-      hash on the Bootstrap CSS and JS links in
+- [x] 6.3 File a pr-center issue: bump Bootstrap 5.3.3 to 5.3.8 to match
       `src/PrCenter.Web/Components/App.razor`, and sync `CLAUDE-blazor-ui.md`. Explicitly
       out of scope here (see design.md Non-Goals) -- the issue is what keeps it from
       drifting further. Filed as
-      [pr-center#65](https://github.com/farooq-teqniqly/pr-center/issues/65); the SRI-hash
-      claim in the original task description turned out to be stale -- both Bootstrap
-      links in pr-center already carry `integrity` hashes, so the issue scopes down to the
-      version bump and module adoption.
+      [pr-center#65](https://github.com/farooq-teqniqly/pr-center/issues/65), scoped to the
+      version bump and module adoption -- the issue as originally drafted also asked for a
+      missing `integrity` hash on pr-center's Bootstrap links, but that turned out to be
+      stale: both links already carry one.
 - [x] 6.4 Run `openspec archive add-blazor-ui-conventions -y` before merge --
       `openspec-archive-check` fails any PR leaving a change under `openspec/changes/`.

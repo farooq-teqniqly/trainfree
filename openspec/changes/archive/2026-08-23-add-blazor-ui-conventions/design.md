@@ -93,6 +93,6 @@ rather than left implicit.
   the templates change is additive (one new file, one script flag, one README row) and
   breaks no existing consumer, so it can land immediately and independently.
 - [pr-center stays drifted until a follow-on lands] -> Mitigation: the drift is cosmetic
-  (a two-patch Bootstrap gap; the SRI gap turned out to be stale -- see tasks.md 6.3).
-  Filing the issue in the same breath as this change is what stops it from continuing
-  indefinitely; leaving it unfiled is the actual risk.
+  (5.3.3 vs. 5.3.8; the SRI gap turned out to be stale -- see tasks.md 6.3). Filing the
+  issue in the same breath as this change is what stops it from continuing indefinitely;
+  leaving it unfiled is the actual risk.
