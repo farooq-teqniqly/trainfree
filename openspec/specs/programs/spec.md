@@ -4,7 +4,6 @@
 Programs are the top-level container a user organizes workouts under. This spec covers
 a program's externally visible identity and name rules, the Worker's CRUD API over the
 `programs` table, and the Blazor admin page that manages them.
-
 ## Requirements
 ### Requirement: Program identifier format
 Each program SHALL be identified externally by a surrogate key in the form `PRG-`
@@ -111,7 +110,8 @@ The system SHALL provide `DELETE /api/programs/:id` to remove a program.
 
 ### Requirement: Admin program list UI
 The Blazor admin page SHALL display all programs as rows and allow creating, renaming,
-and deleting them without a full page reload.
+and deleting them without a full page reload. A row with unsaved name edits SHALL offer
+both `Save` and `Revert`; `Revert` discards the edit locally without calling the API.
 
 #### Scenario: Page loads with existing programs
 - **WHEN** the admin page loads
@@ -141,6 +141,26 @@ and deleting them without a full page reload.
 #### Scenario: Save button hides again after a successful save
 - **WHEN** a `Save` click succeeds
 - **THEN** that row's `Save` button is hidden again
+
+#### Scenario: Revert button hidden with no unsaved changes
+- **WHEN** a program row's name has not been edited since the last successful save
+- **THEN** that row's `Revert` button is not shown
+
+#### Scenario: Revert button appears on edit
+- **WHEN** the admin user edits a program row's name to a value different from the
+  last-saved value
+- **THEN** that row's `Revert` button becomes visible alongside `Save`
+
+#### Scenario: Reverting discards an unsaved edit
+- **WHEN** the admin user edits a program row's name and clicks that row's `Revert`
+  button
+- **THEN** the page restores the last-saved name in the row, hides `Save` and `Revert`,
+  and makes no API call
+
+#### Scenario: Reverting clears a validation error
+- **WHEN** a program row is showing a name validation error and the admin user clicks
+  that row's `Revert` button
+- **THEN** the error is cleared along with the unsaved edit
 
 #### Scenario: Deleting a program
 - **WHEN** the admin user clicks a program row's `Delete` button

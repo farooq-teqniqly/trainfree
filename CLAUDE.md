@@ -5,15 +5,17 @@ update the template first, then re-sync the copy.
 
 @CLAUDE-baseline.md
 @CLAUDE-domain-driven-design.md
+@CLAUDE-blazor-ui.md
 
 ## What this is
 
 Trainfree -- a self-hosted, single-user workout tracker replacing a paid Trainwell
 subscription. Blazor WebAssembly (.NET 10) client, deployed as static assets +
 Cloudflare Worker API to Cloudflare Workers, gated by Cloudflare Access. See
-`docs/trainfree-proposal.md` for the full one-pager, `docs/screen-mockups.md` for UI, and
+`docs/trainfree-proposal.md` for the full one-pager, `docs/screen-mockups.md` for UI,
 `docs/trainfree-roadmap.md` for the slice-by-slice build plan (source of truth for what to
-build next and in what order).
+build next and in what order), and `docs/ui-decisions.md` for why the front-end
+conventions were chosen.
 
 ## Project-specific rules
 
@@ -67,3 +69,8 @@ build next and in what order).
   writes; explicitly deferred to a future version (see roadmap's "Open items").
 - **Cloudflare Access is configured manually** in the dashboard (owner's email only) --
   not represented as code in this repo unless that decision changes.
+- **Bootstrap and Bootstrap Icons are CDN-pinned with SRI**, no vendored `wwwroot/lib`
+  copy -- see `CLAUDE-blazor-ui.md`'s Asset delivery rule for the pattern this follows.
+- **Brand values for the Blazor UI conventions:** Inter as the typeface, black
+  `.btn-primary` (`#000`, `#1a1a1a` on hover), and the Bootstrap dashboard shell (dark
+  sticky navbar, light `bg-body-tertiary` sidebar) -- all overridden in `app.css`.

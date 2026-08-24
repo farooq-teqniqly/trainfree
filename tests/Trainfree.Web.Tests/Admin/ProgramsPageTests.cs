@@ -260,6 +260,25 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public async Task RevertProgram_NameShowingValidationError_ClearsError()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Ab"));
+        await cut.InvokeAsync(() => cut.Find("[data-testid='save-PRG-AAAAAA']").Click());
+        Assert.NotEmpty(cut.FindAll("[data-testid='name-error-PRG-AAAAAA']"));
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='revert-PRG-AAAAAA']").Click());
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='name-error-PRG-AAAAAA']"));
+    }
+
+    [Fact]
     public async Task DeleteProgram_ClickDelete_CallsDeleteAndRemovesRow()
     {
         // Arrange

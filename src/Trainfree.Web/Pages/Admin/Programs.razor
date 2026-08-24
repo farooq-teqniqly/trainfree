@@ -192,11 +192,18 @@
         }
     }
 
-    private sealed class ProgramRow(ProgramId id, string name)
+    private sealed class ProgramRow
     {
-        public ProgramId Id { get; } = id;
-        public string Name { get; set; } = name;
-        public string SavedName { get; set; } = name;
+        public ProgramRow(ProgramId id, string name)
+        {
+            Id = id;
+            Name = name;
+            SavedName = name;
+        }
+
+        public ProgramId Id { get; }
+        public string Name { get; set; }
+        public string SavedName { get; set; }
         public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
         public string? Error { get; set; }
     }
