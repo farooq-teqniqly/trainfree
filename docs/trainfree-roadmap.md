@@ -27,7 +27,7 @@ shipped and deployed together. TDD applies within each slice on both stacks.
    Worker" section. Renames/moves `src/Trainfree.Web` (and its `Admin` folder content) into
    a new `src/Trainfree.Admin` project carrying everything built in slice 1, and adds a new,
    currently-empty `src/Trainfree.Workout` project as the home for the workout-runner
-   slices (4+). Updates `Trainfree.slnx`, the build/deploy pipeline to publish both
+   slices (5+). Updates `Trainfree.slnx`, the build/deploy pipeline to publish both
    projects' `wwwroot` output into one combined assets directory (`Trainfree.Workout` at
    `/`, `Trainfree.Admin` under `/admin`), and `wrangler.jsonc`'s `[assets]` config
    accordingly. Done first, before extending admin CRUD further, so slices 3+ are built
