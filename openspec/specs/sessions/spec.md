@@ -1,7 +1,11 @@
 # sessions Specification
 
 ## Purpose
-TBD - created by archiving change add-sessions-crud. Update Purpose after archive.
+Sessions are the workouts nested under a program. This spec covers a session's
+externally visible identity and name rules, the Worker's CRUD API over the `sessions`
+table (scoped to its parent program, cascade-deleted with it), and the Blazor admin UI
+that manages them nested under their program's row.
+
 ## Requirements
 ### Requirement: Session identifier format
 Each session SHALL be identified externally by a surrogate key in the form `SNN-`
