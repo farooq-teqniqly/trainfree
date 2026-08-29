@@ -19,20 +19,39 @@ conventions were chosen.
 
 ## Project-specific rules
 
-- **Two stacks, one Worker.** `src/Trainfree.Web` (Blazor WASM, .NET) is the only project
-  in `Trainfree.slnx` -- the `.NET everywhere` convention in the baseline applies to the
-  client only. `src/Trainfree.Api` is a single Cloudflare Worker, vanilla JavaScript (no
-  TypeScript), sibling folder under `src/`, deliberately outside the solution. One Worker
-  deployment serves both: `[assets]` binding serves the Blazor static output, `main`
-  handles `/api/*` routes -- single origin, no CORS, one Cloudflare Access policy covers
-  the whole app.
-- **Prod API URL is never configured.** Same-origin design means the Blazor client's API
-  base address is the relative path `/api` in production -- no environment-specific URL,
-  no secret. Only `appsettings.Development.json` sets an absolute override
-  (`http://127.0.0.1:9999/api/`) for local dev. Port 9999, not wrangler's stock 8787 --
-  8787 has been observed to leak orphaned listener processes on Windows across restarts,
-  silently hanging every future connection to it until reboot. `wrangler.jsonc`'s `dev.port`
-  and `src/Trainfree.Api`'s `predev` npm script (`scripts/Kill-Port.ps1`) both pin to 9999.
+- **Two apps, one Worker each.** The Blazor client is split into two independent Blazor
+  WASM projects, one per audience: `src/Trainfree.Admin` (CRUD for programs/sessions/
+  exercises, built first) and `src/Trainfree.Workout` (the workout runner, not yet
+  built -- see the roadmap's slice 5+). Each app deploys behind its own Cloudflare
+  Worker, not a shared one: `src/Trainfree.AdminApi` for `Trainfree.Admin`, and a future
+  `src/Trainfree.WorkoutApi` for `Trainfree.Workout` -- vanilla JavaScript (no
+  TypeScript), sibling folders under `src/`, deliberately outside the solution. Each
+  Worker's `[assets]` binding serves only its own app's static output and its `main`
+  handles only its own `/api/*` routes -- no combined assets directory, no path-prefixed
+  SPA fallback shared between two apps. Both Workers bind the same physical D1 database
+  (`trainfree_db`) -- one logical dataset, two Workers reading/writing it, no data
+  duplication or sync step. This was chosen over a single Worker serving both apps'
+  assets under different paths (`/` and `/admin`) because one
+  `not_found_handling: single-page-application` fallback document cannot unambiguously
+  serve two different SPA shells depending on which path segment failed to resolve --
+  see the `split-admin-workout-apps` OpenSpec change's `design.md` for the fuller
+  rationale.
+  `Trainfree.Domain` (domain value objects/IDs, e.g. `ProgramId`) and
+  `Trainfree.Versioning` (the deploy-stamp check + its one Razor component) are shared
+  class libraries both apps reference, so slice 5 doesn't duplicate what `Trainfree.Admin`
+  already built. The `.NET everywhere` convention in the baseline applies to all of these
+  client-side projects; the Workers stay JavaScript.
+- **Prod API URL is never configured, per app.** Same-origin design means each app's API
+  base address is the relative path `/api` in production, resolved against that app's own
+  Worker -- no environment-specific URL, no secret. Only each app's
+  `appsettings.Development.json` sets an absolute override (`http://127.0.0.1:9999/api/`
+  for `Trainfree.Admin` against `Trainfree.AdminApi`) for local dev. Port 9999, not
+  wrangler's stock 8787 -- 8787 has been observed to leak orphaned listener processes on
+  Windows across restarts, silently hanging every future connection to it until reboot.
+  Each Worker's `wrangler.jsonc`'s `dev.port` and `predev` npm script
+  (`scripts/Kill-Port.ps1`) pin to 9999; only one Worker runs locally at a time today
+  since `Trainfree.WorkoutApi` doesn't exist yet -- when it does, it needs its own,
+  different local dev port.
 - **Persistence: Cloudflare D1 (SQLite)**, reached only from the Worker via its native D1
   binding -- the Blazor client never talks to D1 directly. Exercise images: Cloudflare R2,
   URL stored on the `Exercise` record in D1.
@@ -57,10 +76,16 @@ conventions were chosen.
   The client compares its compiled-in stamp against `GET /api/version` on startup and shows a
   reload banner when they differ, so a stale bundle can no longer serve silently (issue #18).
   Anything that changes how either side is stamped has to change both, or the banner fires on
-  every load. `Trainfree.Web.csproj` disables `IncludeSourceRevisionInInformationalVersion`
-  for exactly that reason. `deploy.yaml`'s final step polls the live `GET /api/version` and
-  fails the job unless it reports that same stamp, so a Worker deployed without the vars is
-  caught in CI instead of by opening the site. That step reaches through Cloudflare Access
+  every load. `Trainfree.Admin.csproj` disables `IncludeSourceRevisionInInformationalVersion`
+  for exactly that reason. The stamp-reading type (`VersionStamp`, in `Trainfree.Versioning`)
+  reads its own compiled assembly's attribute, not the app's -- MSBuild propagates
+  `-p:InformationalVersion` as a global property to referenced projects by default, so
+  `Trainfree.Versioning.dll` gets stamped too when built as part of `Trainfree.Admin`'s
+  publish, just without the source-revision-suffix override, which `VersionStamp`'s
+  existing full-SHA-suffix stripping already absorbs. `deploy.yaml`'s final step polls
+  the live `GET /api/version` and fails the job unless it reports that same stamp, so a
+  Worker deployed without the vars is caught in CI instead of by opening the site. That
+  step reaches through Cloudflare Access
   with a service token (`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` secrets, a
   different credential from `CLOUDFLARE_API_TOKEN`) against the origin in the `APP_BASE_URL`
   repository variable; the token and its Service Auth policy are created manually in the

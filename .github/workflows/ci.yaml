@@ -110,14 +110,14 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: src/Trainfree.Api/package-lock.json
+          cache-dependency-path: src/Trainfree.AdminApi/package-lock.json
 
       - name: Install dependencies
-        working-directory: src/Trainfree.Api
+        working-directory: src/Trainfree.AdminApi
         run: npm ci
 
       - name: Run vitest
-        working-directory: src/Trainfree.Api
+        working-directory: src/Trainfree.AdminApi
         run: npm test
 
   workflow-lint:

@@ -1,0 +1,30 @@
+@namespace Trainfree.Versioning
+@inject IVersionCheck VersionCheck
+@inject VersionStamp Running
+@inject NavigationManager Navigation
+
+@if (_stale is not null)
+{
+    <div class="version-update" role="alert">
+        <span>Version @_stale.Deployed.Version is deployed; this tab is running @Running.Version.</span>
+        <button type="button" class="btn btn-sm btn-primary" @onclick="Reload">Reload</button>
+    </div>
+}
+
+<span class="version-stamp">@Running.Display</span>
+
+@code {
+    private RunningStaleVersion? _stale;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // VersionUnknown is deliberately indistinguishable from up-to-date in the UI:
+        // being offline or having an expired Access session is not a staleness signal.
+        if (await VersionCheck.CheckAsync() is RunningStaleVersion stale)
+        {
+            _stale = stale;
+        }
+    }
+
+    private void Reload() => Navigation.Refresh(forceReload: true);
+}

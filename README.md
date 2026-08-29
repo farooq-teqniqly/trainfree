@@ -80,7 +80,7 @@ Two servers run side by side: the Worker (D1-backed API) and the Blazor dev serv
 ### 1. Worker API
 
 ```sh
-cd src/Trainfree.Api
+cd src/Trainfree.AdminApi
 npm install         # first time only
 npm run db:migrate:local   # first time only, or after adding a migration
 npm run dev
@@ -96,7 +96,7 @@ which is why this project pins to 9999 instead (see `wrangler.jsonc`'s `dev.port
 In a second terminal, from the repo root:
 
 ```sh
-dotnet run --project src/Trainfree.Web/Trainfree.Web.csproj --launch-profile http
+dotnet run --project src/Trainfree.Admin/Trainfree.Admin.csproj --launch-profile http
 ```
 
 Serves on `http://localhost:5280`. `appsettings.Development.json` already points the
@@ -109,8 +109,8 @@ Navigate to `http://localhost:5280/admin` for the admin UI (programs CRUD).
 ## Database migrations
 
 The API is backed by Cloudflare D1 (`trainfree_db`). Schema changes are versioned as SQL
-files under `src/Trainfree.Api/migrations/`, applied with `wrangler d1 migrations`. All
-commands below run from `src/Trainfree.Api`.
+files under `src/Trainfree.AdminApi/migrations/`, applied with `wrangler d1 migrations`. All
+commands below run from `src/Trainfree.AdminApi`.
 
 ### Apply migrations locally
 
@@ -126,7 +126,7 @@ re-running is a no-op.
 The local database is a plain SQLite file, written by Miniflare to:
 
 ```text
-src/Trainfree.Api/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/
+src/Trainfree.AdminApi/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/
 ```
 
 The `.sqlite` file with the long hex name is the database itself (`metadata.sqlite` next to
@@ -172,7 +172,7 @@ dotnet test Trainfree.slnx -c Release
 ```
 
 ```sh
-cd src/Trainfree.Api
+cd src/Trainfree.AdminApi
 npm test
 ```
 
@@ -187,4 +187,4 @@ Miniflare/D1 binding, no mocking) are independent -- run both before opening a P
 - **Local D1 data got messy**: wipe and reapply migrations -- see
   [Reset the local database](#reset-the-local-database).
 - **API returns "no such table" or "no such column"**: your local database is behind the
-  migrations in the repo. Run `npm run db:migrate:local` from `src/Trainfree.Api`.
+  migrations in the repo. Run `npm run db:migrate:local` from `src/Trainfree.AdminApi`.

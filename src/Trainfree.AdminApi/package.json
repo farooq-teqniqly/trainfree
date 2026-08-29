@@ -1,0 +1,17 @@
+{
+  "name": "trainfree-admin-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../scripts/Kill-Port.ps1 -Port 9999",
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "db:migrate:local": "wrangler d1 migrations apply trainfree_db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply trainfree_db --remote"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.8.0",
+    "vitest": "^3.2.0",
+    "wrangler": "^4.0.0"
+  }
+}

@@ -1,0 +1,37 @@
+{
+    // Deploy-only config: wrangler has no config-file inheritance, so this duplicates
+    // wrangler.jsonc's `main`/`d1_databases` and adds `assets`, giving this Worker both
+    // the /api/* routes and the Trainfree.Admin Blazor static output under one name --
+    // see CLAUDE.md's Project-specific rules for the per-app Worker architecture. Keep
+    // in sync with wrangler.jsonc's `name`, `main`, `compatibility_date`, and
+    // `d1_databases`.
+    "name": "trainfree-admin",
+    "main": "src/index.js",
+    // Pinned to match wrangler.jsonc -- see that file's comment for why.
+    "compatibility_date": "2025-09-06",
+    "d1_databases": [
+        {
+            "binding": "DB",
+            "database_name": "trainfree_db",
+            // Created once with `wrangler d1 create trainfree_db` (see CLAUDE.md: resource
+            // creation is a separate, non-idempotent setup script, never part of the deploy
+            // pipeline). Not a secret.
+            "database_id": "f99013f2-e1c9-48d7-9f63-cfb3c853f421"
+        }
+    ],
+    // The Blazor project publishes into a sibling directory; deploy.yaml runs
+    // `dotnet publish` before `wrangler deploy` so this path exists at deploy time.
+    "assets": {
+        "directory": "../Trainfree.Admin/bin/Release/net10.0/publish/wwwroot",
+        // Named binding so index.js can explicitly fall back to env.ASSETS.fetch() for
+        // any request that doesn't match /api/programs, rather than relying solely on
+        // platform-level asset routing.
+        "binding": "ASSETS",
+        "not_found_handling": "single-page-application",
+        // Without this, /index.html 307-redirects to /. Blazor's service worker caches the
+        // shell under the key "index.html", and a redirected Response cannot legally be
+        // returned from respondWith() for a navigation request -- Chrome fails it with
+        // ERR_FAILED until you hard-refresh past the service worker.
+        "html_handling": "none"
+    }
+}
