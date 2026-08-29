@@ -19,7 +19,7 @@ export async function programExists(db, programId) {
 export async function listSessions(db, programId) {
     const { results } = await db
         .prepare(
-            `SELECT ${SELECT_COLUMNS} FROM sessions WHERE program_id = ? ORDER BY created_at ASC`,
+            `SELECT ${SELECT_COLUMNS} FROM sessions WHERE program_id = ? ORDER BY created_at ASC, id ASC`,
         )
         .bind(programId)
         .all();

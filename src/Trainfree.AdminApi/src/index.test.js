@@ -1,4 +1,4 @@
-import { SELF } from "cloudflare:test";
+import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 async function createProgram(name) {
@@ -277,6 +277,28 @@ describe("GET /api/programs/:programId/sessions", () => {
             "Monday Lower Body",
             "Wednesday Upper Body",
         ]);
+    });
+
+    it("breaks a created_at tie using insertion order", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const tiedTimestamp = new Date().toISOString();
+        await env.DB.prepare(
+            "INSERT INTO sessions (session_id, program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        )
+            .bind("SNN-AAAAAA", program.id, "Inserted First", tiedTimestamp, tiedTimestamp)
+            .run();
+        await env.DB.prepare(
+            "INSERT INTO sessions (session_id, program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        )
+            .bind("SNN-BBBBBB", program.id, "Inserted Second", tiedTimestamp, tiedTimestamp)
+            .run();
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${program.id}/sessions`,
+        );
+        const sessions = await response.json();
+
+        expect(sessions.map((s) => s.name)).toEqual(["Inserted First", "Inserted Second"]);
     });
 
     it("excludes sessions belonging to a different program", async () => {
