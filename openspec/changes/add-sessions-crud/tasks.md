@@ -73,16 +73,21 @@
 
 ## 5. Blazor: session API client and outcome types
 
-- [ ] 5.1 Write failing bUnit/xUnit tests for a `SessionsApiClient` (analogous to
+- [x] 5.1 Write failing bUnit/xUnit tests for a `SessionsApiClient` (analogous to
       `ProgramsApiClient`/`ProgramsApiClient.Logging.cs`) covering
       `GetSessionsAsync(ProgramId)`, `CreateSessionAsync(ProgramId, name)`,
       `RenameSessionAsync(ProgramId, SessionId, name)`,
-      `DeleteSessionAsync(ProgramId, SessionId)` against the nested routes.
-- [ ] 5.2 Implement `Admin/SessionSummary.cs`, `Admin/CreateSessionOutcome.cs`,
+      `DeleteSessionAsync(ProgramId, SessionId)` against the nested routes. Mirrored
+      `ProgramsApiClientTests`'s exact coverage shape (no direct `GetSessionsAsync`
+      test either, matching that `GetProgramsAsync` isn't unit-tested there -- it's
+      covered at the page level instead, task group 6). Confirmed red (compile error)
+      before 5.2.
+- [x] 5.2 Implement `Admin/SessionSummary.cs`, `Admin/CreateSessionOutcome.cs`,
       `Admin/RenameSessionOutcome.cs`, `Admin/DeleteSessionOutcome.cs`,
       `Admin/ISessionsApiClient.cs`, `Admin/SessionsApiClient.cs` +
       `SessionsApiClient.Logging.cs` to pass 5.1. Register the client in DI alongside
-      `IProgramsApiClient` (`Program.cs`).
+      `IProgramsApiClient` (`Program.cs`). **45/45 Admin tests, 36/36 Domain tests
+      passing**, CSharpier-clean.
 
 ## 6. Blazor: nested session rows in Programs.razor
 
