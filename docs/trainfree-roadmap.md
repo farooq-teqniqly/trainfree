@@ -20,45 +20,58 @@ shipped and deployed together. TDD applies within each slice on both stacks.
    top-level rows: `[+ Program]`, `[x]` delete). D1 migration: `programs` table. Worker:
    `GET/POST/PATCH/DELETE /api/programs`. Blazor: minimal admin page listing/editing
    programs. Smallest possible slice to prove the Worker + D1 + Blazor + deploy pipeline
-   end to end.
-2. **`add-sessions-crud`** -- Extends admin CRUD with the `Session` entity (day-sessions
-   under a program, e.g. "Monday Lower Body"). D1 migration: `sessions` table (FK to
-   `programs`). Worker: session routes nested or filtered by program. Blazor: expand admin
-   UI to session rows.
-3. **`add-categories-exercises-crud`** -- Extends admin CRUD with `Category` (Warm Up, A, B,
+   end to end. **Done** -- built inside `src/Trainfree.Web`'s `Admin` folder, the shared
+   project that predates the admin/workout split below.
+2. **`split-admin-workout-apps`** -- No new features; restructures the client into the two
+   Blazor WASM projects described in `trainfree-proposal.md`'s "Two client apps, one
+   Worker" section. Renames/moves `src/Trainfree.Web` (and its `Admin` folder content) into
+   a new `src/Trainfree.Admin` project carrying everything built in slice 1, and adds a new,
+   currently-empty `src/Trainfree.Workout` project as the home for the workout-runner
+   slices (4+). Updates `Trainfree.slnx`, the build/deploy pipeline to publish both
+   projects' `wwwroot` output into one combined assets directory (`Trainfree.Workout` at
+   `/`, `Trainfree.Admin` under `/admin`), and `wrangler.jsonc`'s `[assets]` config
+   accordingly. Done first, before extending admin CRUD further, so slices 3+ are built
+   directly in their final project rather than being moved later.
+3. **`add-sessions-crud`** -- Extends admin CRUD (now in `Trainfree.Admin`) with the
+   `Session` entity (day-sessions under a program, e.g. "Monday Lower Body"). D1 migration:
+   `sessions` table (FK to `programs`). Worker: session routes nested or filtered by
+   program. Blazor: expand admin UI to session rows.
+4. **`add-categories-exercises-crud`** -- Extends admin CRUD with `Category` (Warm Up, A, B,
    ...) and `Exercise` (name, reps/duration, weight, side, note, restSeconds) entities,
    completing the full spreadsheet (mockup 11). D1 migrations: `categories`, `exercises`
    tables. Worker: nested routes. Blazor: full inline-editable spreadsheet admin UI,
-   collapsible rows.
-4. **`add-program-session-select`** -- Client-facing screens 1-2 (Program Select, Session
-   Select). Read-only against the real API built in slices 1-3. No workout execution yet.
-5. **`add-workout-runner-untimed`** -- Workout execution for untimed exercises only:
+   collapsible rows. This is the last purely-admin slice -- `Trainfree.Admin` is feature-
+   complete for v0.1 after this, and slice 5 begins the workout app.
+5. **`add-program-session-select`** -- Client-facing screens 1-2 (Program Select, Session
+   Select), built in `Trainfree.Workout`. Read-only against the real API built in slices
+   1, 3, 4. No workout execution yet.
+6. **`add-workout-runner-untimed`** -- Workout execution for untimed exercises only:
    screens 3 (ready to start), 6 (log set -- untimed), 7 (rest timer). State machine:
    ready -> set-in-progress -> log-set -> rest -> next set/exercise. Writes nothing to
-   history yet (that's slice 7).
-6. **`add-workout-runner-timed`** -- Extends the runner with timed exercises: screens 4
+   history yet (that's slice 8).
+7. **`add-workout-runner-timed`** -- Extends the runner with timed exercises: screens 4
    (countdown in progress) and 5 (log set -- timed, auto-completes at 0:00 then shows log
-   screen before rest). Builds on slice 5's state machine rather than duplicating it.
-7. **`add-workout-complete-history-write`** -- Screen 8 (Workout Complete). `END WORKOUT`
+   screen before rest). Builds on slice 6's state machine rather than duplicating it.
+8. **`add-workout-complete-history-write`** -- Screen 8 (Workout Complete). `END WORKOUT`
    persists the full session (program, day-session, startedAt/endedAt, per-exercise sets
    with actual reps/weight) to D1 via the Worker, then returns to Program Select.
-8. **`add-workout-history-view`** -- Screens 9-10 (History List, History Detail).
-   Read-only views over the history data written in slice 7.
-9. **`add-exercise-images-r2`** -- `[Brws]` upload control in the admin UI (from mockup 11),
-   R2 bucket storage, URL persisted on the `Exercise` record, image displayed during the
-   workout runner (screens 3-4). Depends on slice 3 (Exercise entity must exist) and
-   benefits from slice 5/6 being in place to see it rendered live, but is not blocked by
-   6-8 -- can slot in parallel after slice 3 if desired.
+9. **`add-workout-history-view`** -- Screens 9-10 (History List, History Detail).
+   Read-only views over the history data written in slice 8.
+10. **`add-exercise-images-r2`** -- `[Brws]` upload control in `Trainfree.Admin` (from
+    mockup 11), R2 bucket storage, URL persisted on the `Exercise` record, image displayed
+    during the `Trainfree.Workout` runner (screens 3-4). Depends on slice 4 (Exercise
+    entity must exist) and benefits from slice 6/7 being in place to see it rendered live,
+    but is not blocked by 7-9 -- can slot in parallel after slice 4 if desired.
 
-No slice 10 (Cloudflare Access) -- Access is already configured manually outside this
-repo; nothing to build unless that decision changes later.
+No further slice for Cloudflare Access -- Access is already configured manually outside
+this repo; nothing to build unless that decision changes later.
 
 ## Dependency graph
 
 ```
-1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
-                  \
-                   -> 9 (after 3; independent of 6-8)
+1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
+                       \
+                        -> 10 (after 4; independent of 7-9)
 ```
 
 ## Open items deferred to future versions
