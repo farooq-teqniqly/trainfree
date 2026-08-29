@@ -4,7 +4,7 @@ import { DuplicateNameError, uniqueConstraintColumns } from "./errors.js";
 const SELECT_COLUMNS =
     "session_id as id, program_id as programId, name, created_at as createdAt, updated_at as updatedAt";
 
-// generateSessionId draws from a ~150-bit space (31^6), so a collision is exceedingly
+// generateSessionId draws from a ~30^6 (~7e8, ~29-bit) space, so a collision is
 // unlikely; this bound only guards against pathological bad luck, not a real retry loop.
 const MAX_ID_GENERATION_ATTEMPTS = 5;
 
