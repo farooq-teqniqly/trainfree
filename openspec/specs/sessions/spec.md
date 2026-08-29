@@ -146,6 +146,13 @@ page reload, using the same working/saved-value dirty-row pattern as program row
 - **THEN** it calls `GET /api/programs/:programId/sessions` for that program and
   renders one row per returned session, nested beneath that program's row
 
+#### Scenario: One program's sessions fail to load
+- **WHEN** the admin page loads and `GET /api/programs/:programId/sessions` fails for
+  one program
+- **THEN** that program's row still renders (with no sessions) alongside a per-row
+  load-failed message, and every other program's row and sessions still render
+  normally
+
 #### Scenario: Adding a session
 - **WHEN** the admin user clicks a program's `Add Session` action
 - **THEN** the page calls `POST /api/programs/:programId/sessions`, appends the

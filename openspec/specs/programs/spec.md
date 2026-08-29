@@ -70,13 +70,13 @@ system-generated ID.
 
 #### Scenario: Valid name provided
 - **WHEN** a client calls `POST /api/programs` with a JSON body containing a `name`
-  between 5 and 100 characters
+  between 4 and 100 characters
 - **THEN** the Worker creates a `programs` row with a generated ID and current
   timestamps, and responds `201` with the created program
 
 #### Scenario: Name fails length bound
 - **WHEN** a client calls `POST /api/programs` with a missing `name`, or a `name`
-  outside the 5-100 character bound
+  outside the 4-100 character bound
 - **THEN** the Worker responds `400` with a JSON error body and creates no row
 
 ### Requirement: Rename a program
@@ -84,7 +84,7 @@ The system SHALL provide `PATCH /api/programs/:id` to update a program's name.
 
 #### Scenario: Valid rename
 - **WHEN** a client calls `PATCH /api/programs/:id` for an existing program with a
-  `name` between 5 and 100 characters
+  `name` between 4 and 100 characters
 - **THEN** the Worker updates the row's `name` and `updated_at`, and responds `200`
   with the updated program
 
@@ -93,7 +93,7 @@ The system SHALL provide `PATCH /api/programs/:id` to update a program's name.
 - **THEN** the Worker responds `404`
 
 #### Scenario: Name fails length bound on rename
-- **WHEN** a client calls `PATCH /api/programs/:id` with a `name` outside the 5-100
+- **WHEN** a client calls `PATCH /api/programs/:id` with a `name` outside the 4-100
   character bound
 - **THEN** the Worker responds `400` with a JSON error body and makes no change
 
@@ -175,7 +175,7 @@ both `Save` and `Revert`; `Revert` discards the edit locally without calling the
   on success
 
 #### Scenario: Save rejects a name that fails the length bound client-side
-- **WHEN** the admin user clicks `Save` with a name outside the 5-100 character bound
+- **WHEN** the admin user clicks `Save` with a name outside the 4-100 character bound
 - **THEN** the page shows a validation error on that row and does not call
   `PATCH /api/programs/:id`
 
