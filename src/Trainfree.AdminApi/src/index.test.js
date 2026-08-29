@@ -9,6 +9,14 @@ async function createProgram(name) {
     });
 }
 
+async function createSession(programId, name) {
+    return SELF.fetch(`http://worker/api/programs/${programId}/sessions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+    });
+}
+
 describe("CORS", () => {
     it("responds to an OPTIONS preflight from the dev origin with allow headers and no body", async () => {
         const response = await SELF.fetch("http://worker/api/programs", {
@@ -240,5 +248,303 @@ describe("GET /api/programs with multiple rows", () => {
         const programs = await response.json();
 
         expect(programs.map((p) => p.name)).toEqual(["Workout A", "Workout B", "Workout C"]);
+    });
+});
+
+describe("GET /api/programs/:programId/sessions", () => {
+    it("returns an empty array when the program has no sessions", async () => {
+        const program = await (await createProgram("Workout A")).json();
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${program.id}/sessions`,
+        );
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual([]);
+    });
+
+    it("returns the program's sessions in creation order", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        await createSession(program.id, "Monday Lower Body");
+        await createSession(program.id, "Wednesday Upper Body");
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${program.id}/sessions`,
+        );
+        const sessions = await response.json();
+
+        expect(sessions.map((s) => s.name)).toEqual([
+            "Monday Lower Body",
+            "Wednesday Upper Body",
+        ]);
+    });
+
+    it("excludes sessions belonging to a different program", async () => {
+        const programA = await (await createProgram("Workout A")).json();
+        const programB = await (await createProgram("Workout B")).json();
+        await createSession(programA.id, "Monday Lower Body");
+        await createSession(programB.id, "Tuesday Upper Body");
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${programA.id}/sessions`,
+        );
+        const sessions = await response.json();
+
+        expect(sessions.map((s) => s.name)).toEqual(["Monday Lower Body"]);
+    });
+
+    it("returns 404 for an unknown programId", async () => {
+        const response = await SELF.fetch(
+            "http://worker/api/programs/PRG-ZZZZZZ/sessions",
+        );
+
+        expect(response.status).toBe(404);
+    });
+});
+
+describe("POST /api/programs/:programId/sessions", () => {
+    it("creates a session with a generated id and timestamps", async () => {
+        const program = await (await createProgram("Workout A")).json();
+
+        const response = await createSession(program.id, "Monday Lower Body");
+        const session = await response.json();
+
+        expect(response.status).toBe(201);
+        expect(session.id).toMatch(/^SNN-[ABCDEFGHJKMNPQRSTVWXYZ23456789]{6}$/);
+        expect(session.programId).toBe(program.id);
+        expect(session.name).toBe("Monday Lower Body");
+        expect(session.createdAt).toBeTypeOf("string");
+        expect(session.updatedAt).toBeTypeOf("string");
+    });
+
+    it("rejects a name that fails the length bound and creates no row", async () => {
+        const program = await (await createProgram("Workout A")).json();
+
+        const response = await createSession(program.id, "Ab");
+
+        expect(response.status).toBe(400);
+        expect((await response.json()).error).toBeTypeOf("string");
+
+        const list = await (
+            await SELF.fetch(`http://worker/api/programs/${program.id}/sessions`)
+        ).json();
+        expect(list).toHaveLength(0);
+    });
+
+    it("rejects a name that already exists in the same program, case-insensitively", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        await createSession(program.id, "Monday Lower Body");
+
+        const response = await createSession(program.id, "monday lower body");
+
+        expect(response.status).toBe(409);
+        expect((await response.json()).error).toBeTypeOf("string");
+
+        const list = await (
+            await SELF.fetch(`http://worker/api/programs/${program.id}/sessions`)
+        ).json();
+        expect(list).toHaveLength(1);
+    });
+
+    it("allows the same name in a different program", async () => {
+        const programA = await (await createProgram("Workout A")).json();
+        const programB = await (await createProgram("Workout B")).json();
+        await createSession(programA.id, "Monday Lower Body");
+
+        const response = await createSession(programB.id, "Monday Lower Body");
+
+        expect(response.status).toBe(201);
+    });
+
+    it("returns 404 for an unknown programId and creates no row", async () => {
+        const response = await createSession("PRG-ZZZZZZ", "Monday Lower Body");
+
+        expect(response.status).toBe(404);
+    });
+});
+
+describe("PATCH /api/programs/:programId/sessions/:id", () => {
+    it("renames an existing session", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${program.id}/sessions/${session.id}`,
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ name: "Renamed Session" }),
+            },
+        );
+        const updated = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(updated.name).toBe("Renamed Session");
+        expect(updated.id).toBe(session.id);
+    });
+
+    it("returns 404 for an unknown session id", async () => {
+        const program = await (await createProgram("Workout A")).json();
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${program.id}/sessions/SNN-ZZZZZZ`,
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ name: "Renamed Session" }),
+            },
+        );
+
+        expect(response.status).toBe(404);
+    });
+
+    it("returns 404 when the session belongs to a different program", async () => {
+        const programA = await (await createProgram("Workout A")).json();
+        const programB = await (await createProgram("Workout B")).json();
+        const session = await (
+            await createSession(programA.id, "Monday Lower Body")
+        ).json();
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${programB.id}/sessions/${session.id}`,
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ name: "Renamed Session" }),
+            },
+        );
+
+        expect(response.status).toBe(404);
+    });
+
+    it("rejects a name that fails the length bound and makes no change", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${program.id}/sessions/${session.id}`,
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ name: "Ab" }),
+            },
+        );
+
+        expect(response.status).toBe(400);
+
+        const list = await (
+            await SELF.fetch(`http://worker/api/programs/${program.id}/sessions`)
+        ).json();
+        expect(list[0].name).toBe("Monday Lower Body");
+    });
+
+    it("rejects renaming to another session's name in the same program, case-insensitively", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        await createSession(program.id, "Monday Lower Body");
+        const other = await (
+            await createSession(program.id, "Wednesday Upper Body")
+        ).json();
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${program.id}/sessions/${other.id}`,
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ name: "monday lower body" }),
+            },
+        );
+
+        expect(response.status).toBe(409);
+
+        const list = await (
+            await SELF.fetch(`http://worker/api/programs/${program.id}/sessions`)
+        ).json();
+        expect(list.map((s) => s.name)).toEqual([
+            "Monday Lower Body",
+            "Wednesday Upper Body",
+        ]);
+    });
+
+    it("allows renaming a session to its own current name", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${program.id}/sessions/${session.id}`,
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ name: "Monday Lower Body" }),
+            },
+        );
+
+        expect(response.status).toBe(200);
+    });
+});
+
+describe("DELETE /api/programs/:programId/sessions/:id", () => {
+    it("deletes an existing session", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${program.id}/sessions/${session.id}`,
+            { method: "DELETE" },
+        );
+
+        expect(response.status).toBe(204);
+
+        const list = await (
+            await SELF.fetch(`http://worker/api/programs/${program.id}/sessions`)
+        ).json();
+        expect(list).toHaveLength(0);
+    });
+
+    it("returns 404 for an unknown session id", async () => {
+        const program = await (await createProgram("Workout A")).json();
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${program.id}/sessions/SNN-ZZZZZZ`,
+            { method: "DELETE" },
+        );
+
+        expect(response.status).toBe(404);
+    });
+
+    it("returns 404 when the session belongs to a different program", async () => {
+        const programA = await (await createProgram("Workout A")).json();
+        const programB = await (await createProgram("Workout B")).json();
+        const session = await (
+            await createSession(programA.id, "Monday Lower Body")
+        ).json();
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${programB.id}/sessions/${session.id}`,
+            { method: "DELETE" },
+        );
+
+        expect(response.status).toBe(404);
+    });
+});
+
+describe("DELETE /api/programs/:id cascades to sessions", () => {
+    it("removes a deleted program's sessions", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        await createSession(program.id, "Monday Lower Body");
+        await createSession(program.id, "Wednesday Upper Body");
+
+        const response = await SELF.fetch(`http://worker/api/programs/${program.id}`, {
+            method: "DELETE",
+        });
+
+        expect(response.status).toBe(204);
+
+        const listResponse = await SELF.fetch(
+            `http://worker/api/programs/${program.id}/sessions`,
+        );
+        // The program no longer exists, so its (now cascade-deleted) sessions are
+        // unreachable via a 404 rather than an empty list -- this also proves the
+        // rows were actually removed by D1's FK cascade, not just orphaned.
+        expect(listResponse.status).toBe(404);
     });
 });

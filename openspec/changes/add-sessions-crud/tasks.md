@@ -35,23 +35,30 @@
 
 ## 3. Worker: sessions feature
 
-- [ ] 3.1 Write failing vitest cases in a new `src/sessions.test.js` for
+- [x] 3.1 Write failing vitest cases in a new `src/sessions.test.js` for
       `listSessions`, `createSession`, `renameSession`, `deleteSession` (mirroring
       `src/programs.js`'s test shape), covering: list scoped to program, create with
       generated ID, per-program duplicate-name conflict, rename, delete, and the
-      program-not-found case.
-- [ ] 3.2 Implement `src/sessions.js` (`listSessions(db, programId)`,
+      program-not-found case. **Adjusted**: `programs.js` itself has no dedicated unit
+      test file -- its logic is only covered through `index.test.js`'s HTTP-level
+      integration tests. Followed that actual convention instead of introducing a new
+      per-module test file: session route/business-logic coverage lives in
+      `index.test.js`, confirmed red (14 failing) before task 3.4's implementation.
+- [x] 3.2 Implement `src/sessions.js` (`listSessions(db, programId)`,
       `createSession(db, programId, name)`, `renameSession(db, programId, id, name)`,
-      `deleteSession(db, programId, id)`) to pass 3.1's tests.
-- [ ] 3.3 Write failing vitest cases in `src/index.test.js` for the new routes:
+      `deleteSession(db, programId, id)`) to pass 3.1's tests. Also added
+      `programExists(db, programId)` (needed for the collection routes' 404 case) and
+      generalized `DuplicateNameError` to take an `entityLabel` param (was hardcoded to
+      "program") so sessions get a correct conflict message.
+- [x] 3.3 Write failing vitest cases in `src/index.test.js` for the new routes:
       `GET/POST /api/programs/:programId/sessions`,
       `PATCH/DELETE /api/programs/:programId/sessions/:id`, including 404s for an
       unknown `:programId` and for a session `:id` that belongs to a different
       program.
-- [ ] 3.4 Add route handling in `src/index.js` for the nested session routes (extend
+- [x] 3.4 Add route handling in `src/index.js` for the nested session routes (extend
       the existing segment-based routing), reusing `jsonResponse`/`withCors`/error
       mapping patterns from the programs handlers. Confirm 3.3 passes.
-- [ ] 3.5 Write a failing vitest case verifying that deleting a program with sessions
+- [x] 3.5 Write a failing vitest case verifying that deleting a program with sessions
       also removes its sessions (per the `programs` capability's new cascade
       scenario). Confirm it passes once task group 1's schema/FK decision is applied.
 

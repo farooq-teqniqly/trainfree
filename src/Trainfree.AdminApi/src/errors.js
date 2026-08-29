@@ -1,6 +1,6 @@
 export class DuplicateNameError extends Error {
-    constructor(name) {
-        super(`A program named "${name}" already exists.`);
+    constructor(name, entityLabel = "program") {
+        super(`A ${entityLabel} named "${name}" already exists.`);
         this.name = "DuplicateNameError";
     }
 }
@@ -17,6 +17,6 @@ export function uniqueConstraintColumns(err, table) {
         return [];
     }
 
-    const matches = err.message.matchAll(new RegExp(`\\b${table}\\.(\\w+)`, "gi"));
+    const matches = err.message.matchAll(new RegExp(String.raw`\b${table}\.(\w+)`, "gi"));
     return [...matches].map((match) => match[1]);
 }
