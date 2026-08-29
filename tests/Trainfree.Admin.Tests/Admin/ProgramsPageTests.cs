@@ -41,7 +41,7 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
-    public void OnInitialized_OneProgramsSessionsFailToLoad_StillRendersEveryProgramRow()
+    public void OnInitialized_OneProgramSessionsFailToLoad_StillRendersEveryProgramRow()
     {
         // Arrange
         _apiClient
