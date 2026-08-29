@@ -1,14 +1,13 @@
-# Qodo Merge / PR-Agent repository configuration.
-# Repository-level custom instructions for the reviewer. See
-# https://qodo-merge-docs.qodo.ai for the full option set.
-#
-# The block below covers baseline conventions that bot reviewers reliably
-# misread as defects. Add project-specific exemptions underneath it, each with
-# the reason and, where one exists, the issue or PR that decided it -- an
-# unexplained exemption is indistinguishable from a bug being waved through.
+# GitHub Copilot repository instructions
 
-[pr_reviewer]
-extra_instructions = """
+Repository-level custom instructions for Copilot code review. Mirrors
+`.pr_agent.toml`'s `[pr_reviewer].extra_instructions` -- keep the two in sync.
+
+The list below covers baseline conventions that bot reviewers reliably misread
+as defects. Add project-specific exemptions underneath it, each with the
+reason and, where one exists, the issue or PR that decided it -- an
+unexplained exemption is indistinguishable from a bug being waved through.
+
 Respect these deliberate baseline conventions and do not flag them as defects:
 
 - Any DI-injected constructor dependency (HttpClient, DbContext, ILogger<T>,
@@ -32,4 +31,3 @@ Respect these deliberate baseline conventions and do not flag them as defects:
   concurrent-request handling, and multi-user locking/isolation concerns are
   not a priority -- do not flag missing concurrency guards, optimistic
   locking, or request-ordering races as defects.
-"""

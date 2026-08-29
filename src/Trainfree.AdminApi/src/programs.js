@@ -4,7 +4,7 @@ import { DuplicateNameError, uniqueConstraintColumns } from "./errors.js";
 const SELECT_COLUMNS =
     "program_id as id, name, created_at as createdAt, updated_at as updatedAt";
 
-// generateProgramId draws from a ~150-bit space (31^6), so a collision is exceedingly
+// generateProgramId draws from a ~30^6 (~7e8, ~29-bit) space, so a collision is
 // unlikely; this bound only guards against pathological bad luck, not a real retry loop.
 const MAX_ID_GENERATION_ATTEMPTS = 5;
 
@@ -30,7 +30,7 @@ export async function createProgram(db, name) {
                 .run();
             return { id, name, createdAt: now, updatedAt: now };
         } catch (err) {
-            const columns = uniqueConstraintColumns(err);
+            const columns = uniqueConstraintColumns(err, "programs");
             if (columns.includes("name")) {
                 throw new DuplicateNameError(name);
             }
@@ -57,7 +57,7 @@ export async function renameProgram(db, id, name) {
             .bind(name, now, id)
             .run();
     } catch (err) {
-        if (uniqueConstraintColumns(err).includes("name")) {
+        if (uniqueConstraintColumns(err, "programs").includes("name")) {
             throw new DuplicateNameError(name);
         }
         throw err;

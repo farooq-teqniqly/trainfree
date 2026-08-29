@@ -16,6 +16,7 @@ builder.Services.AddScoped(sp => new HttpClient
     BaseAddress = new Uri(new Uri(builder.HostEnvironment.BaseAddress), apiBaseAddress),
 });
 builder.Services.AddScoped<IProgramsApiClient, ProgramsApiClient>();
+builder.Services.AddScoped<ISessionsApiClient, SessionsApiClient>();
 
 // The running build's stamp comes from this assembly, so it identifies the bundle the
 // browser actually loaded rather than whatever the server happens to be serving now.

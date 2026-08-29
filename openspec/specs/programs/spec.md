@@ -29,11 +29,11 @@ The system SHALL provide `GET /api/programs`, returning all programs in creation
   `created_at` ascending
 
 ### Requirement: Program name length
-A program's `name` SHALL be between 5 and 100 characters (inclusive) after trimming
+A program's `name` SHALL be between 4 and 100 characters (inclusive) after trimming
 leading/trailing whitespace. This bound applies on both create and rename.
 
 #### Scenario: Name too short
-- **WHEN** a client submits a `name` that trims to fewer than 5 characters (including
+- **WHEN** a client submits a `name` that trims to fewer than 4 characters (including
   blank/whitespace-only)
 - **THEN** the Worker responds `400` with a JSON error body and makes no change
 
@@ -42,7 +42,7 @@ leading/trailing whitespace. This bound applies on both create and rename.
 - **THEN** the Worker responds `400` with a JSON error body and makes no change
 
 #### Scenario: Name at boundaries
-- **WHEN** a client submits a `name` that trims to exactly 5 or exactly 100 characters
+- **WHEN** a client submits a `name` that trims to exactly 4 or exactly 100 characters
 - **THEN** the Worker accepts it
 
 ### Requirement: Program name uniqueness
@@ -70,13 +70,13 @@ system-generated ID.
 
 #### Scenario: Valid name provided
 - **WHEN** a client calls `POST /api/programs` with a JSON body containing a `name`
-  between 5 and 100 characters
+  between 4 and 100 characters
 - **THEN** the Worker creates a `programs` row with a generated ID and current
   timestamps, and responds `201` with the created program
 
 #### Scenario: Name fails length bound
 - **WHEN** a client calls `POST /api/programs` with a missing `name`, or a `name`
-  outside the 5-100 character bound
+  outside the 4-100 character bound
 - **THEN** the Worker responds `400` with a JSON error body and creates no row
 
 ### Requirement: Rename a program
@@ -84,7 +84,7 @@ The system SHALL provide `PATCH /api/programs/:id` to update a program's name.
 
 #### Scenario: Valid rename
 - **WHEN** a client calls `PATCH /api/programs/:id` for an existing program with a
-  `name` between 5 and 100 characters
+  `name` between 4 and 100 characters
 - **THEN** the Worker updates the row's `name` and `updated_at`, and responds `200`
   with the updated program
 
@@ -93,12 +93,13 @@ The system SHALL provide `PATCH /api/programs/:id` to update a program's name.
 - **THEN** the Worker responds `404`
 
 #### Scenario: Name fails length bound on rename
-- **WHEN** a client calls `PATCH /api/programs/:id` with a `name` outside the 5-100
+- **WHEN** a client calls `PATCH /api/programs/:id` with a `name` outside the 4-100
   character bound
 - **THEN** the Worker responds `400` with a JSON error body and makes no change
 
 ### Requirement: Delete a program
-The system SHALL provide `DELETE /api/programs/:id` to remove a program.
+The system SHALL provide `DELETE /api/programs/:id` to remove a program. Deleting a
+program SHALL also remove all sessions belonging to that program.
 
 #### Scenario: Program exists
 - **WHEN** a client calls `DELETE /api/programs/:id` for an existing program
@@ -107,6 +108,12 @@ The system SHALL provide `DELETE /api/programs/:id` to remove a program.
 #### Scenario: Program does not exist
 - **WHEN** a client calls `DELETE /api/programs/:id` for an ID with no matching row
 - **THEN** the Worker responds `404`
+
+#### Scenario: Deleting a program cascades to its sessions
+- **WHEN** a client calls `DELETE /api/programs/:id` for an existing program that has
+  one or more sessions
+- **THEN** the Worker deletes the program row and all `sessions` rows whose
+  `program_id` matches that program, and responds `204`
 
 ### Requirement: Admin program list UI
 The Blazor admin page SHALL display all programs as rows and allow creating, renaming,
@@ -168,7 +175,7 @@ both `Save` and `Revert`; `Revert` discards the edit locally without calling the
   on success
 
 #### Scenario: Save rejects a name that fails the length bound client-side
-- **WHEN** the admin user clicks `Save` with a name outside the 5-100 character bound
+- **WHEN** the admin user clicks `Save` with a name outside the 4-100 character bound
 - **THEN** the page shows a validation error on that row and does not call
   `PATCH /api/programs/:id`
 

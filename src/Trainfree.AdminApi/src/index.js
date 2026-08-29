@@ -1,5 +1,12 @@
 import { createProgram, deleteProgram, listPrograms, renameProgram } from "./programs.js";
-import { validateProgramName } from "./validation.js";
+import {
+    createSession,
+    deleteSession,
+    listSessions,
+    programExists,
+    renameSession,
+} from "./sessions.js";
+import { validateProgramName, validateSessionName } from "./validation.js";
 import { DuplicateNameError } from "./errors.js";
 import { versionStamp } from "./version.js";
 
@@ -112,6 +119,66 @@ async function handleProgramResource(request, db, id) {
     return new Response("Method not allowed", { status: 405 });
 }
 
+async function handleSessionsCollection(request, db, programId) {
+    if (!(await programExists(db, programId))) {
+        return jsonResponse({ error: "program not found" }, 404);
+    }
+
+    if (request.method === "GET") {
+        return jsonResponse(await listSessions(db, programId));
+    }
+
+    if (request.method === "POST") {
+        const body = await request.json().catch(() => ({}));
+        const validation = validateSessionName(body.name);
+        if (!validation.valid) {
+            return jsonResponse({ error: validation.error }, 400);
+        }
+        try {
+            return jsonResponse(await createSession(db, programId, validation.name), 201);
+        } catch (err) {
+            if (err instanceof DuplicateNameError) {
+                return jsonResponse({ error: err.message }, 409);
+            }
+            throw err;
+        }
+    }
+
+    return new Response("Method not allowed", { status: 405 });
+}
+
+async function handleSessionResource(request, db, programId, id) {
+    if (request.method === "PATCH") {
+        const body = await request.json().catch(() => ({}));
+        const validation = validateSessionName(body.name);
+        if (!validation.valid) {
+            return jsonResponse({ error: validation.error }, 400);
+        }
+        try {
+            const session = await renameSession(db, programId, id, validation.name);
+            if (!session) {
+                return jsonResponse({ error: "session not found" }, 404);
+            }
+            return jsonResponse(session);
+        } catch (err) {
+            if (err instanceof DuplicateNameError) {
+                return jsonResponse({ error: err.message }, 409);
+            }
+            throw err;
+        }
+    }
+
+    if (request.method === "DELETE") {
+        const deleted = await deleteSession(db, programId, id);
+        if (!deleted) {
+            return jsonResponse({ error: "session not found" }, 404);
+        }
+        return new Response(null, { status: 204 });
+    }
+
+    return new Response("Method not allowed", { status: 405 });
+}
+
 export default {
     async fetch(request, env) {
         if (request.method === "OPTIONS") {
@@ -121,29 +188,44 @@ export default {
         const url = new URL(request.url);
         const segments = url.pathname.split("/").filter(Boolean);
 
-        // Exactly /api/programs (collection, length 2) or /api/programs/:id (resource,
-        // length 3) -- anything else, including trailing segments past :id, is not a
-        // route this Worker owns. Falls through to the assets binding first (the Blazor
-        // static output) rather than a hardcoded 404, so a request the platform's own
-        // asset routing didn't already intercept still gets a real response.
-        const isProgramsRoute =
-            segments[0] === "api" && segments[1] === "programs" && segments.length <= 3;
-
         if (segments[0] === "api" && segments[1] === "version" && segments.length === 2) {
             return withCors(handleVersion(request, env), request);
         }
 
-        if (!isProgramsRoute) {
+        // /api/programs (collection, length 2), /api/programs/:id (resource, length 3),
+        // /api/programs/:id/sessions (nested collection, length 4), or
+        // /api/programs/:id/sessions/:sessionId (nested resource, length 5) -- anything
+        // else, including trailing segments past those, is not a route this Worker owns.
+        // Falls through to the assets binding first (the Blazor static output) rather
+        // than a hardcoded 404, so a request the platform's own asset routing didn't
+        // already intercept still gets a real response.
+        const isProgramsRoute = segments[0] === "api" && segments[1] === "programs";
+        const isSessionsRoute =
+            isProgramsRoute &&
+            segments.length >= 4 &&
+            segments.length <= 5 &&
+            segments[3] === "sessions";
+
+        if (!isProgramsRoute || (segments.length > 3 && !isSessionsRoute)) {
             if (env.ASSETS) {
                 return env.ASSETS.fetch(request);
             }
             return withCors(new Response("Not found", { status: 404 }), request);
         }
 
-        const id = segments[2];
-        const response = id
-            ? await handleProgramResource(request, env.DB, id)
-            : await handleProgramsCollection(request, env.DB);
+        let response;
+        if (isSessionsRoute) {
+            const programId = segments[2];
+            const sessionId = segments[4];
+            response = sessionId
+                ? await handleSessionResource(request, env.DB, programId, sessionId)
+                : await handleSessionsCollection(request, env.DB, programId);
+        } else {
+            const id = segments[2];
+            response = id
+                ? await handleProgramResource(request, env.DB, id)
+                : await handleProgramsCollection(request, env.DB);
+        }
 
         return withCors(response, request);
     },
