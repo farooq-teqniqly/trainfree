@@ -1,7 +1,7 @@
 # Trainfree -- a personal workout app — v0.1 Project Proposal
 
 **Purpose:** Replace a paid Trainwell subscription with a self-hosted, single-user workout tracker. For v0.1, I will be the only user.
-**Stack:** Blazor WebAssembly (.NET 10) → Cloudflare Workers static assets + Cloudflare Access. **Proposed:** split the client into two Blazor WASM apps (Workout, Admin) sharing one Cloudflare Worker API + D1 database (see "Two client apps, one Worker" below).
+**Stack:** Blazor WebAssembly (.NET 10) → static assets served by a Cloudflare Worker + Cloudflare Access. **Proposed:** split the client into two Blazor WASM apps (Workout, Admin) sharing one Cloudflare Worker API + D1 database (see "Two client apps, one Worker" below).
 **Estimated cost:** $0/month
 **Date:** August 2026
 
@@ -102,7 +102,7 @@ through the same Worker API -- no data duplication or sync step between them.
   `Trainfree.Web` project with an `Admin` folder. Each would be independently buildable
   and testable; the workout runner's bundle would no longer carry admin-only pages, and
   vice versa. Both would live in `Trainfree.slnx`. Trade-off: a small amount of
-  duplicated shell setup (DI registration, `HttpClient` base address, App.razor routing)
+  duplicated shell setup (DI registration, `HttpClient` base address, `App.razor` routing)
   across two `Program.cs` files instead of one -- accepted because the two audiences
   (mid-workout on a phone vs. CRUD at a desk) rarely share UI code beyond shared value
   objects/DTOs, which would move to a common class library if duplication becomes real.
