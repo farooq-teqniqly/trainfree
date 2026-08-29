@@ -117,10 +117,20 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Run the full `Trainfree.AdminApi` vitest suite and the full
+- [x] 7.1 Run the full `Trainfree.AdminApi` vitest suite and the full
       `Trainfree.Admin`/`Trainfree.Domain` .NET test suites; confirm green.
-- [ ] 7.2 Manually verify locally (per CLAUDE.md's port-9999 dev loop): create a
+      **118/118 vitest, 54/54 Admin, 36/36 Domain -- all passing.**
+- [x] 7.2 Manually verify locally (per CLAUDE.md's port-9999 dev loop): create a
       program, add sessions, rename one, delete one, delete the program and confirm
-      its sessions are gone too.
-- [ ] 7.3 Confirm CSharpier formatting and any analyzer warnings are clean on the new
-      C# files.
+      its sessions are gone too. Ran `npm run db:migrate:local` then `npm run dev`
+      against the real Miniflare-backed D1 on port 9999, drove the flow with `curl`:
+      created a program, added two sessions, renamed one, deleted the other, deleted
+      the program, then confirmed `GET .../sessions` on the deleted program returns
+      `404` -- proving the FK cascade actually removed the row rather than orphaning
+      it.
+- [x] 7.3 Confirm CSharpier formatting and any analyzer warnings are clean on the new
+      C# files. `csharpier check` clean across `Trainfree.Admin`, `Trainfree.Domain`,
+      and both test projects (32 files). A `--no-incremental` build showed only two
+      pre-existing warnings (assembly-level `CA1014`, and `CA1515` on
+      `Programs.razor.Logging.cs`, unrelated to this slice's new files) -- no new
+      warnings introduced.
