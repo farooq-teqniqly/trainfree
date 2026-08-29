@@ -142,11 +142,10 @@
 
 ## 7. Manual/operational follow-ups (outside repo code)
 
-- [ ] 7.1 Reconfigure the Cloudflare Access application/policy (dashboard-only) to
-      cover the new `trainfree-admin` hostname before relying on Access-gated access
-      to the renamed Worker.
-- [ ] 7.2 Confirm or update the `APP_BASE_URL` GitHub repository variable to point at
-      the renamed Worker's hostname.
+- [x] 7.1 Reconfigured the Cloudflare Access application/policy for the new
+      `trainfree-admin` hostname (done manually by the user, outside repo code).
+- [x] 7.2 Updated the `APP_BASE_URL` GitHub repository variable to
+      `https://trainfree-admin.farooqamahmud.workers.dev/`.
 
 ## 8. Verification
 
