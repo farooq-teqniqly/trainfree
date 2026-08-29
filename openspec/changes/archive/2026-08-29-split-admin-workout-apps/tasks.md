@@ -149,17 +149,25 @@
 
 ## 8. Verification
 
-- [ ] 8.1 `dotnet build`/`dotnet test` the full solution locally; confirm
-      `Trainfree.Admin`, `Trainfree.Domain`, `Trainfree.Versioning` and their test
-      projects all build and pass.
-- [ ] 8.2 Push a `v0.0.N` tag and confirm `deploy.yaml` succeeds end to end: publish,
-      D1 migrations apply, deploy, and `verify-deployed-version.sh` passes against the
-      live `trainfree-admin` Worker.
-- [ ] 8.3 Manually smoke-test `Trainfree.Admin`'s program CRUD against the renamed,
-      redeployed Worker to confirm no behavior regressed.
-- [ ] 8.4 Re-run the `coverage-report` skill after the rename/extraction and compare
-      against the pre-change baseline in `docs/coverage-analysis/COVERAGE_ANALYSIS_2026-08-28.md`
-      (91.4% line / 82.3% branch, 56 methods). Line/branch coverage should be unchanged --
-      moving files and their tests into `Trainfree.Domain`/`Trainfree.Versioning`/
-      `Trainfree.Admin.Tests` should carry coverage with them, not drop it. Investigate
-      any drop before merging.
+- [x] 8.1 `dotnet build`/`dotnet test` the full solution locally on `main` post-merge:
+      0 warnings, 0 errors, all 76 tests pass across `Trainfree.Admin.Tests` (36),
+      `Trainfree.Domain.Tests` (18), `Trainfree.Versioning.Tests` (22).
+- [x] 8.2 Pushed tag `v0.0.9`. `deploy.yaml` succeeded end to end in 1m33s: publish,
+      remove stray `_redirects`, D1 migrations apply (no-op, already applied under the
+      old Worker name against the same database), `wrangler deploy`, and
+      `verify-deployed-version.sh` all passed against the live `trainfree-admin` Worker.
+- [x] 8.3 Smoke-tested via a real authenticated browser session: `/` and `/admin` both
+      load, header shows `v0.0.9 (689df70)` with no stale-version banner, all 4
+      existing programs list correctly. Exercised the write path end to end: added a
+      program (confirmed `POST /api/programs` -> new row appeared), then deleted it
+      (confirmed `DELETE /api/programs/:id` -> row removed, back to the original 4,
+      no leftover test data). Also separately confirmed headlessly that
+      `GET /api/programs` 302-redirects to the Cloudflare Access login page when
+      unauthenticated, as expected.
+- [x] 8.4 Re-ran the `coverage-report` skill. Naively combining the three test
+      projects' cobertura reports gave a misleading 75.2% line / 69.5% branch --
+      `Compute-CrapScores.ps1` doesn't deduplicate the same class reported under
+      different relative filenames across reports (an artifact of coverlet
+      instrumenting shared-library code from multiple test projects that reference
+      it). Re-merged by fully-qualified class name instead of filename: **91.3% line /
+      82.3% branch**, matching the pre-change baseline (91.4%/82.3%) -- no regression.
