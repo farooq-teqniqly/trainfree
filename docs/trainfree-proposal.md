@@ -1,7 +1,7 @@
 # Trainfree -- a personal workout app — v0.1 Project Proposal
 
 **Purpose:** Replace a paid Trainwell subscription with a self-hosted, single-user workout tracker. For v0.1, I will be the only user.
-**Stack:** Blazor WebAssembly (.NET 10) → Cloudflare Workers static assets + Cloudflare Access
+**Stack:** Two Blazor WebAssembly (.NET 10) client apps (Workout, Admin) sharing one Cloudflare Worker API + D1 database → Cloudflare Workers static assets + Cloudflare Access
 **Estimated cost:** $0/month
 **Date:** August 2026
 
@@ -68,6 +68,21 @@ The offline point is worth emphasizing: a Blazor Server timer is driven by a Sig
 ### Cloudflare Workers with static assets
 
 Follow patterns in [](https://github.com/farooq-teqniqly/blazor-cloudfare-throwaway)
+
+### Two client apps, one Worker
+
+The Workout app and the Admin app are two independent Blazor WebAssembly projects, each
+publishing its own static output -- but they are still deployed as a **single** Cloudflare
+Worker. The build pipeline copies both projects' published `wwwroot` output into one
+combined assets directory before `wrangler deploy`: the Workout app's output at the root
+path (`/`), the Admin app's under a subpath (`/admin`). The Worker's `[assets]` binding
+serves that combined directory; `main` still only handles `/api/*`. One origin, one
+Cloudflare Access policy, no CORS -- exactly as today, just with two SPAs sharing the
+static-asset bucket instead of one.
+
+Both apps talk to the same relative `/api` base address and the same D1 database through
+the same Worker API -- there is no data duplication or sync step between them.
+
 ---
 
 ## 4. Object Model
@@ -76,6 +91,18 @@ Follow patterns in [](https://github.com/farooq-teqniqly/blazor-cloudfare-throwa
 ---
 
 ## Key Decisions
+
+- **Two Blazor WASM projects, not one.** The Workout app (`Trainfree.Workout`, working
+  name) and the Admin app (`Trainfree.Admin`, working name) are separate Blazor
+  WebAssembly projects instead of one project with an `Admin` folder. Each is
+  independently buildable and testable; the workout runner's bundle no longer carries
+  admin-only pages, and vice versa. Both remain in `Trainfree.slnx`. Trade-off: a small
+  amount of duplicated shell setup (DI registration, `HttpClient` base address, App.razor
+  routing) across two `Program.cs` files instead of one -- accepted because the two
+  audiences (mid-workout on a phone vs. CRUD at a desk) rarely share UI code beyond
+  shared value objects/DTOs, which move to a common class library if duplication becomes
+  real. See "Two client apps, one Worker" above for how they still deploy as a single
+  Cloudflare Worker with one Access policy and no CORS.
 
 - **Persistence: Cloudflare D1 (SQLite).** Data lives in a Cloudflare Worker API backed
   by D1, not in the browser. Enables real sync and durable history across phone (workout)
