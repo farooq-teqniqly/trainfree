@@ -1,16 +1,18 @@
 ## 1. D1 schema
 
-- [ ] 1.1 Write `migrations/0003_create_sessions.sql`: `sessions` table (`id INTEGER
+- [x] 1.1 Write `migrations/0003_create_sessions.sql`: `sessions` table (`id INTEGER
       PRIMARY KEY AUTOINCREMENT`, `session_id TEXT NOT NULL UNIQUE`, `program_id TEXT
       NOT NULL REFERENCES programs(program_id) ON DELETE CASCADE`, `name TEXT NOT
       NULL`, `created_at TEXT NOT NULL`, `updated_at TEXT NOT NULL`) plus
       `CREATE UNIQUE INDEX idx_sessions_program_name_nocase ON sessions (program_id,
       name COLLATE NOCASE)`.
-- [ ] 1.2 Confirm (via the Miniflare-backed vitest suite, per design.md's Open
+- [x] 1.2 Confirm (via the Miniflare-backed vitest suite, per design.md's Open
       Questions) whether the D1 binding enforces `ON DELETE CASCADE` as-is. If not,
       enable `PRAGMA foreign_keys = ON` for the binding, or fall back to the Worker
       issuing an explicit `DELETE FROM sessions WHERE program_id = ?` before deleting
-      the program row -- resolve this before task group 3.
+      the program row -- resolve this before task group 3. **Confirmed**: a scratch
+      vitest test verified D1's Miniflare binding enforces `ON DELETE CASCADE` without
+      any extra `PRAGMA` -- no fallback needed.
 
 ## 2. Worker: generalize shared helpers (red-green-refactor against existing tests)
 

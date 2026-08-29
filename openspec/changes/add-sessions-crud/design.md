@@ -113,7 +113,7 @@ alter existing `programs` data.
 
 ## Open Questions
 
-- Confirm D1's FK-cascade enforcement behavior (see Risks) before committing to the
-  `ON DELETE CASCADE` approach in `tasks.md`'s implementation order -- write this as an
-  early task so the fallback (explicit cascading delete in the Worker) can be chosen
-  before the rest of the slice depends on the schema shape.
+- ~~Confirm D1's FK-cascade enforcement behavior~~ -- **Resolved**: a scratch vitest
+  test against the Miniflare-backed D1 binding confirmed `ON DELETE CASCADE` is
+  enforced without any extra `PRAGMA foreign_keys` setting. The fallback
+  (explicit cascading delete in the Worker) described in Risks is not needed.
