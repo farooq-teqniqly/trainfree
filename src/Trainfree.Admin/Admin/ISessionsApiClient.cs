@@ -15,7 +15,7 @@ internal interface ISessionsApiClient
 
     /// <summary>Creates a new session under a program.</summary>
     /// <param name="programId">The owning program's identifier.</param>
-    /// <param name="name">The session name, 5-100 characters after trimming.</param>
+    /// <param name="name">The session name, 4-100 characters after trimming.</param>
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="CreateSessionSucceeded"/> on success, or a <see cref="CreateSessionFailed"/>
@@ -31,7 +31,7 @@ internal interface ISessionsApiClient
     /// <summary>Renames an existing session.</summary>
     /// <param name="programId">The owning program's identifier.</param>
     /// <param name="id">The session's identifier.</param>
-    /// <param name="name">The new name, 5-100 characters after trimming.</param>
+    /// <param name="name">The new name, 4-100 characters after trimming.</param>
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="RenameSessionSucceeded"/> on success, or a <see cref="RenameSessionFailed"/>

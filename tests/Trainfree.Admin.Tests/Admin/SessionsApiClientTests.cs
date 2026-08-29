@@ -133,7 +133,7 @@ public sealed class SessionsApiClientTests : IDisposable
         _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.BadRequest)
         {
             Content = new StringContent(
-                """{"error":"name must be between 5 and 100 characters"}""",
+                """{"error":"name must be between 4 and 100 characters"}""",
                 Encoding.UTF8,
                 "application/json"
             ),
@@ -150,7 +150,7 @@ public sealed class SessionsApiClientTests : IDisposable
 
         // Assert
         var failed = Assert.IsType<RenameSessionFailed>(outcome);
-        Assert.Equal("name must be between 5 and 100 characters", failed.Error);
+        Assert.Equal("name must be between 4 and 100 characters", failed.Error);
     }
 
     [Fact]

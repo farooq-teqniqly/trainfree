@@ -172,7 +172,7 @@ public sealed class ProgramsPageTests : BunitContext
                 "Renamed Workout",
                 CancellationToken.None
             )
-            .Returns(new RenameProgramFailed("name must be between 5 and 100 characters"));
+            .Returns(new RenameProgramFailed("name must be between 4 and 100 characters"));
         var cut = Render<Programs>();
         var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
 
@@ -182,7 +182,7 @@ public sealed class ProgramsPageTests : BunitContext
 
         // Assert
         Assert.Contains(
-            "name must be between 5 and 100 characters",
+            "name must be between 4 and 100 characters",
             cut.Markup,
             StringComparison.Ordinal
         );
@@ -536,7 +536,7 @@ public sealed class ProgramsPageTests : BunitContext
                 "Renamed Session",
                 CancellationToken.None
             )
-            .Returns(new RenameSessionFailed("name must be between 5 and 100 characters"));
+            .Returns(new RenameSessionFailed("name must be between 4 and 100 characters"));
         var cut = Render<Programs>();
         var input = cut.Find("[data-testid='session-name-input-SNN-AAAAAA']");
 
@@ -546,7 +546,7 @@ public sealed class ProgramsPageTests : BunitContext
 
         // Assert
         Assert.Contains(
-            "name must be between 5 and 100 characters",
+            "name must be between 4 and 100 characters",
             cut.Markup,
             StringComparison.Ordinal
         );

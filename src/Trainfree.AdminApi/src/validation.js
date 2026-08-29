@@ -1,4 +1,4 @@
-const MIN_NAME_LENGTH = 5;
+const MIN_NAME_LENGTH = 4;
 const MAX_NAME_LENGTH = 100;
 
 export function validateName(name) {

@@ -16,7 +16,7 @@ full spreadsheet (slice 7) will eventually hang categories and exercises off of.
   - `POST /api/programs/:programId/sessions` -- create a session under a program.
   - `PATCH /api/programs/:programId/sessions/:id` -- rename a session.
   - `DELETE /api/programs/:programId/sessions/:id` -- delete a session.
-- Session `name` reuses the program name rules: 5-100 characters trimmed, unique
+- Session `name` reuses the program name rules: 4-100 characters trimmed, unique
   case-insensitively -- but scoped to its own program, not globally (two different
   programs may each have a "Monday Lower Body" session).
 - `Trainfree.Domain.Ids` gains `SessionId`, structurally identical to `ProgramId` but

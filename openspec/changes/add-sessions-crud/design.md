@@ -48,7 +48,7 @@ becomes a shared `generateId(prefix)` helper; `generateProgramId` and the new
 `isValidProgramId` similarly factors into a shared `isValidId(value, prefix)`.
 
 **Validation becomes name-only and reusable.** `validateProgramName` already just
-checks the 5-100 trimmed-length bound with no program-specific behavior; it's renamed
+checks the 4-100 trimmed-length bound with no program-specific behavior; it's renamed
 `validateEntityName` (or kept as `validateProgramName` with `validateSessionName` as a
 wrapper) so both entities share one bound-check implementation rather than two copies
 drifting apart.

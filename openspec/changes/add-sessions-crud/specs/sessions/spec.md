@@ -32,11 +32,11 @@ sessions belonging to that program in creation order.
 - **THEN** the Worker responds `404`
 
 ### Requirement: Session name length
-A session's `name` SHALL be between 5 and 100 characters (inclusive) after trimming
+A session's `name` SHALL be between 4 and 100 characters (inclusive) after trimming
 leading/trailing whitespace. This bound applies on both create and rename.
 
 #### Scenario: Name too short
-- **WHEN** a client submits a `name` that trims to fewer than 5 characters (including
+- **WHEN** a client submits a `name` that trims to fewer than 4 characters (including
   blank/whitespace-only)
 - **THEN** the Worker responds `400` with a JSON error body and makes no change
 
@@ -45,7 +45,7 @@ leading/trailing whitespace. This bound applies on both create and rename.
 - **THEN** the Worker responds `400` with a JSON error body and makes no change
 
 #### Scenario: Name at boundaries
-- **WHEN** a client submits a `name` that trims to exactly 5 or exactly 100 characters
+- **WHEN** a client submits a `name` that trims to exactly 4 or exactly 100 characters
 - **THEN** the Worker accepts it
 
 ### Requirement: Session name uniqueness within its program
@@ -79,13 +79,13 @@ session under a program, with a system-generated ID.
 
 #### Scenario: Valid name provided
 - **WHEN** a client calls `POST /api/programs/:programId/sessions` for an existing
-  program with a JSON body containing a `name` between 5 and 100 characters
+  program with a JSON body containing a `name` between 4 and 100 characters
 - **THEN** the Worker creates a `sessions` row with a generated ID, that `program_id`,
   and current timestamps, and responds `201` with the created session
 
 #### Scenario: Name fails length bound
 - **WHEN** a client calls `POST /api/programs/:programId/sessions` with a missing
-  `name`, or a `name` outside the 5-100 character bound
+  `name`, or a `name` outside the 4-100 character bound
 - **THEN** the Worker responds `400` with a JSON error body and creates no row
 
 #### Scenario: Program does not exist
@@ -99,7 +99,7 @@ session's name.
 
 #### Scenario: Valid rename
 - **WHEN** a client calls `PATCH /api/programs/:programId/sessions/:id` for an existing
-  session under that program with a `name` between 5 and 100 characters
+  session under that program with a `name` between 4 and 100 characters
 - **THEN** the Worker updates the row's `name` and `updated_at`, and responds `200`
   with the updated session
 
@@ -111,7 +111,7 @@ session's name.
 
 #### Scenario: Name fails length bound on rename
 - **WHEN** a client calls `PATCH /api/programs/:programId/sessions/:id` with a `name`
-  outside the 5-100 character bound
+  outside the 4-100 character bound
 - **THEN** the Worker responds `400` with a JSON error body and makes no change
 
 ### Requirement: Delete a session
@@ -170,7 +170,7 @@ page reload, using the same working/saved-value dirty-row pattern as program row
 
 #### Scenario: Save rejects a name that fails the length bound client-side
 - **WHEN** the admin user clicks `Save` on a session row with a name outside the
-  5-100 character bound
+  4-100 character bound
 - **THEN** the page shows a validation error on that row and does not call
   `PATCH /api/programs/:programId/sessions/:id`
 

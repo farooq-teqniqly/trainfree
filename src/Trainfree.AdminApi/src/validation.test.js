@@ -3,10 +3,10 @@ import { validateProgramName, validateSessionName } from "./validation.js";
 
 describe("validateProgramName", () => {
     it.each([
-        ["exactly 5 chars", "Abcde"],
+        ["exactly 4 chars", "Abcd"],
         ["exactly 100 chars", "A".repeat(100)],
         ["mid-range", "Monday Lower Body"],
-        ["trims surrounding whitespace before measuring", "  Abcde  "],
+        ["trims surrounding whitespace before measuring", "  Abcd  "],
     ])("accepts %s", (_label, name) => {
         const result = validateProgramName(name);
 
@@ -18,7 +18,7 @@ describe("validateProgramName", () => {
         ["null", null],
         ["empty", ""],
         ["whitespace-only", "    "],
-        ["4 chars", "Abcd"],
+        ["3 chars", "Abc"],
         ["101 chars", "A".repeat(101)],
     ])("rejects %s", (_label, name) => {
         const result = validateProgramName(name);
@@ -37,10 +37,10 @@ describe("validateProgramName", () => {
 
 describe("validateSessionName", () => {
     it.each([
-        ["exactly 5 chars", "Abcde"],
+        ["exactly 4 chars", "Abcd"],
         ["exactly 100 chars", "A".repeat(100)],
         ["mid-range", "Monday Lower Body"],
-        ["trims surrounding whitespace before measuring", "  Abcde  "],
+        ["trims surrounding whitespace before measuring", "  Abcd  "],
     ])("accepts %s", (_label, name) => {
         const result = validateSessionName(name);
 
@@ -52,7 +52,7 @@ describe("validateSessionName", () => {
         ["null", null],
         ["empty", ""],
         ["whitespace-only", "    "],
-        ["4 chars", "Abcd"],
+        ["3 chars", "Abc"],
         ["101 chars", "A".repeat(101)],
     ])("rejects %s", (_label, name) => {
         const result = validateSessionName(name);

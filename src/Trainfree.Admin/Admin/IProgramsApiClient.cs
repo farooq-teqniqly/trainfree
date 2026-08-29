@@ -12,7 +12,7 @@ internal interface IProgramsApiClient
     );
 
     /// <summary>Creates a new program with the given name.</summary>
-    /// <param name="name">The program name, 5-100 characters after trimming.</param>
+    /// <param name="name">The program name, 4-100 characters after trimming.</param>
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="CreateProgramSucceeded"/> on success, or a <see cref="CreateProgramFailed"/>
@@ -26,7 +26,7 @@ internal interface IProgramsApiClient
 
     /// <summary>Renames an existing program.</summary>
     /// <param name="id">The program's identifier.</param>
-    /// <param name="name">The new name, 5-100 characters after trimming.</param>
+    /// <param name="name">The new name, 4-100 characters after trimming.</param>
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="RenameProgramSucceeded"/> on success, or a <see cref="RenameProgramFailed"/>
