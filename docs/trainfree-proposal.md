@@ -80,7 +80,8 @@ projects, each publishing its own static output -- but they would still deploy a
 **single** Cloudflare Worker. The build pipeline would copy both projects' published
 `wwwroot` output into one combined assets directory before `wrangler deploy`: the Workout
 app's output at the root path (`/`), the Admin app's under a subpath (`/admin`). The
-Worker's `[assets]` binding would serve that combined directory; `main` would still only
+Worker's `ASSETS` binding (configured via the `[assets]` section in wrangler config) would
+serve that combined directory; `main` would still only
 handle `/api/*`. One origin, one Cloudflare Access policy, no CORS -- the same deployment
 shape as today, just with two SPAs sharing the assets binding instead of one.
 
