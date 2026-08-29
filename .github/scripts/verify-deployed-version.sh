@@ -14,7 +14,7 @@
 # CLOUDFLARE_API_TOKEN, which only speaks to the management API and is rejected by Access.
 #
 # Environment:
-#   BASE_URL                 deployed origin, e.g. https://trainfree.example.workers.dev
+#   BASE_URL                 deployed origin, e.g. https://trainfree-admin.example.workers.dev
 #   CF_ACCESS_CLIENT_ID      whole header line: "CF-Access-Client-Id: <value>"
 #   CF_ACCESS_CLIENT_SECRET  whole header line: "CF-Access-Client-Secret: <value>"
 #   EXPECTED_VERSION         git tag, e.g. v0.0.9
@@ -38,7 +38,7 @@ readonly CONNECT_TIMEOUT_SECONDS=10
 readonly MAX_SECONDS=30
 
 if [ -z "${BASE_URL:-}" ]; then
-  echo "::error::No URL to verify. Set the APP_BASE_URL repository variable to the deployed origin (e.g. https://trainfree.example.com)."
+  echo "::error::No URL to verify. Set the APP_BASE_URL repository variable to the deployed origin (e.g. https://trainfree-admin.example.com)."
   exit 1
 fi
 if [ -z "${CF_ACCESS_CLIENT_ID:-}" ] || [ -z "${CF_ACCESS_CLIENT_SECRET:-}" ]; then

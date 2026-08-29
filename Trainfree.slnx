@@ -1,8 +1,12 @@
 <Solution>
     <Folder Name="/src/">
-        <Project Path="src/Trainfree.Web/Trainfree.Web.csproj" />
+        <Project Path="src/Trainfree.Domain/Trainfree.Domain.csproj" />
+        <Project Path="src/Trainfree.Versioning/Trainfree.Versioning.csproj" />
+        <Project Path="src/Trainfree.Admin/Trainfree.Admin.csproj" />
     </Folder>
     <Folder Name="/tests/">
-        <Project Path="tests/Trainfree.Web.Tests/Trainfree.Web.Tests.csproj" />
+        <Project Path="tests/Trainfree.Admin.Tests/Trainfree.Admin.Tests.csproj" />
+        <Project Path="tests/Trainfree.Domain.Tests/Trainfree.Domain.Tests.csproj" />
+        <Project Path="tests/Trainfree.Versioning.Tests/Trainfree.Versioning.Tests.csproj" />
     </Folder>
 </Solution>

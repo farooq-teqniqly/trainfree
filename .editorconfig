@@ -97,11 +97,13 @@ dotnet_style_prefer_is_null_check_over_reference_equality_method = true:suggesti
 dotnet_style_prefer_auto_properties = true:silent
 dotnet_style_object_initializer = true:suggestion
 
-[src/Trainfree.Web/**.cs]
+[{src/Trainfree.Admin,src/Trainfree.Versioning}/**.cs]
 # CA2007: Do not directly await a Task. The rule targets library code that must not
-# capture a caller's SynchronizationContext. This is a Blazor WebAssembly app: the
-# runtime is single-threaded so ConfigureAwait(false) is a no-op, and in UI code it
-# would drop the renderer's dispatcher context, which is the opposite of what we want.
+# capture a caller's SynchronizationContext. Trainfree.Admin is a Blazor WebAssembly
+# app, and Trainfree.Versioning is a Razor component library consumed exclusively by
+# Blazor WASM apps: the runtime is single-threaded so ConfigureAwait(false) is a no-op,
+# and in UI code it would drop the renderer's dispatcher context, which is the opposite
+# of what we want.
 dotnet_diagnostic.CA2007.severity = none
 
 [*Tests.cs]

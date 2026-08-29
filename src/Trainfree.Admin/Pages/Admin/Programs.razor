@@ -1,0 +1,210 @@
+@page "/admin"
+@using System.Text.Json
+@using Microsoft.Extensions.Logging
+@using Trainfree.Admin.Admin
+@using Trainfree.Domain.Ids
+@inject IProgramsApiClient Api
+@inject ILogger<Programs> Logger
+
+<PageTitle>Trainfree Admin</PageTitle>
+
+<h1>Trainfree Admin</h1>
+
+<button
+    class="btn btn-sm btn-outline-dark"
+    data-testid="add-program"
+    @onclick="AddProgramAsync"
+>
+    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+    Add Program
+</button>
+
+@if (_addProgramError is not null)
+{
+    <div class="text-danger small" data-testid="add-program-error">@_addProgramError</div>
+}
+
+@if (_deleteError is not null)
+{
+    <div class="text-danger small" data-testid="delete-program-error">@_deleteError</div>
+}
+
+@if (_loadError is not null)
+{
+    <div class="text-danger small" data-testid="load-programs-error">@_loadError</div>
+}
+
+<table class="table w-auto">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var row in _rows)
+        {
+            <tr>
+                <td>
+                    <input
+                        data-testid="name-input-@row.Id"
+                        value="@row.Name"
+                        autofocus="@(row.Id == _editingId)"
+                        @oninput="e => row.Name = (string)e.Value!" />
+                    @if (row.Error is not null)
+                    {
+                        <div class="text-danger small" data-testid="name-error-@row.Id">
+                            @row.Error
+                        </div>
+                    }
+                </td>
+                <td class="text-nowrap">
+                    <div class="d-flex gap-2">
+                        @if (row.IsDirty)
+                        {
+                            <button
+                                class="btn btn-sm btn-outline-dark"
+                                data-testid="save-@row.Id"
+                                title="Save"
+                                @onclick="() => RenameAsync(row)"
+                            >
+                                <i class="bi bi-floppy" aria-hidden="true"></i>
+                                <span class="visually-hidden">Save</span>
+                            </button>
+                            <button
+                                class="btn btn-sm btn-outline-secondary"
+                                data-testid="revert-@row.Id"
+                                title="Revert"
+                                @onclick="() => Revert(row)"
+                            >
+                                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                                <span class="visually-hidden">Revert</span>
+                            </button>
+                        }
+                        <button
+                            class="btn btn-sm btn-outline-danger"
+                            data-testid="delete-@row.Id"
+                            title="Delete"
+                            @onclick="() => DeleteAsync(row)"
+                        >
+                            <i class="bi bi-trash" aria-hidden="true"></i>
+                            <span class="visually-hidden">Delete</span>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private readonly List<ProgramRow> _rows = [];
+    private ProgramId? _editingId;
+    private string? _addProgramError;
+    private string? _deleteError;
+    private string? _loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var programs = await Api.GetProgramsAsync();
+            _rows.AddRange(programs.Select(p => new ProgramRow(p.Id, p.Name)));
+        }
+        // HttpRequestException alone was not enough: Cloudflare Access answers a request made
+        // before the session is established with its own HTML login page, which arrives as a
+        // JsonException and escaped, blanking the page instead of showing the load error.
+        // The charset and content-type cases come with it; a timeout arrives as a cancellation.
+        catch (Exception ex)
+            when (ex
+                    is HttpRequestException
+                        or JsonException
+                        or InvalidOperationException
+                        or NotSupportedException
+                        or OperationCanceledException
+            )
+        {
+            _loadError = "Could not load programs. Try refreshing the page.";
+            LogLoadProgramsFailed(Logger, ex);
+        }
+    }
+
+    private async Task AddProgramAsync()
+    {
+        var outcome = await Api.CreateProgramAsync("New Program");
+        switch (outcome)
+        {
+            case CreateProgramSucceeded succeeded:
+                _rows.Add(new ProgramRow(succeeded.Program.Id, succeeded.Program.Name));
+                _editingId = succeeded.Program.Id;
+                _addProgramError = null;
+                break;
+            case CreateProgramFailed failed:
+                _addProgramError = failed.Error;
+                break;
+        }
+    }
+
+    private const int MinNameLength = 5;
+    private const int MaxNameLength = 100;
+
+    private async Task RenameAsync(ProgramRow row)
+    {
+        var trimmedLength = row.Name.Trim().Length;
+        if (trimmedLength is < MinNameLength or > MaxNameLength)
+        {
+            row.Error = $"Name must be between {MinNameLength} and {MaxNameLength} characters.";
+            return;
+        }
+
+        var outcome = await Api.RenameProgramAsync(row.Id, row.Name);
+        switch (outcome)
+        {
+            case RenameProgramSucceeded succeeded:
+                row.Name = succeeded.Program.Name;
+                row.SavedName = succeeded.Program.Name;
+                row.Error = null;
+                break;
+            case RenameProgramFailed failed:
+                row.Error = failed.Error;
+                break;
+        }
+    }
+
+    private static void Revert(ProgramRow row)
+    {
+        row.Name = row.SavedName;
+        row.Error = null;
+    }
+
+    private async Task DeleteAsync(ProgramRow row)
+    {
+        var outcome = await Api.DeleteProgramAsync(row.Id);
+        switch (outcome)
+        {
+            case DeleteProgramSucceeded:
+                _rows.Remove(row);
+                _deleteError = null;
+                break;
+            case DeleteProgramFailed failed:
+                _deleteError = failed.Error;
+                break;
+        }
+    }
+
+    private sealed class ProgramRow
+    {
+        public ProgramRow(ProgramId id, string name)
+        {
+            Id = id;
+            Name = name;
+            SavedName = name;
+        }
+
+        public ProgramId Id { get; }
+        public string Name { get; set; }
+        public string SavedName { get; set; }
+        public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
+        public string? Error { get; set; }
+    }
+}

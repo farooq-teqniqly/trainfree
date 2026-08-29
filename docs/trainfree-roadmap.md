@@ -20,18 +20,23 @@ shipped and deployed together. TDD applies within each slice on both stacks.
    top-level rows: `[+ Program]`, `[x]` delete). D1 migration: `programs` table. Worker:
    `GET/POST/PATCH/DELETE /api/programs`. Blazor: minimal admin page listing/editing
    programs. Smallest possible slice to prove the Worker + D1 + Blazor + deploy pipeline
-   end to end. **Done** -- built inside `src/Trainfree.Web`'s `Admin` folder, the shared
-   project that predates the admin/workout split below.
-2. **`split-admin-workout-apps`** -- No new features; restructures the client into the two
-   Blazor WASM projects described in `trainfree-proposal.md`'s "Two client apps, one
-   Worker" section. Renames/moves `src/Trainfree.Web` (and its `Admin` folder content) into
-   a new `src/Trainfree.Admin` project carrying everything built in slice 1, and adds a new,
-   currently-empty `src/Trainfree.Workout` project as the home for the workout app
-   slices (5+). Updates `Trainfree.slnx`, the build/deploy pipeline to publish both
-   projects' `wwwroot` output into one combined assets directory (`Trainfree.Workout` at
-   `/`, `Trainfree.Admin` under `/admin`), and `wrangler.jsonc`'s `[assets]` config
-   accordingly. Done first, before extending admin CRUD further, so slices 3+ are built
-   directly in their final project rather than being moved later.
+   end to end. **Done** -- built inside `src/Trainfree.Web`'s `Admin` folder (since renamed
+   to `src/Trainfree.Admin` by slice 2), the shared project that predates the admin/workout
+   split below.
+2. **`split-admin-workout-apps`** -- No new features; restructures the client and its
+   Worker to the two-app, two-Worker architecture in CLAUDE.md's Project-specific rules.
+   Renames `src/Trainfree.Web` -> `src/Trainfree.Admin` and `src/Trainfree.Api` ->
+   `src/Trainfree.AdminApi` (including the deployed Worker's name/URL, `trainfree` ->
+   `trainfree-admin`), and extracts what the workout app will also need into shared
+   libraries -- `src/Trainfree.Domain` (domain IDs, e.g. `ProgramId`) and
+   `src/Trainfree.Versioning` (the deploy-stamp check + its Razor component). Each app
+   ends up with its own independent Worker (own assets, own `/api/*`, own D1 binding to
+   the shared `trainfree_db` database) rather than one Worker serving both apps' assets
+   under different paths -- see the change's `design.md` for why (that section of
+   `trainfree-proposal.md` originally sketched a single shared Worker; it now describes
+   the two-Worker shape this slice built). `src/Trainfree.Workout` and
+   `src/Trainfree.WorkoutApi` are not stubbed out now -- they're built for real in
+   slice 5, once there's actual work to put in them. **Done**.
 3. **`add-sessions-crud`** -- Extends admin CRUD (now in `Trainfree.Admin`) with the
    `Session` entity (day-sessions under a program, e.g. "Monday Lower Body"). D1 migration:
    `sessions` table (FK to `programs`). Worker: session routes nested or filtered by

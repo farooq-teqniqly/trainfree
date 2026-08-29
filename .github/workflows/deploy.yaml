@@ -16,8 +16,9 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # wrangler.jsonc names a single fixed Worker, so a deploy from a feature branch
-    # would overwrite production. Only main's content may deploy -- but this workflow's
+    # wrangler.jsonc names a single fixed Worker (trainfree-admin), so a deploy from a
+    # feature branch would overwrite production. Only main's content may deploy -- but
+    # this workflow's
     # main trigger is a tag push, where github.ref is refs/tags/v0.0.N, never
     # refs/heads/main. Matching on the branch alone silently skipped every tagged
     # deploy. Tags are admitted here and then checked against main below, since a tag
@@ -66,14 +67,14 @@ jobs:
         # room for a slow restore without letting a wedged one run to the job limit.
         timeout-minutes: 20
         run: |
-          dotnet publish src/Trainfree.Web/Trainfree.Web.csproj -c Release \
+          dotnet publish src/Trainfree.Admin/Trainfree.Admin.csproj -c Release \
             -p:InformationalVersion=${{ steps.stamp.outputs.version }}+${{ steps.stamp.outputs.commit }}
 
       # A stale _redirects left in publish/wwwroot from an earlier build would fail the
       # asset validator ("Infinite loop detected") against not_found_handling.
       - name: Remove stray _redirects
         timeout-minutes: 2
-        run: rm -f src/Trainfree.Web/bin/Release/net10.0/publish/wwwroot/_redirects
+        run: rm -f src/Trainfree.Admin/bin/Release/net10.0/publish/wwwroot/_redirects
 
       - name: Apply D1 migrations
         timeout-minutes: 10
@@ -85,7 +86,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: src/Trainfree.Api
+          workingDirectory: src/Trainfree.AdminApi
           wranglerVersion: "4.118.0"
           command: d1 migrations apply trainfree_db --remote
 
@@ -101,10 +102,10 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # wrangler.deploy.jsonc's `main` handles /api/* and `assets` serves the
-          # Blazor output published above -- deploying from src/Trainfree.Web
+          # Blazor output published above -- deploying from src/Trainfree.Admin
           # (assets-only, no `main`) previously shipped a Worker with no API and
           # no D1 binding under the same Worker name.
-          workingDirectory: src/Trainfree.Api
+          workingDirectory: src/Trainfree.AdminApi
           wranglerVersion: "4.118.0"
           command: deploy --config wrangler.deploy.jsonc --var APP_VERSION:${{ steps.stamp.outputs.version }} --var APP_COMMIT:${{ steps.stamp.outputs.commit }}
 
