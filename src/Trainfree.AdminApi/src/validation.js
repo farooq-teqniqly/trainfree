@@ -1,7 +1,7 @@
 const MIN_NAME_LENGTH = 5;
 const MAX_NAME_LENGTH = 100;
 
-export function validateProgramName(name) {
+export function validateName(name) {
     if (typeof name !== "string") {
         return { valid: false, error: "name is required" };
     }
@@ -16,4 +16,12 @@ export function validateProgramName(name) {
     }
 
     return { valid: true, name: trimmed };
+}
+
+export function validateProgramName(name) {
+    return validateName(name);
+}
+
+export function validateSessionName(name) {
+    return validateName(name);
 }

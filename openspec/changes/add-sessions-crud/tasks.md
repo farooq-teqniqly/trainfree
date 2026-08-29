@@ -16,19 +16,22 @@
 
 ## 2. Worker: generalize shared helpers (red-green-refactor against existing tests)
 
-- [ ] 2.1 `src/ids.js`: extract `generateId(prefix)` and `isValidId(value, prefix)`;
+- [x] 2.1 `src/ids.js`: extract `generateId(prefix)` and `isValidId(value, prefix)`;
       reimplement `generateProgramId`/`isValidProgramId` as thin wrappers; add
       `generateSessionId`/`isValidSessionId` wrappers using `SNN-`. Update
       `src/ids.test.js` for the shared helpers and both wrappers.
-- [ ] 2.2 `src/errors.js`: change `uniqueConstraintColumns(err)` to
+- [x] 2.2 `src/errors.js`: change `uniqueConstraintColumns(err)` to
       `uniqueConstraintColumns(err, table)`, parameterizing the `\btable\.(\w+)` regex.
-      Update the one existing call site in `src/programs.js`.
-- [ ] 2.3 `src/validation.js`: generalize `validateProgramName` into a shared
+      Updated both existing call sites in `src/programs.js` (create and rename, not
+      just the one the task description named).
+- [x] 2.3 `src/validation.js`: generalize `validateProgramName` into a shared
       length-bound check reusable for session names (either a `validateName(value)`
       both wrap, or an exported constant pair for min/max). Update
-      `src/validation.test.js`.
-- [ ] 2.4 Run the full existing vitest suite and confirm no regressions from 2.1-2.3
-      before writing any session-specific code.
+      `src/validation.test.js`. Added `validateName` as the shared implementation with
+      `validateProgramName`/`validateSessionName` as wrappers, plus tests for the new
+      `validateSessionName` wrapper.
+- [x] 2.4 Run the full existing vitest suite and confirm no regressions from 2.1-2.3
+      before writing any session-specific code. **99/99 passing.**
 
 ## 3. Worker: sessions feature
 

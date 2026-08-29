@@ -30,7 +30,7 @@ export async function createProgram(db, name) {
                 .run();
             return { id, name, createdAt: now, updatedAt: now };
         } catch (err) {
-            const columns = uniqueConstraintColumns(err);
+            const columns = uniqueConstraintColumns(err, "programs");
             if (columns.includes("name")) {
                 throw new DuplicateNameError(name);
             }
@@ -57,7 +57,7 @@ export async function renameProgram(db, id, name) {
             .bind(name, now, id)
             .run();
     } catch (err) {
-        if (uniqueConstraintColumns(err).includes("name")) {
+        if (uniqueConstraintColumns(err, "programs").includes("name")) {
             throw new DuplicateNameError(name);
         }
         throw err;

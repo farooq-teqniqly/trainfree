@@ -1,8 +1,9 @@
-const PREFIX = "PRG-";
 const BODY_LENGTH = 6;
 const ALPHABET = "ABCDEFGHJKMNPQRSTVWXYZ23456789";
+const PROGRAM_PREFIX = "PRG-";
+const SESSION_PREFIX = "SNN-";
 
-export function generateProgramId() {
+export function generateId(prefix) {
     const randomBytes = new Uint8Array(BODY_LENGTH);
     crypto.getRandomValues(randomBytes);
 
@@ -10,23 +11,23 @@ export function generateProgramId() {
     for (const byte of randomBytes) {
         body += ALPHABET[byte % ALPHABET.length];
     }
-    return PREFIX + body;
+    return prefix + body;
 }
 
-export function isValidProgramId(value) {
+export function isValidId(value, prefix) {
     if (typeof value !== "string") {
         return false;
     }
 
-    if (value.length !== PREFIX.length + BODY_LENGTH) {
+    if (value.length !== prefix.length + BODY_LENGTH) {
         return false;
     }
 
-    if (!value.startsWith(PREFIX)) {
+    if (!value.startsWith(prefix)) {
         return false;
     }
 
-    const body = value.slice(PREFIX.length);
+    const body = value.slice(prefix.length);
     for (const char of body) {
         if (!ALPHABET.includes(char)) {
             return false;
@@ -34,4 +35,20 @@ export function isValidProgramId(value) {
     }
 
     return true;
+}
+
+export function generateProgramId() {
+    return generateId(PROGRAM_PREFIX);
+}
+
+export function isValidProgramId(value) {
+    return isValidId(value, PROGRAM_PREFIX);
+}
+
+export function generateSessionId() {
+    return generateId(SESSION_PREFIX);
+}
+
+export function isValidSessionId(value) {
+    return isValidId(value, SESSION_PREFIX);
 }
