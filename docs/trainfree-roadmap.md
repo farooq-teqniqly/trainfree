@@ -42,7 +42,7 @@ shipped and deployed together. TDD applies within each slice on both stacks.
 3. **`add-sessions-crud`** -- Extends admin CRUD (now in `Trainfree.Admin`) with the
    `Session` entity (day-sessions under a program, e.g. "Monday Lower Body"). D1 migration:
    `sessions` table (FK to `programs`). Worker: session routes nested or filtered by
-   program. Blazor: expand admin UI to session rows.
+   program. Blazor: expand admin UI to session rows. **Done**.
 4. **`restyle-admin-shell`** -- No new entities or API routes; rewrites the existing
    `Trainfree.Admin` UI (the plain list from slice 1, extended with session rows by slice 3)
    to match `docs/design/admin-mockups/`. Navbar brand becomes "Trainfree Admin" with a
