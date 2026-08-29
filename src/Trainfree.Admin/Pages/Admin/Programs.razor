@@ -113,6 +113,19 @@
                     </div>
                 </td>
             </tr>
+            @if (row.SessionsLoadError is not null)
+            {
+                <tr>
+                    <td colspan="2">
+                        <div
+                            class="text-danger small"
+                            data-testid="sessions-load-error-@row.Id"
+                        >
+                            @row.SessionsLoadError
+                        </div>
+                    </td>
+                </tr>
+            }
             @foreach (var session in row.Sessions)
             {
                 <tr>
@@ -189,12 +202,28 @@
             var programs = await Api.GetProgramsAsync();
             foreach (var program in programs)
             {
-                var sessions = await SessionsApi.GetSessionsAsync(program.Id);
                 var row = new ProgramRow(program.Id, program.Name);
-                row.Sessions.AddRange(
-                    sessions.Select(s => new SessionRow(s.Id, program.Id, s.Name))
-                );
                 _rows.Add(row);
+
+                try
+                {
+                    var sessions = await SessionsApi.GetSessionsAsync(program.Id);
+                    row.Sessions.AddRange(
+                        sessions.Select(s => new SessionRow(s.Id, program.Id, s.Name))
+                    );
+                }
+                catch (Exception ex)
+                    when (ex
+                        is HttpRequestException
+                            or JsonException
+                            or InvalidOperationException
+                            or NotSupportedException
+                            or OperationCanceledException
+                    )
+                {
+                    row.SessionsLoadError = "Could not load sessions. Try refreshing the page.";
+                    LogLoadSessionsForProgramFailed(Logger, program.Id, ex);
+                }
             }
         }
         // HttpRequestException alone was not enough: Cloudflare Access answers a request made
@@ -359,6 +388,7 @@
         public string SavedName { get; set; }
         public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
         public string? Error { get; set; }
+        public string? SessionsLoadError { get; set; }
         public List<SessionRow> Sessions { get; } = [];
     }
 

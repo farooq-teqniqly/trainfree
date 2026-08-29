@@ -41,6 +41,33 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public void OnInitialized_OneProgramsSessionsFailToLoad_StillRendersEveryProgramRow()
+    {
+        // Arrange
+        _apiClient
+            .GetProgramsAsync(CancellationToken.None)
+            .Returns([
+                new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A"),
+                new ProgramSummary(ProgramId.Parse("PRG-BBBBBB"), "Workout B"),
+            ]);
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns<IReadOnlyList<SessionSummary>>(_ =>
+                throw new JsonException("'<' is an invalid start of a value.")
+            );
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        var rows = cut.FindAll("tbody tr");
+        Assert.Contains("Workout A", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Workout B", cut.Markup, StringComparison.Ordinal);
+        Assert.NotEmpty(rows);
+        Assert.NotNull(cut.Find("[data-testid=sessions-load-error-PRG-AAAAAA]"));
+    }
+
+    [Fact]
     public void OnInitialized_ExistingPrograms_RendersOneRowPerProgram()
     {
         // Arrange
