@@ -1,0 +1,871 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #212529;
+      --border: #dee2e6;
+      --sidebar-bg: #f8f9fa;
+      --text: #212529;
+      --text-muted: #6c757d;
+      --text-faint: #868e96;
+      --black: #000000;
+      --black-hover: #1a1a1a;
+      --focus-blue: #258cfb;
+      --active-blue: #0d6efd;
+      --danger: #dc3545;
+      --success: #26b050;
+      --row-tint: #f8f9fb;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: var(--text); background: #fff; font-size: 14px; }
+    a { color: #0071c1; text-decoration: none; }
+    a:hover { color: #024f87; text-decoration: underline; }
+    .icon { display: inline-flex; }
+    .icon svg { display: block; }
+
+    /* ---- navbar ---- */
+    .navbar {
+      height: 56px;
+      background: var(--navy);
+      display: flex;
+      align-items: center;
+      box-shadow: 0 1px 2px rgba(0,0,0,.15);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .navbar-brand {
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding: 0.5rem 0.9rem;
+      width: 240px;
+      background: rgba(0,0,0,.25);
+      box-shadow: inset -1px 0 0 rgba(0,0,0,.25);
+      height: 100%;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-sizing: border-box;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .navbar-brand .icon { color: #fff; flex-shrink: 0; }
+    .navbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-right: 1.25rem;
+      color: rgba(255,255,255,.75);
+      font-size: 0.8rem;
+    }
+    .version-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: rgba(255,255,255,.75);
+    }
+    .version-pill .icon { color: #4ade80; }
+
+    /* ---- shell ---- */
+    .shell { display: flex; align-items: flex-start; }
+    .sidebar {
+      width: 240px;
+      flex-shrink: 0;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      min-height: calc(1200px - 56px);
+      padding-top: 1rem;
+    }
+    .nav-list { list-style: none; margin: 0; padding: 0 0.5rem; }
+    .nav-item + .nav-item { margin-top: 2px; }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.55rem 0.75rem;
+      border-radius: 0.25rem;
+      color: #333;
+      font-weight: 500;
+      font-size: 0.925rem;
+    }
+    .nav-link .icon { color: #727272; }
+    .nav-link.active { color: var(--active-blue); background: rgba(13,110,253,.08); }
+    .nav-link.active .icon { color: inherit; }
+    .nav-parent { justify-content: space-between; }
+    .nav-parent .nav-chevron { color: var(--text-faint); display: inline-flex; }
+    .nav-sublist { list-style: none; margin: 2px 0 0; padding: 0; }
+    .nav-sublist .nav-link { padding-left: 2.35rem; font-size: 0.875rem; }
+
+    .main { flex: 1; min-width: 0; padding: 1.25rem 1.5rem 3rem; }
+
+    /* ---- page header ---- */
+    .page-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .page-header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0 0 0.2rem;
+    }
+    .page-sub { color: var(--text-muted); font-size: 0.875rem; margin: 0; max-width: 640px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.25rem;
+      border: 1px solid transparent;
+      cursor: default;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+    .btn-sm { font-size: 0.8125rem; padding: 0.28rem 0.55rem; }
+    .btn-xs { font-size: 0.75rem; padding: 0.18rem 0.4rem; }
+    .btn-primary-black { background: var(--black); border-color: var(--black); color: #fff; }
+    .btn-outline-dark { background: #fff; border-color: var(--navy); color: var(--navy); }
+    .btn-outline-secondary { background: #fff; border-color: #6c757d; color: #6c757d; }
+    .btn-outline-danger { background: #fff; border-color: var(--danger); color: var(--danger); }
+    .btn-ghost {
+      background: transparent;
+      border: 1px dashed #c9cdd2;
+      color: var(--text-muted);
+      justify-content: center;
+    }
+    .icon-btn {
+      width: 26px; height: 26px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 0.25rem;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .icon-btn.danger { color: var(--danger); border-color: #f3c6cb; }
+    .icon-btn.save { color: #fff; background: var(--black); border-color: var(--black); }
+    .icon-btn.revert { color: #6c757d; border-color: #ced4da; }
+
+    /* ---- spreadsheet ---- */
+    .sheet-wrap {
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      overflow: hidden;
+      background: #fff;
+    }
+    table.sheet { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .sheet thead th {
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--text-muted);
+      background: #f8f9fa;
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 0.65rem;
+      white-space: nowrap;
+    }
+    .sheet th.col-name { padding-left: 0.9rem; }
+    .sheet td {
+      border-bottom: 1px solid var(--border);
+      padding: 0.45rem 0.65rem;
+      vertical-align: middle;
+      color: var(--text);
+    }
+    .sheet col.c-name { width: 40%; }
+    .sheet col.c-type { width: 9%; }
+    .sheet col.c-reps { width: 7%; }
+    .sheet col.c-weight { width: 8%; }
+    .sheet col.c-sets { width: 7%; }
+    .sheet col.c-rest { width: 8%; }
+    .sheet col.c-side { width: 9%; }
+    .sheet col.c-note { width: 12%; }
+
+    .row-depth-0 td { background: var(--row-tint); font-weight: 600; }
+    .row-depth-1 td { font-weight: 600; }
+    .row-depth-2 td { color: var(--text-muted); font-weight: 600; font-size: 0.8125rem; }
+    .row-depth-3 td { }
+    .row-add td { color: var(--text-faint); }
+
+    .name-cell { display: flex; align-items: center; gap: 0.4rem; }
+    .name-cell .indent { flex-shrink: 0; }
+    .name-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .name-actions { display: flex; align-items: center; gap: 0.3rem; margin-left: auto; flex-shrink: 0; }
+    .chevron {
+      width: 18px; height: 18px;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .chevron-spacer { width: 18px; flex-shrink: 0; }
+    .muted { color: var(--text-faint); }
+    .dim-dash { color: var(--text-faint); }
+
+    .cell-input {
+      width: 100%;
+      font: inherit;
+      color: inherit;
+      border: 1px solid transparent;
+      border-radius: 0.2rem;
+      background: transparent;
+      padding: 0.2rem 0.35rem;
+    }
+    .cell-input.editing {
+      border-color: var(--focus-blue);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(37,140,251,.15);
+    }
+    .badge-type {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.12rem 0.45rem;
+      border-radius: 999px;
+      background: #eef1f4;
+      color: #495057;
+    }
+    .badge-type.timed { background: #eaf3ff; color: #0b5ed7; }
+
+    .side-select {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.8125rem;
+      color: var(--text);
+    }
+    .side-select .icon { color: var(--text-faint); width: 12px; }
+
+    .note-empty { color: var(--text-faint); font-style: italic; font-size: 0.8125rem; }
+
+    .image-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      padding: 0.22rem 0.5rem;
+      border: 1px dashed #c9cdd2;
+      border-radius: 0.25rem;
+      color: var(--text-muted);
+    }
+    .image-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem 0.15rem 0.15rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text);
+      background: #f8f9fa;
+    }
+    .image-chip .thumb {
+      width: 20px; height: 20px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #cfe2ff, #9ec5fe);
+      flex-shrink: 0;
+    }
+
+    .row-add td { padding-top: 0.35rem; padding-bottom: 0.35rem; }
+    .row-add .name-cell { color: var(--text-faint); }
+
+    .dirty-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.7rem;
+      color: #b8860b;
+      background: #fff8e6;
+      border: 1px solid #f2dfa0;
+      border-radius: 999px;
+      padding: 0.1rem 0.5rem;
+      margin-left: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .toolbar-hint {
+      color: var(--text-muted);
+      font-size: 0.8125rem;
+      margin: 0.6rem 0 0;
+      max-width: 760px;
+    }
+
+    /* ---- exercise picker (canonical exercise library) ---- */
+    .ex-thumb {
+      width: 22px; height: 22px;
+      border-radius: 0.3rem;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #cfe2ff, #9ec5fe);
+      background-size: cover;
+      background-position: center;
+    }
+    .ex-thumb.placeholder {
+      background: #eef1f4;
+      display: flex; align-items: center; justify-content: center;
+      color: #adb5bd;
+    }
+    .name-cell.exercise-picker { cursor: default; position: relative; }
+    .name-cell.exercise-picker .name-text { color: var(--text); }
+    .picker-chevron { color: var(--text-faint); flex-shrink: 0; display: inline-flex; }
+
+    .picker-panel {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 3.3rem;
+      width: 300px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      box-shadow: 0 10px 28px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.06);
+      z-index: 30;
+      overflow: hidden;
+    }
+    .picker-search {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.55rem 0.7rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-faint);
+      font-size: 0.8125rem;
+    }
+    .picker-search .icon { color: var(--text-faint); }
+    .picker-list { max-height: 260px; overflow-y: auto; padding: 0.35rem; }
+    .picker-item {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.4rem 0.5rem;
+      border-radius: 0.3rem;
+      font-size: 0.8125rem;
+      color: var(--text);
+    }
+    .picker-item .ex-thumb { width: 26px; height: 26px; }
+    .picker-item .picker-item-name { flex: 1; font-weight: 500; }
+    .picker-item .badge-type { flex-shrink: 0; }
+    .picker-item.selected {
+      background: rgba(13,110,253,.08);
+    }
+    .picker-item.selected .check { color: var(--active-blue); display: inline-flex; flex-shrink: 0; }
+    .picker-item:not(.selected) .check { display: none; }
+    .picker-item.hover { background: #f1f3f5; }
+    .picker-footer {
+      border-top: 1px solid var(--border);
+      padding: 0.4rem;
+    }
+    .picker-new {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.6rem;
+      border-radius: 0.3rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+    .picker-new .icon { color: var(--text-muted); }
+  </style>
+</helmet>
+
+<!-- Navbar -->
+<div class="navbar">
+  <div class="navbar-brand">
+    <span class="icon">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1.25" y="8.5" width="2.75" height="7" rx="1"/><rect x="20" y="8.5" width="2.75" height="7" rx="1"/><line x1="4" y1="12" x2="20" y2="12"/><rect x="6.5" y="6.25" width="2.75" height="11.5" rx="1"/><rect x="14.75" y="6.25" width="2.75" height="11.5" rx="1"/></svg>
+    </span>
+    Trainfree Admin
+  </div>
+  <div class="navbar-right">
+    <span class="version-pill">
+      <span class="icon">
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M5.5 8l1.8 1.8L10.5 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      v0.1.0+e1f5a2c
+    </span>
+  </div>
+</div>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <ul class="nav-list">
+      <li class="nav-item">
+        <div class="nav-link">
+          <span class="icon">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 7.5L8 2l6 5.5"/><path d="M4 6.5V14h8V6.5"/></svg>
+          </span>
+          Home
+        </div>
+      </li>
+      <li class="nav-item">
+        <div class="nav-link">
+          <span class="icon">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M2 2.8V7l7 7 5-5-7-7H2.8a.8.8 0 00-.8.8z"/><circle cx="5" cy="5" r="1"/></svg>
+          </span>
+          Categories
+        </div>
+      </li>
+      <li class="nav-item">
+        <div class="nav-link">
+          <span class="icon">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M3.5 8h1.7M10.8 8h1.7M5.2 5.7v4.6M10.8 5.7v4.6"/><rect x="2" y="6.3" width="3.2" height="3.4" rx="0.6"/><rect x="10.8" y="6.3" width="3.2" height="3.4" rx="0.6"/></svg>
+          </span>
+          Exercises
+        </div>
+      </li>
+      <li class="nav-item">
+        <div class="nav-link active">
+          <span class="icon">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="0.5"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="0.5"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="0.5"/><rect x="9" y="9" width="4.5" height="4.5" rx="0.5"/></svg>
+          </span>
+          Programs
+        </div>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h1>Programs</h1>
+        <p class="page-sub">Build out programs and sessions, then pick categories and exercises from your libraries. Click any cell to edit &mdash; changes save on blur.</p>
+      </div>
+      <button class="btn btn-primary-black">
+        <span class="icon">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v6M5 8h6" stroke-linecap="round"/></svg>
+        </span>
+        Add Program
+      </button>
+    </div>
+
+    <div class="sheet-wrap">
+      <table class="sheet">
+        <colgroup>
+          <col class="c-name"><col class="c-type"><col class="c-reps"><col class="c-weight">
+          <col class="c-sets"><col class="c-rest"><col class="c-side"><col class="c-note">
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="col-name">Name</th>
+            <th>Type</th>
+            <th>Reps</th>
+            <th>Weight (lbs)</th>
+            <th>Sets</th>
+            <th>Rest (s)</th>
+            <th>Side</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Workout A (expanded) -->
+          <tr class="row-depth-0">
+            <td colspan="8">
+              <div class="name-cell">
+                <span class="chevron indent">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>
+                </span>
+                <span class="name-text">Workout A</span>
+                <span class="name-actions">
+                  <span class="icon-btn danger" title="Delete">
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M4.5 4.5l.5 8.5a1 1 0 001 1h4a1 1 0 001-1l.5-8.5"/></svg>
+                  </span>
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Monday Lower Body (expanded) -->
+          <tr class="row-depth-1">
+            <td colspan="8" style="padding-left: 1.5rem;">
+              <div class="name-cell">
+                <span class="chevron">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>
+                </span>
+                <span class="name-text">Monday Lower Body</span>
+                <span class="name-actions">
+                  <span class="icon-btn danger" title="Delete">
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M4.5 4.5l.5 8.5a1 1 0 001 1h4a1 1 0 001-1l.5-8.5"/></svg>
+                  </span>
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Warm Up category -- picker open, demonstrating the canonical category dropdown -->
+          <tr class="row-depth-2">
+            <td colspan="8" style="padding-left: 2.4rem;">
+              <div class="name-cell" style="position: relative;">
+                <span class="chevron">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>
+                </span>
+                <span class="name-text" style="color: var(--active-blue);">Warm Up</span>
+                <span class="picker-chevron" style="color: var(--active-blue); transform: rotate(180deg);">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>
+                </span>
+                <span class="name-actions">
+                  <span class="icon-btn danger" title="Delete">
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M4.5 4.5l.5 8.5a1 1 0 001 1h4a1 1 0 001-1l.5-8.5"/></svg>
+                  </span>
+                </span>
+
+                <div class="picker-panel" style="width: 240px;">
+                  <div class="picker-search">
+                    <span class="icon">
+                      <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M13.5 13.5L10.5 10.5" stroke-linecap="round"/></svg>
+                    </span>
+                    Search categories&hellip;
+                  </div>
+                  <div class="picker-list">
+                    <div class="picker-item selected">
+                      <span class="picker-item-name">Warm Up</span>
+                      <span class="check icon">
+                        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 5"/></svg>
+                      </span>
+                    </div>
+                    <div class="picker-item hover">
+                      <span class="picker-item-name">A</span>
+                      <span class="check icon"></span>
+                    </div>
+                    <div class="picker-item">
+                      <span class="picker-item-name">B</span>
+                      <span class="check icon"></span>
+                    </div>
+                    <div class="picker-item">
+                      <span class="picker-item-name">Cool Down</span>
+                      <span class="check icon"></span>
+                    </div>
+                  </div>
+                  <div class="picker-footer">
+                    <div class="picker-new">
+                      <span class="icon">
+                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v6M5 8h6" stroke-linecap="round"/></svg>
+                      </span>
+                      New category&hellip;
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Skater Jump (timed) -->
+          <tr class="row-depth-3">
+            <td>
+              <div class="name-cell exercise-picker" style="padding-left: 3.3rem;">
+                <span class="chevron-spacer"></span>
+                <span class="ex-thumb"></span>
+                <span class="name-text">Skater Jump</span>
+                <span class="picker-chevron">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>
+                </span>
+              </div>
+            </td>
+            <td><span class="badge-type timed">Timed</span></td>
+            <td class="dim-dash">&mdash;</td>
+            <td class="dim-dash">&mdash;</td>
+            <td>1</td>
+            <td>30</td>
+            <td>
+              <span class="side-select">
+                <span class="icon">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></svg>
+                </span>
+                Both
+              </span>
+            </td>
+            <td><span class="note-empty">Add note&hellip;</span></td>
+          </tr>
+
+          <!-- Bodyweight Squat (reps) -- exercise picker open, demonstrating the new canonical-library selection -->
+          <tr class="row-depth-3">
+            <td>
+              <div class="name-cell exercise-picker" style="padding-left: 3.3rem;">
+                <span class="chevron-spacer"></span>
+                <span class="ex-thumb"></span>
+                <span class="name-text" style="color: var(--active-blue); font-weight: 600;">Bodyweight Squat</span>
+                <span class="picker-chevron" style="color: var(--active-blue); transform: rotate(180deg);">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>
+                </span>
+
+                <div class="picker-panel">
+                  <div class="picker-search">
+                    <span class="icon">
+                      <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M13.5 13.5L10.5 10.5" stroke-linecap="round"/></svg>
+                    </span>
+                    Search exercises&hellip;
+                  </div>
+                  <div class="picker-list">
+                    <div class="picker-item selected">
+                      <span class="ex-thumb"></span>
+                      <span class="picker-item-name">Bodyweight Squat</span>
+                      <span class="badge-type">Reps</span>
+                      <span class="check icon">
+                        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 5"/></svg>
+                      </span>
+                    </div>
+                    <div class="picker-item hover">
+                      <span class="ex-thumb"></span>
+                      <span class="picker-item-name">Jump Squat</span>
+                      <span class="badge-type timed">Timed</span>
+                      <span class="check icon"></span>
+                    </div>
+                    <div class="picker-item">
+                      <span class="ex-thumb"></span>
+                      <span class="picker-item-name">Dumbbell Goblet Squat</span>
+                      <span class="badge-type">Reps</span>
+                      <span class="check icon"></span>
+                    </div>
+                    <div class="picker-item">
+                      <span class="ex-thumb placeholder">
+                        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1"/><path d="M2 11l3.5-3.5L8 10l2.5-2.5L14 11"/></svg>
+                      </span>
+                      <span class="picker-item-name">Skater Jump</span>
+                      <span class="badge-type timed">Timed</span>
+                      <span class="check icon"></span>
+                    </div>
+                  </div>
+                  <div class="picker-footer">
+                    <div class="picker-new">
+                      <span class="icon">
+                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v6M5 8h6" stroke-linecap="round"/></svg>
+                      </span>
+                      New exercise&hellip;
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td><span class="badge-type">Reps</span></td>
+            <td>20</td>
+            <td class="dim-dash">&mdash;</td>
+            <td>1</td>
+            <td>30</td>
+            <td>
+              <span class="side-select">
+                <span class="icon">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></svg>
+                </span>
+                Both
+              </span>
+            </td>
+            <td><span class="note-empty">Add note&hellip;</span></td>
+          </tr>
+
+          <!-- + Add Exercise (Warm Up) -->
+          <tr class="row-add">
+            <td colspan="8" style="padding-left: 3.3rem;">
+              <span class="btn btn-ghost btn-xs">
+                <span class="icon">
+                  <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v6M5 8h6" stroke-linecap="round"/></svg>
+                </span>
+                Add Exercise
+              </span>
+            </td>
+          </tr>
+
+          <!-- Category A -->
+          <tr class="row-depth-2">
+            <td colspan="8" style="padding-left: 2.4rem;">
+              <div class="name-cell">
+                <span class="chevron">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>
+                </span>
+                <span class="name-text">A</span>
+                <span class="picker-chevron">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>
+                </span>
+                <span class="name-actions">
+                  <span class="icon-btn danger" title="Delete">
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M4.5 4.5l.5 8.5a1 1 0 001 1h4a1 1 0 001-1l.5-8.5"/></svg>
+                  </span>
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Goblet Squat -->
+          <tr class="row-depth-3">
+            <td>
+              <div class="name-cell exercise-picker" style="padding-left: 3.3rem;">
+                <span class="chevron-spacer"></span>
+                <span class="ex-thumb"></span>
+                <span class="name-text">Dumbbell Goblet Squat</span>
+                <span class="picker-chevron">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>
+                </span>
+              </div>
+            </td>
+            <td><span class="badge-type">Reps</span></td>
+            <td>12</td>
+            <td>50</td>
+            <td>3</td>
+            <td>60</td>
+            <td>
+              <span class="side-select">
+                <span class="icon">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></svg>
+                </span>
+                Both
+              </span>
+            </td>
+            <td><span class="note-empty">Add note&hellip;</span></td>
+          </tr>
+
+          <!-- Sumo Deadlift -->
+          <tr class="row-depth-3">
+            <td>
+              <div class="name-cell exercise-picker" style="padding-left: 3.3rem;">
+                <span class="chevron-spacer"></span>
+                <span class="ex-thumb"></span>
+                <span class="name-text">Dumbbell Sumo Deadlift</span>
+                <span class="picker-chevron">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>
+                </span>
+              </div>
+            </td>
+            <td><span class="badge-type">Reps</span></td>
+            <td>12</td>
+            <td>50</td>
+            <td>3</td>
+            <td>60</td>
+            <td>
+              <span class="side-select">
+                <span class="icon">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></svg>
+                </span>
+                Both
+              </span>
+            </td>
+            <td>Keep back flat</td>
+          </tr>
+
+          <!-- + Add Exercise (A) -->
+          <tr class="row-add">
+            <td colspan="8" style="padding-left: 3.3rem;">
+              <span class="btn btn-ghost btn-xs">
+                <span class="icon">
+                  <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v6M5 8h6" stroke-linecap="round"/></svg>
+                </span>
+                Add Exercise
+              </span>
+            </td>
+          </tr>
+
+          <!-- + Add Category -->
+          <tr class="row-add">
+            <td colspan="8" style="padding-left: 2.4rem;">
+              <span class="btn btn-ghost btn-xs">
+                <span class="icon">
+                  <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v6M5 8h6" stroke-linecap="round"/></svg>
+                </span>
+                Add Category
+              </span>
+            </td>
+          </tr>
+
+          <!-- Tuesday Upper Body (collapsed) -->
+          <tr class="row-depth-1">
+            <td colspan="8" style="padding-left: 1.5rem;">
+              <div class="name-cell">
+                <span class="chevron">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>
+                </span>
+                <span class="name-text">Tuesday Upper Body</span>
+                <span class="name-actions">
+                  <span class="icon-btn danger" title="Delete">
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M4.5 4.5l.5 8.5a1 1 0 001 1h4a1 1 0 001-1l.5-8.5"/></svg>
+                  </span>
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- + Add Session -->
+          <tr class="row-add">
+            <td colspan="8" style="padding-left: 1.5rem;">
+              <span class="btn btn-ghost btn-xs">
+                <span class="icon">
+                  <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v6M5 8h6" stroke-linecap="round"/></svg>
+                </span>
+                Add Session
+              </span>
+            </td>
+          </tr>
+
+          <!-- Workout B (collapsed) -->
+          <tr class="row-depth-0">
+            <td colspan="8">
+              <div class="name-cell">
+                <span class="chevron indent">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>
+                </span>
+                <span class="name-text">Workout B</span>
+                <span class="name-actions">
+                  <span class="icon-btn danger" title="Delete">
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M4.5 4.5l.5 8.5a1 1 0 001 1h4a1 1 0 001-1l.5-8.5"/></svg>
+                  </span>
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Workout C (collapsed) -->
+          <tr class="row-depth-0">
+            <td colspan="8">
+              <div class="name-cell">
+                <span class="chevron indent">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>
+                </span>
+                <span class="name-text">Workout C</span>
+                <span class="name-actions">
+                  <span class="icon-btn danger" title="Delete">
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M4.5 4.5l.5 8.5a1 1 0 001 1h4a1 1 0 001-1l.5-8.5"/></svg>
+                  </span>
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Workout D (collapsed) -->
+          <tr class="row-depth-0">
+            <td colspan="8">
+              <div class="name-cell">
+                <span class="chevron indent">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>
+                </span>
+                <span class="name-text">Workout D</span>
+                <span class="name-actions">
+                  <span class="icon-btn danger" title="Delete">
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M4.5 4.5l.5 8.5a1 1 0 001 1h4a1 1 0 001-1l.5-8.5"/></svg>
+                  </span>
+                </span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="toolbar-hint">Rows collapse and expand with the chevron. A category or exercise row's name picks from its canonical list &mdash; manage those under <strong>Categories</strong> and <strong>Exercises</strong>. Deleting a row also removes everything nested beneath it.</p>
+  </main>
+</div>
+</x-dc>
+</body>
+</html>
