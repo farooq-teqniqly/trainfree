@@ -1,0 +1,25 @@
+{
+  "artboards": [
+    { "file": "Home.dc.html", "x": -1560, "y": 0, "w": 1440, "h": 900, "title": "1. Home" },
+    { "file": "EmptyState.dc.html", "x": 0, "y": 0, "w": 1440, "h": 900, "title": "2. Programs — empty state" },
+    { "file": "Main.dc.html", "x": 1600, "y": 0, "w": 1920, "h": 1200, "title": "3. Programs — after Add Program (wide screen)" },
+    { "file": "ExercisesEmpty.dc.html", "x": 3680, "y": 0, "w": 1440, "h": 900, "title": "Exercises — empty state" },
+    { "file": "Exercises.dc.html", "x": 5240, "y": 0, "w": 1920, "h": 980, "title": "Exercises — after Add Exercise" },
+    { "file": "CategoriesEmpty.dc.html", "x": 7280, "y": 0, "w": 1440, "h": 900, "title": "Categories — empty state" },
+    { "file": "Categories.dc.html", "x": 8840, "y": 0, "w": 1440, "h": 900, "title": "Categories — after Add Category" }
+  ],
+  "annotations": [
+    { "id": "flow-0", "x": -1560, "y": -110, "w": 340, "text": "1. Home\nLanding page — quick links into Programs, Categories and Exercises." },
+    { "id": "flow-arrow-0", "x": -120, "y": 380, "w": 120, "text": "Click Programs →" },
+    { "id": "flow-1", "x": 0, "y": -110, "w": 340, "text": "2. Start here\nNo programs yet." },
+    { "id": "flow-arrow", "x": 1440, "y": 380, "w": 160, "text": "Click \"Add Program\" →" },
+    { "id": "flow-2", "x": 1600, "y": -110, "w": 700, "text": "3. After clicking \"Add Program\"\nA new program row is added and focused for rename; the full spreadsheet view takes over from here. Sized at 1920px to show the layout holds up on a wide desktop monitor — the sidebar stays fixed width, the sheet uses the extra room, and body copy stays capped for readability." },
+    { "id": "flow-4", "x": 3680, "y": -110, "w": 340, "text": "Exercises — before any are added\nSame empty-state pattern as Programs." },
+    { "id": "flow-arrow-1", "x": 5120, "y": 380, "w": 120, "text": "Click \"Add Exercise\" →" },
+    { "id": "flow-3", "x": 5240, "y": -110, "w": 700, "text": "Exercise library\nReached from the Exercises nav item. Programs picks exercise name + image from here instead of free text — see the open picker in step 3's \"Bodyweight Squat\" row." },
+    { "id": "flow-5", "x": 7280, "y": -110, "w": 340, "text": "Categories — before any are added\nSame empty-state pattern as Programs and Exercises." },
+    { "id": "flow-arrow-2", "x": 8720, "y": 380, "w": 120, "text": "Click \"Add Category\" →" },
+    { "id": "flow-6", "x": 8840, "y": -110, "w": 460, "text": "Category library\nReached from the Categories nav item. Programs picks a session's category from here instead of free text — see the open picker on the \"Warm Up\" row in step 3." }
+  ],
+  "launch": { "view": "canvas" }
+}

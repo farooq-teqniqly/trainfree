@@ -1,0 +1,495 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #212529;
+      --border: #dee2e6;
+      --sidebar-bg: #f8f9fa;
+      --text: #212529;
+      --text-muted: #6c757d;
+      --text-faint: #868e96;
+      --black: #000000;
+      --black-hover: #1a1a1a;
+      --focus-blue: #258cfb;
+      --active-blue: #0d6efd;
+      --danger: #dc3545;
+      --row-tint: #f8f9fb;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: var(--text); background: #fff; font-size: 14px; }
+    a { color: #0071c1; text-decoration: none; }
+    .icon { display: inline-flex; }
+    .icon svg { display: block; }
+
+    .navbar {
+      height: 56px;
+      background: var(--navy);
+      display: flex;
+      align-items: center;
+      box-shadow: 0 1px 2px rgba(0,0,0,.15);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .navbar-brand {
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding: 0.5rem 0.9rem;
+      width: 240px;
+      background: rgba(0,0,0,.25);
+      box-shadow: inset -1px 0 0 rgba(0,0,0,.25);
+      height: 100%;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-sizing: border-box;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .navbar-brand .icon { color: #fff; flex-shrink: 0; }
+    .navbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-right: 1.25rem;
+      color: rgba(255,255,255,.75);
+      font-size: 0.8rem;
+    }
+    .version-pill { display: flex; align-items: center; gap: 0.35rem; }
+    .version-pill .icon { color: #4ade80; }
+
+    .shell { display: flex; align-items: flex-start; }
+    .sidebar {
+      width: 240px;
+      flex-shrink: 0;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      min-height: calc(980px - 56px);
+      padding-top: 1rem;
+    }
+    .nav-list { list-style: none; margin: 0; padding: 0 0.5rem; }
+    .nav-item + .nav-item { margin-top: 2px; }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.55rem 0.75rem;
+      border-radius: 0.25rem;
+      color: #333;
+      font-weight: 500;
+      font-size: 0.925rem;
+    }
+    .nav-link .icon { color: #727272; }
+    .nav-link.active { color: var(--active-blue); background: rgba(13,110,253,.08); }
+    .nav-link.active .icon { color: inherit; }
+    .nav-parent { justify-content: space-between; }
+    .nav-parent .nav-chevron { color: var(--text-faint); display: inline-flex; }
+    .nav-sublist { list-style: none; margin: 2px 0 0; padding: 0; }
+    .nav-sublist .nav-link { padding-left: 2.35rem; font-size: 0.875rem; }
+
+    .main { flex: 1; min-width: 0; padding: 1.25rem 1.5rem 3rem; }
+
+    .page-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .page-header h1 { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.2rem; }
+    .page-sub { color: var(--text-muted); font-size: 0.875rem; margin: 0; max-width: 640px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.25rem;
+      border: 1px solid transparent;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+    .btn-primary-black { background: var(--black); border-color: var(--black); color: #fff; }
+    .btn-ghost {
+      background: transparent;
+      border: 1px dashed #c9cdd2;
+      color: var(--text-muted);
+      justify-content: center;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.85rem;
+    }
+    .search-box {
+      flex: 1;
+      max-width: 320px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      padding: 0.4rem 0.65rem;
+      color: var(--text-faint);
+      font-size: 0.875rem;
+      background: #fff;
+    }
+    .search-box .icon { color: var(--text-faint); }
+    .count-pill {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+
+    .sheet-wrap {
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      overflow: hidden;
+      background: #fff;
+    }
+    table.sheet { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .sheet thead th {
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--text-muted);
+      background: #f8f9fa;
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 0.65rem;
+      white-space: nowrap;
+    }
+    .sheet td {
+      border-bottom: 1px solid var(--border);
+      padding: 0.55rem 0.65rem;
+      vertical-align: middle;
+      color: var(--text);
+    }
+    .sheet col.c-image { width: 64px; }
+    .sheet col.c-name { width: 34%; }
+    .sheet col.c-type { width: 12%; }
+    .sheet col.c-used { width: 16%; }
+    .sheet col.c-actions { width: 120px; }
+
+    .thumb-cell {
+      width: 40px; height: 40px;
+      border-radius: 0.4rem;
+      background: linear-gradient(135deg, #cfe2ff, #9ec5fe);
+      flex-shrink: 0;
+    }
+    .thumb-cell.placeholder {
+      background: #eef1f4;
+      display: flex; align-items: center; justify-content: center;
+      color: #adb5bd;
+      border: 1px dashed #ced4da;
+    }
+
+    .name-cell { display: flex; align-items: center; gap: 0.5rem; }
+    .name-text { font-weight: 600; }
+
+    .cell-input {
+      width: 100%;
+      font: inherit;
+      font-weight: 600;
+      color: inherit;
+      border: 1px solid transparent;
+      border-radius: 0.2rem;
+      background: transparent;
+      padding: 0.2rem 0.35rem;
+    }
+    .cell-input.editing {
+      border-color: var(--focus-blue);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(37,140,251,.15);
+    }
+    .dirty-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.7rem;
+      color: #b8860b;
+      background: #fff8e6;
+      border: 1px solid #f2dfa0;
+      border-radius: 999px;
+      padding: 0.1rem 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .badge-type {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.12rem 0.45rem;
+      border-radius: 999px;
+      background: #eef1f4;
+      color: #495057;
+    }
+    .badge-type.timed { background: #eaf3ff; color: #0b5ed7; }
+
+    .used-count {
+      font-size: 0.8125rem;
+      color: var(--text);
+    }
+    .used-count.unused {
+      color: var(--text-faint);
+      font-style: italic;
+    }
+
+    .row-actions { display: flex; align-items: center; gap: 0.35rem; }
+    .icon-btn {
+      width: 26px; height: 26px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 0.25rem;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .icon-btn.upload { color: var(--text-muted); border-color: var(--border); }
+    .icon-btn.save { color: #fff; background: var(--black); border-color: var(--black); }
+    .icon-btn.revert { color: #6c757d; border-color: #ced4da; }
+    .icon-btn.danger { color: var(--danger); border-color: #f3c6cb; }
+    .icon-btn.danger.disabled {
+      color: #ced4da;
+      border-color: #e9ecef;
+      cursor: not-allowed;
+    }
+
+    .row-add td { color: var(--text-faint); padding-top: 0.5rem; padding-bottom: 0.5rem; }
+
+    .toolbar-hint {
+      color: var(--text-muted);
+      font-size: 0.8125rem;
+      margin: 0.6rem 0 0;
+      max-width: 760px;
+    }
+  </style>
+</helmet>
+
+<div class="navbar">
+  <div class="navbar-brand">
+    <span class="icon">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1.25" y="8.5" width="2.75" height="7" rx="1"/><rect x="20" y="8.5" width="2.75" height="7" rx="1"/><line x1="4" y1="12" x2="20" y2="12"/><rect x="6.5" y="6.25" width="2.75" height="11.5" rx="1"/><rect x="14.75" y="6.25" width="2.75" height="11.5" rx="1"/></svg>
+    </span>
+    Trainfree Admin
+  </div>
+  <div class="navbar-right">
+    <span class="version-pill">
+      <span class="icon">
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M5.5 8l1.8 1.8L10.5 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      v0.1.0+e1f5a2c
+    </span>
+  </div>
+</div>
+
+<div class="shell">
+  <nav class="sidebar">
+    <ul class="nav-list">
+      <li class="nav-item">
+        <div class="nav-link">
+          <span class="icon">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 7.5L8 2l6 5.5"/><path d="M4 6.5V14h8V6.5"/></svg>
+          </span>
+          Home
+        </div>
+      </li>
+      <li class="nav-item">
+        <div class="nav-link">
+          <span class="icon">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M2 2.8V7l7 7 5-5-7-7H2.8a.8.8 0 00-.8.8z"/><circle cx="5" cy="5" r="1"/></svg>
+          </span>
+          Categories
+        </div>
+      </li>
+      <li class="nav-item">
+        <div class="nav-link active">
+          <span class="icon">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M3.5 8h1.7M10.8 8h1.7M5.2 5.7v4.6M10.8 5.7v4.6"/><rect x="2" y="6.3" width="3.2" height="3.4" rx="0.6"/><rect x="10.8" y="6.3" width="3.2" height="3.4" rx="0.6"/></svg>
+          </span>
+          Exercises
+        </div>
+      </li>
+      <li class="nav-item">
+        <div class="nav-link">
+          <span class="icon">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="0.5"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="0.5"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="0.5"/><rect x="9" y="9" width="4.5" height="4.5" rx="0.5"/></svg>
+          </span>
+          Programs
+        </div>
+      </li>
+    </ul>
+  </nav>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h1>Exercises</h1>
+        <p class="page-sub">The canonical exercise library &mdash; name and image live here once, and programs pick from this list instead of typing free text.</p>
+      </div>
+      <button class="btn btn-primary-black">
+        <span class="icon">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v6M5 8h6" stroke-linecap="round"/></svg>
+        </span>
+        Add Exercise
+      </button>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="icon">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M13.5 13.5L10.5 10.5" stroke-linecap="round"/></svg>
+        </span>
+        Search exercises&hellip;
+      </div>
+      <span class="count-pill">5 exercises</span>
+    </div>
+
+    <div class="sheet-wrap">
+      <table class="sheet">
+        <colgroup>
+          <col class="c-image"><col class="c-name"><col class="c-type"><col class="c-used"><col class="c-actions">
+        </colgroup>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Used in</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Row being renamed (dirty, Save/Revert) -->
+          <tr>
+            <td><span class="thumb-cell"></span></td>
+            <td>
+              <input class="cell-input editing" value="Bodyweight Squat">
+            </td>
+            <td><span class="badge-type">Reps</span></td>
+            <td><span class="used-count">1 program</span></td>
+            <td>
+              <div class="row-actions">
+                <span class="dirty-banner">Unsaved</span>
+                <span class="icon-btn save" title="Save">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 3h8l2 2v8H3V3z"/><path d="M5 3v3h5V3M5 13v-4h6v4"/></svg>
+                </span>
+                <span class="icon-btn revert" title="Revert">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.5A5 5 0 1113 8"/><path d="M3.5 3v3.5H7"/></svg>
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td>
+              <span class="thumb-cell placeholder">
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1"/><path d="M2 11l3.5-3.5L8 10l2.5-2.5L14 11"/></svg>
+              </span>
+            </td>
+            <td><span class="name-text">Skater Jump</span></td>
+            <td><span class="badge-type timed">Timed</span></td>
+            <td><span class="used-count">1 program</span></td>
+            <td>
+              <div class="row-actions">
+                <span class="icon-btn upload" title="Upload image">
+                  <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1"/><circle cx="5.5" cy="6.5" r="1"/><path d="M2 11l3.5-3.5L8 10l2.5-2.5L14 11"/></svg>
+                </span>
+                <span class="icon-btn danger disabled" title="Used by 1 program &mdash; remove it there first">
+                  <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M4.5 4.5l.5 8.5a1 1 0 001 1h4a1 1 0 001-1l.5-8.5"/></svg>
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td><span class="thumb-cell"></span></td>
+            <td><span class="name-text">Dumbbell Goblet Squat</span></td>
+            <td><span class="badge-type">Reps</span></td>
+            <td><span class="used-count">1 program</span></td>
+            <td>
+              <div class="row-actions">
+                <span class="icon-btn upload" title="Replace image">
+                  <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1"/><circle cx="5.5" cy="6.5" r="1"/><path d="M2 11l3.5-3.5L8 10l2.5-2.5L14 11"/></svg>
+                </span>
+                <span class="icon-btn danger disabled" title="Used by 1 program &mdash; remove it there first">
+                  <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M4.5 4.5l.5 8.5a1 1 0 001 1h4a1 1 0 001-1l.5-8.5"/></svg>
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td>
+              <span class="thumb-cell placeholder">
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1"/><path d="M2 11l3.5-3.5L8 10l2.5-2.5L14 11"/></svg>
+              </span>
+            </td>
+            <td><span class="name-text">Dumbbell Sumo Deadlift</span></td>
+            <td><span class="badge-type">Reps</span></td>
+            <td><span class="used-count">1 program</span></td>
+            <td>
+              <div class="row-actions">
+                <span class="icon-btn upload" title="Upload image">
+                  <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1"/><circle cx="5.5" cy="6.5" r="1"/><path d="M2 11l3.5-3.5L8 10l2.5-2.5L14 11"/></svg>
+                </span>
+                <span class="icon-btn danger disabled" title="Used by 1 program &mdash; remove it there first">
+                  <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M4.5 4.5l.5 8.5a1 1 0 001 1h4a1 1 0 001-1l.5-8.5"/></svg>
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td><span class="thumb-cell"></span></td>
+            <td><span class="name-text">Jump Squat</span></td>
+            <td><span class="badge-type timed">Timed</span></td>
+            <td><span class="used-count unused">Not used yet</span></td>
+            <td>
+              <div class="row-actions">
+                <span class="icon-btn upload" title="Replace image">
+                  <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2" y="3" width="12" height="10" rx="1"/><circle cx="5.5" cy="6.5" r="1"/><path d="M2 11l3.5-3.5L8 10l2.5-2.5L14 11"/></svg>
+                </span>
+                <span class="icon-btn danger" title="Delete">
+                  <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 011-1h1a1 1 0 011 1v1.5M4.5 4.5l.5 8.5a1 1 0 001 1h4a1 1 0 001-1l.5-8.5"/></svg>
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <tr class="row-add">
+            <td colspan="5">
+              <span class="btn btn-ghost btn-xs" style="font-size: 0.8125rem; padding: 0.28rem 0.55rem;">
+                <span class="icon">
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v6M5 8h6" stroke-linecap="round"/></svg>
+                </span>
+                Add Exercise
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="toolbar-hint">An exercise used in a program can still be renamed or re-imaged freely; deleting one used by a program is blocked until it's removed from every program first.</p>
+  </main>
+</div>
+</x-dc>
+</body>
+</html>

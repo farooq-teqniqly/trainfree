@@ -21,8 +21,8 @@ conventions were chosen.
 
 - **Two apps, one Worker each.** The Blazor client is split into two independent Blazor
   WASM projects, one per audience: `src/Trainfree.Admin` (CRUD for programs/sessions/
-  exercises, built first) and `src/Trainfree.Workout` (the workout runner, not yet
-  built -- see the roadmap's slice 5+). Each app deploys behind its own Cloudflare
+  categories/exercises, built first) and `src/Trainfree.Workout` (the workout runner, not yet
+  built -- see the roadmap's slice 8+). Each app deploys behind its own Cloudflare
   Worker, not a shared one: `src/Trainfree.AdminApi` for `Trainfree.Admin`, and a future
   `src/Trainfree.WorkoutApi` for `Trainfree.Workout` -- vanilla JavaScript (no
   TypeScript), sibling folders under `src/`, deliberately outside the solution. Each
@@ -38,7 +38,7 @@ conventions were chosen.
   rationale.
   `Trainfree.Domain` (domain value objects/IDs, e.g. `ProgramId`) and
   `Trainfree.Versioning` (the deploy-stamp check + its one Razor component) are shared
-  class libraries both apps reference, so slice 5 doesn't duplicate what `Trainfree.Admin`
+  class libraries both apps reference, so slice 8 doesn't duplicate what `Trainfree.Admin`
   already built. The `.NET everywhere` convention in the baseline applies to all of these
   client-side projects; the Workers stay JavaScript.
 - **Prod API URL is never configured, per app.** Same-origin design means each app's API

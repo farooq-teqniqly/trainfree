@@ -73,7 +73,7 @@ Follow patterns in [](https://github.com/farooq-teqniqly/blazor-cloudfare-throwa
 
 The Workout app and the Admin app are two independent Blazor WebAssembly projects
 (`src/Trainfree.Admin`, built; `src/Trainfree.Workout`, not yet built -- see the
-roadmap's slice 5+), each with its own Cloudflare Worker (`src/Trainfree.AdminApi`,
+roadmap's slice 8+), each with its own Cloudflare Worker (`src/Trainfree.AdminApi`,
 built; `src/Trainfree.WorkoutApi`, not yet built): its own `[assets]` binding serving
 only its own static output, its own `main` handling only its own `/api/*` routes, its
 own deploy pipeline.
