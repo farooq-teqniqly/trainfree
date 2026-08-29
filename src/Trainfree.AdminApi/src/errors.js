@@ -12,11 +12,17 @@ export class DuplicateNameError extends Error {
 // duplicate-name conflict). Matching "<table>.<word>" directly, rather than parsing
 // the whole trailing clause, is resilient to whatever D1/SQLite appends after the
 // column list (driver-specific error codes, multiple columns, etc.).
+function escapeRegExp(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export function uniqueConstraintColumns(err, table) {
     if (!(err instanceof Error)) {
         return [];
     }
 
-    const matches = err.message.matchAll(new RegExp(String.raw`\b${table}\.(\w+)`, "gi"));
+    const matches = err.message.matchAll(
+        new RegExp(String.raw`\b${escapeRegExp(table)}\.(\w+)`, "gi"),
+    );
     return [...matches].map((match) => match[1]);
 }
