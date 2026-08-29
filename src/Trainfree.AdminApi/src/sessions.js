@@ -19,7 +19,10 @@ export async function programExists(db, programId) {
 export async function listSessions(db, programId) {
     const { results } = await db
         .prepare(
-            `SELECT ${SELECT_COLUMNS} FROM sessions WHERE program_id = ? ORDER BY created_at ASC, id ASC`,
+            // ORDER BY must qualify id as sessions.id: SELECT_COLUMNS aliases session_id
+            // as id, and an unqualified "id" in ORDER BY resolves to that output alias
+            // rather than the table's autoincrement id column.
+            `SELECT ${SELECT_COLUMNS} FROM sessions WHERE program_id = ? ORDER BY created_at ASC, sessions.id ASC`,
         )
         .bind(programId)
         .all();

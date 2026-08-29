@@ -285,12 +285,12 @@ describe("GET /api/programs/:programId/sessions", () => {
         await env.DB.prepare(
             "INSERT INTO sessions (session_id, program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
         )
-            .bind("SNN-AAAAAA", program.id, "Inserted First", tiedTimestamp, tiedTimestamp)
+            .bind("SNN-ZZZZZZ", program.id, "Inserted First", tiedTimestamp, tiedTimestamp)
             .run();
         await env.DB.prepare(
             "INSERT INTO sessions (session_id, program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
         )
-            .bind("SNN-BBBBBB", program.id, "Inserted Second", tiedTimestamp, tiedTimestamp)
+            .bind("SNN-AAAAAA", program.id, "Inserted Second", tiedTimestamp, tiedTimestamp)
             .run();
 
         const response = await SELF.fetch(
