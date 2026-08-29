@@ -11,8 +11,16 @@ namespace Trainfree.Admin.Tests.Admin;
 public sealed class ProgramsPageTests : BunitContext
 {
     private readonly IProgramsApiClient _apiClient = Substitute.For<IProgramsApiClient>();
+    private readonly ISessionsApiClient _sessionsApiClient = Substitute.For<ISessionsApiClient>();
 
-    public ProgramsPageTests() => Services.AddSingleton(_apiClient);
+    public ProgramsPageTests()
+    {
+        Services.AddSingleton(_apiClient);
+        Services.AddSingleton(_sessionsApiClient);
+        _sessionsApiClient
+            .GetSessionsAsync(Arg.Any<ProgramId>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+    }
 
     [Fact]
     public void OnInitialized_ServerReturnsTheAccessLoginPage_ShowsTheLoadErrorInsteadOfFailing()
@@ -334,5 +342,316 @@ public sealed class ProgramsPageTests : BunitContext
         // Assert
         Assert.NotEmpty(cut.FindAll("[data-testid='load-programs-error']"));
         Assert.Empty(cut.FindAll("tbody tr"));
+    }
+
+    [Fact]
+    public void OnInitialized_ProgramHasSessions_RendersSessionRowsNestedUnderProgram()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([
+                new SessionSummary(
+                    SessionId.Parse("SNN-AAAAAA"),
+                    ProgramId.Parse("PRG-AAAAAA"),
+                    "Monday Lower Body"
+                ),
+                new SessionSummary(
+                    SessionId.Parse("SNN-BBBBBB"),
+                    ProgramId.Parse("PRG-AAAAAA"),
+                    "Wednesday Upper Body"
+                ),
+            ]);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.Contains("Monday Lower Body", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Wednesday Upper Body", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AddSession_ClickAddSession_AppendsRowInEditMode()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var created = new SessionSummary(
+            SessionId.Parse("SNN-CCCCCC"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "New Session"
+        );
+        _sessionsApiClient
+            .CreateSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                "New Session",
+                CancellationToken.None
+            )
+            .Returns(new CreateSessionSucceeded(created));
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-session-PRG-AAAAAA']").Click());
+
+        // Assert
+        await _sessionsApiClient
+            .Received(1)
+            .CreateSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                "New Session",
+                CancellationToken.None
+            );
+        var input = cut.Find("[data-testid='session-name-input-SNN-CCCCCC']");
+        Assert.True(input.HasAttribute("autofocus"));
+    }
+
+    [Fact]
+    public async Task AddSession_ServerRejectsDuplicateName_ShowsErrorAndAddsNoRow()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _sessionsApiClient
+            .CreateSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                "New Session",
+                CancellationToken.None
+            )
+            .Returns(new CreateSessionFailed("A session named \"New Session\" already exists."));
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-session-PRG-AAAAAA']").Click());
+
+        // Assert
+        Assert.Contains(
+            "A session named \"New Session\" already exists.",
+            cut.Markup,
+            StringComparison.Ordinal
+        );
+        Assert.Empty(cut.FindAll("[data-testid^='session-name-input-']"));
+    }
+
+    [Fact]
+    public async Task RenameSession_NameEditedAndSaveClicked_CallsRenameAndUpdatesDisplayedName()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        var renamed = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Renamed Session"
+        );
+        _sessionsApiClient
+            .RenameSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                "Renamed Session",
+                CancellationToken.None
+            )
+            .Returns(new RenameSessionSucceeded(renamed));
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='session-name-input-SNN-AAAAAA']");
+
+        // Act
+        await cut.InvokeAsync(() => input.Input("Renamed Session"));
+        await cut.InvokeAsync(() => cut.Find("[data-testid='session-save-SNN-AAAAAA']").Click());
+
+        // Assert
+        await _sessionsApiClient
+            .Received(1)
+            .RenameSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                "Renamed Session",
+                CancellationToken.None
+            );
+        Assert.Contains("Renamed Session", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='session-save-SNN-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task RenameSession_NameFailsLengthBound_ShowsErrorAndDoesNotCallApi()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='session-name-input-SNN-AAAAAA']");
+
+        // Act
+        await cut.InvokeAsync(() => input.Input("Ab"));
+        await cut.InvokeAsync(() => cut.Find("[data-testid='session-save-SNN-AAAAAA']").Click());
+
+        // Assert
+        await _sessionsApiClient
+            .DidNotReceive()
+            .RenameSessionAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<SessionId>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+        Assert.NotEmpty(cut.FindAll("[data-testid='session-name-error-SNN-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task RenameSession_ServerRejects_ShowsErrorWithoutThrowing()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _sessionsApiClient
+            .RenameSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                "Renamed Session",
+                CancellationToken.None
+            )
+            .Returns(new RenameSessionFailed("name must be between 5 and 100 characters"));
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='session-name-input-SNN-AAAAAA']");
+
+        // Act
+        await cut.InvokeAsync(() => input.Input("Renamed Session"));
+        await cut.InvokeAsync(() => cut.Find("[data-testid='session-save-SNN-AAAAAA']").Click());
+
+        // Assert
+        Assert.Contains(
+            "name must be between 5 and 100 characters",
+            cut.Markup,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task RevertSession_ClickRevert_RestoresOriginalNameAndHidesButtons()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='session-name-input-SNN-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Renamed Session"));
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='session-revert-SNN-AAAAAA']").Click());
+
+        // Assert
+        Assert.Contains("value=\"Monday Lower Body\"", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='session-save-SNN-AAAAAA']"));
+        Assert.Empty(cut.FindAll("[data-testid='session-revert-SNN-AAAAAA']"));
+        await _sessionsApiClient
+            .DidNotReceive()
+            .RenameSessionAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<SessionId>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task DeleteSession_ClickDelete_CallsDeleteAndRemovesRow()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _sessionsApiClient
+            .DeleteSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns(new DeleteSessionSucceeded());
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='session-delete-SNN-AAAAAA']").Click());
+
+        // Assert
+        await _sessionsApiClient
+            .Received(1)
+            .DeleteSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            );
+        Assert.Empty(cut.FindAll("[data-testid='session-name-input-SNN-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task DeleteSession_ServerRejects_ShowsErrorAndKeepsRowWithoutThrowing()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _sessionsApiClient
+            .DeleteSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns(new DeleteSessionFailed("Request failed with status 500."));
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='session-delete-SNN-AAAAAA']").Click());
+
+        // Assert
+        Assert.Contains("Request failed with status 500.", cut.Markup, StringComparison.Ordinal);
+        Assert.NotEmpty(cut.FindAll("[data-testid='session-name-input-SNN-AAAAAA']"));
     }
 }

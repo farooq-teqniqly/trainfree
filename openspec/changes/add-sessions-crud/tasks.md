@@ -91,21 +91,29 @@
 
 ## 6. Blazor: nested session rows in Programs.razor
 
-- [ ] 6.1 Write failing bUnit tests for `Programs.razor` covering: sessions render
+- [x] 6.1 Write failing bUnit tests for `Programs.razor` covering: sessions render
       nested under their program on load, add/rename/revert/delete session rows,
       client-side name-length validation blocking `Save`, and server-error surfacing
       on a `400`/`409` response -- mirroring the existing `ProgramRow` test coverage
-      pattern.
-- [ ] 6.2 Extend `Programs.razor`'s `@code` block with a `SessionRow` class (same
+      pattern. Added to the existing `ProgramsPageTests.cs` (natural home, same as
+      `programs.js`'s tests living in `index.test.js` rather than a new file).
+      Confirmed 9/9 new tests red before 6.2/6.3.
+- [x] 6.2 Extend `Programs.razor`'s `@code` block with a `SessionRow` class (same
       working/saved-value/`IsDirty` shape as `ProgramRow`) and load each program's
       sessions in `OnInitializedAsync` (or lazily per program -- pick one and note it
-      doesn't change the spec's observable behavior).
-- [ ] 6.3 Add markup: an `Add Session` action per program row, and session rows
+      doesn't change the spec's observable behavior). Chose eager loading (one
+      `GetSessionsAsync` call per program during `OnInitializedAsync`) since there's no
+      collapse/expand state yet to defer it for.
+- [x] 6.3 Add markup: an `Add Session` action per program row, and session rows
       rendered as additional indented `<tr>`s beneath their program (no chevron/
       collapse state -- plain always-visible nesting per design.md). Reuse the
       existing Save/Revert/Delete button markup pattern with `data-testid` suffixed by
-      the session's ID.
-- [ ] 6.4 Confirm all of 6.1 passes.
+      the session's ID (`session-name-input-`, `session-save-`, `session-revert-`,
+      `session-delete-`, `session-name-error-`).
+- [x] 6.4 Confirm all of 6.1 passes. **25/25 in `ProgramsPageTests`**; also updated
+      `MainLayoutTests` to register the now-required `ISessionsApiClient` in its bUnit
+      DI container (it renders the real `Programs` component). Full Admin suite:
+      **54/54 passing**, CSharpier-clean.
 
 ## 7. Verification
 

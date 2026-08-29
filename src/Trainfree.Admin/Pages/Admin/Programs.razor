@@ -4,6 +4,7 @@
 @using Trainfree.Admin.Admin
 @using Trainfree.Domain.Ids
 @inject IProgramsApiClient Api
+@inject ISessionsApiClient SessionsApi
 @inject ILogger<Programs> Logger
 
 <PageTitle>Trainfree Admin</PageTitle>
@@ -24,9 +25,19 @@
     <div class="text-danger small" data-testid="add-program-error">@_addProgramError</div>
 }
 
+@if (_addSessionError is not null)
+{
+    <div class="text-danger small" data-testid="add-session-error">@_addSessionError</div>
+}
+
 @if (_deleteError is not null)
 {
     <div class="text-danger small" data-testid="delete-program-error">@_deleteError</div>
+}
+
+@if (_deleteSessionError is not null)
+{
+    <div class="text-danger small" data-testid="delete-session-error">@_deleteSessionError</div>
 }
 
 @if (_loadError is not null)
@@ -82,6 +93,15 @@
                             </button>
                         }
                         <button
+                            class="btn btn-sm btn-outline-dark"
+                            data-testid="add-session-@row.Id"
+                            title="Add Session"
+                            @onclick="() => AddSessionAsync(row)"
+                        >
+                            <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                            <span class="visually-hidden">Add Session</span>
+                        </button>
+                        <button
                             class="btn btn-sm btn-outline-danger"
                             data-testid="delete-@row.Id"
                             title="Delete"
@@ -93,6 +113,61 @@
                     </div>
                 </td>
             </tr>
+            @foreach (var session in row.Sessions)
+            {
+                <tr>
+                    <td class="ps-4">
+                        <input
+                            data-testid="session-name-input-@session.Id"
+                            value="@session.Name"
+                            autofocus="@(session.Id == _editingSessionId)"
+                            @oninput="e => session.Name = (string)e.Value!" />
+                        @if (session.Error is not null)
+                        {
+                            <div
+                                class="text-danger small"
+                                data-testid="session-name-error-@session.Id"
+                            >
+                                @session.Error
+                            </div>
+                        }
+                    </td>
+                    <td class="text-nowrap">
+                        <div class="d-flex gap-2">
+                            @if (session.IsDirty)
+                            {
+                                <button
+                                    class="btn btn-sm btn-outline-dark"
+                                    data-testid="session-save-@session.Id"
+                                    title="Save"
+                                    @onclick="() => RenameSessionAsync(session)"
+                                >
+                                    <i class="bi bi-floppy" aria-hidden="true"></i>
+                                    <span class="visually-hidden">Save</span>
+                                </button>
+                                <button
+                                    class="btn btn-sm btn-outline-secondary"
+                                    data-testid="session-revert-@session.Id"
+                                    title="Revert"
+                                    @onclick="() => RevertSession(session)"
+                                >
+                                    <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                                    <span class="visually-hidden">Revert</span>
+                                </button>
+                            }
+                            <button
+                                class="btn btn-sm btn-outline-danger"
+                                data-testid="session-delete-@session.Id"
+                                title="Delete"
+                                @onclick="() => DeleteSessionAsync(row, session)"
+                            >
+                                <i class="bi bi-trash" aria-hidden="true"></i>
+                                <span class="visually-hidden">Delete</span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            }
         }
     </tbody>
 </table>
@@ -100,8 +175,11 @@
 @code {
     private readonly List<ProgramRow> _rows = [];
     private ProgramId? _editingId;
+    private SessionId? _editingSessionId;
     private string? _addProgramError;
+    private string? _addSessionError;
     private string? _deleteError;
+    private string? _deleteSessionError;
     private string? _loadError;
 
     protected override async Task OnInitializedAsync()
@@ -109,7 +187,15 @@
         try
         {
             var programs = await Api.GetProgramsAsync();
-            _rows.AddRange(programs.Select(p => new ProgramRow(p.Id, p.Name)));
+            foreach (var program in programs)
+            {
+                var sessions = await SessionsApi.GetSessionsAsync(program.Id);
+                var row = new ProgramRow(program.Id, program.Name);
+                row.Sessions.AddRange(
+                    sessions.Select(s => new SessionRow(s.Id, program.Id, s.Name))
+                );
+                _rows.Add(row);
+            }
         }
         // HttpRequestException alone was not enough: Cloudflare Access answers a request made
         // before the session is established with its own HTML login page, which arrives as a
@@ -192,6 +278,73 @@
         }
     }
 
+    private async Task AddSessionAsync(ProgramRow row)
+    {
+        var outcome = await SessionsApi.CreateSessionAsync(row.Id, "New Session");
+        switch (outcome)
+        {
+            case CreateSessionSucceeded succeeded:
+                row.Sessions.Add(
+                    new SessionRow(succeeded.Session.Id, row.Id, succeeded.Session.Name)
+                );
+                _editingSessionId = succeeded.Session.Id;
+                _addSessionError = null;
+                break;
+            case CreateSessionFailed failed:
+                _addSessionError = failed.Error;
+                break;
+        }
+    }
+
+    private async Task RenameSessionAsync(SessionRow session)
+    {
+        var trimmedLength = session.Name.Trim().Length;
+        if (trimmedLength is < MinNameLength or > MaxNameLength)
+        {
+            session.Error =
+                $"Name must be between {MinNameLength} and {MaxNameLength} characters.";
+            return;
+        }
+
+        var outcome = await SessionsApi.RenameSessionAsync(
+            session.ProgramId,
+            session.Id,
+            session.Name
+        );
+        switch (outcome)
+        {
+            case RenameSessionSucceeded succeeded:
+                session.Name = succeeded.Session.Name;
+                session.SavedName = succeeded.Session.Name;
+                session.Error = null;
+                break;
+            case RenameSessionFailed failed:
+                session.Error = failed.Error;
+                break;
+        }
+    }
+
+    private static void RevertSession(SessionRow session)
+    {
+        session.Name = session.SavedName;
+        session.Error = null;
+    }
+
+    private async Task DeleteSessionAsync(ProgramRow row, SessionRow session)
+    {
+        var outcome = await SessionsApi.DeleteSessionAsync(session.ProgramId, session.Id);
+        switch (outcome)
+        {
+            case DeleteSessionSucceeded:
+                row.Sessions.Remove(session);
+                _deleteSessionError = null;
+                break;
+            case DeleteSessionFailed failed:
+                _deleteSessionError = failed.Error;
+                break;
+        }
+    }
+
     private sealed class ProgramRow
     {
         public ProgramRow(ProgramId id, string name)
@@ -202,6 +355,25 @@
         }
 
         public ProgramId Id { get; }
+        public string Name { get; set; }
+        public string SavedName { get; set; }
+        public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
+        public string? Error { get; set; }
+        public List<SessionRow> Sessions { get; } = [];
+    }
+
+    private sealed class SessionRow
+    {
+        public SessionRow(SessionId id, ProgramId programId, string name)
+        {
+            Id = id;
+            ProgramId = programId;
+            Name = name;
+            SavedName = name;
+        }
+
+        public SessionId Id { get; }
+        public ProgramId ProgramId { get; }
         public string Name { get; set; }
         public string SavedName { get; set; }
         public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);

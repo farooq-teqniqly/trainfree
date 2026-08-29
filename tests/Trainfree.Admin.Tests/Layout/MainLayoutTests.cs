@@ -30,11 +30,13 @@ public sealed class MainLayoutTests : BunitContext
 
     private readonly IVersionCheck _versionCheck = Substitute.For<IVersionCheck>();
     private readonly IProgramsApiClient _programs = Substitute.For<IProgramsApiClient>();
+    private readonly ISessionsApiClient _sessions = Substitute.For<ISessionsApiClient>();
 
     public MainLayoutTests()
     {
         Services.AddSingleton(_versionCheck);
         Services.AddSingleton(_programs);
+        Services.AddSingleton(_sessions);
         Services.AddSingleton(new VersionStamp("v0.0.3", "e4f5g6h"));
     }
 
