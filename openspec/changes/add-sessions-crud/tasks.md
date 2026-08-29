@@ -64,11 +64,12 @@
 
 ## 4. Domain: SessionId
 
-- [ ] 4.1 Write a failing xUnit test in `Trainfree.Domain.Tests` for `SessionId.Parse`/
+- [x] 4.1 Write a failing xUnit test in `Trainfree.Domain.Tests` for `SessionId.Parse`/
       `TryParse` (valid `SNN-` + 6-char body, invalid prefix, invalid length, invalid
-      alphabet), mirroring `ProgramIdTests`.
-- [ ] 4.2 Implement `src/Trainfree.Domain/Ids/SessionId.cs` (same shape as
-      `ProgramId.cs`, `SNN-` prefix) to pass 4.1.
+      alphabet), mirroring `ProgramIdTests`. Confirmed red (compile error) before 4.2.
+- [x] 4.2 Implement `src/Trainfree.Domain/Ids/SessionId.cs` (same shape as
+      `ProgramId.cs`, `SNN-` prefix) to pass 4.1. **36/36 Domain tests passing**,
+      CSharpier-clean.
 
 ## 5. Blazor: session API client and outcome types
 
