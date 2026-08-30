@@ -3,7 +3,7 @@
     <button
         title="Navigation menu"
         aria-label="Navigation menu"
-        aria-expanded="@(!_navCollapsed)"
+        aria-expanded="@(_navCollapsed ? "false" : "true")"
         class="navbar-toggler d-md-none ms-3"
         type="button"
         @onclick="ToggleNavMenu"

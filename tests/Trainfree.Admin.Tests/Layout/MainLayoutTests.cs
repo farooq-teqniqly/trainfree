@@ -183,11 +183,13 @@ public sealed class MainLayoutTests : BunitContext
         _versionCheck.CheckAsync(CancellationToken.None).Returns(new RunningLatestVersion());
         var cut = Render<MainLayout>(p => p.Add(x => x.Body, WorkingPage));
         Assert.Contains("collapse", cut.Find("nav.sidebar").ClassList);
+        Assert.Equal("false", cut.Find(".navbar-toggler").GetAttribute("aria-expanded"));
 
         // Act
         cut.Find(".navbar-toggler").Click();
 
         // Assert
         Assert.DoesNotContain("collapse", cut.Find("nav.sidebar").ClassList);
+        Assert.Equal("true", cut.Find(".navbar-toggler").GetAttribute("aria-expanded"));
     }
 }
