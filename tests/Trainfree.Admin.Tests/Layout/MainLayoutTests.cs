@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Trainfree.Admin.Admin;
 using Trainfree.Admin.Layout;
+using Trainfree.Admin.Pages;
 using Trainfree.Admin.Pages.Admin;
 using Trainfree.Versioning;
 
@@ -13,6 +14,12 @@ public sealed class MainLayoutTests : BunitContext
 {
     private static readonly RenderFragment WorkingPage = builder =>
         builder.AddMarkupContent(0, """<p data-testid="page-body">page body</p>""");
+
+    private static readonly RenderFragment HomePage = builder =>
+    {
+        builder.OpenComponent<Home>(0);
+        builder.CloseComponent();
+    };
 
     private static readonly RenderFragment FailingPage = builder =>
     {
@@ -155,6 +162,19 @@ public sealed class MainLayoutTests : BunitContext
         var brand = cut.Find(".navbar-brand");
         Assert.Contains("Trainfree Admin", brand.TextContent, StringComparison.Ordinal);
         Assert.NotEmpty(brand.QuerySelectorAll("svg"));
+    }
+
+    [Fact]
+    public void Render_HomePage_ShowsTheVersionIndicatorExactlyOnce()
+    {
+        // Arrange
+        _versionCheck.CheckAsync(CancellationToken.None).Returns(new RunningLatestVersion());
+
+        // Act
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, HomePage));
+
+        // Assert
+        Assert.Single(cut.FindAll(".version-stamp"));
     }
 
     [Fact]

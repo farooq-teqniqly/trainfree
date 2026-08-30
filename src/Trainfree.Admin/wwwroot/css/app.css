@@ -146,3 +146,37 @@ code {
         margin-left: 0;
     }
 }
+
+/* Version pill: check icon + version text, matching docs/design/admin-mockups.
+   Selectors are scoped with the "header.navbar" prefix so they out-specificity
+   VersionIndicator.razor.css's own ".version-stamp" rule regardless of bundle
+   order -- the pill look is an Admin-app brand choice (design.md decision 5),
+   not something to bake into the shared Trainfree.Versioning component. */
+header.navbar .version-stamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+header.navbar .version-stamp::before {
+    content: "";
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234ade80' stroke-width='1.5'%3E%3Ccircle cx='8' cy='8' r='6.5'/%3E%3Cpath d='M5.5 8l1.8 1.8L10.5 6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+        no-repeat center / contain;
+}
+
+/* .version-update only renders (right before .version-stamp) when the running
+   build is stale, so this sibling selector swaps in the red-X-in-a-red-circle
+   treatment without any markup change to VersionIndicator.razor. */
+header.navbar .version-update + .version-stamp {
+    color: #ea868f;
+}
+
+header.navbar .version-update + .version-stamp::before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23dc3545' stroke-width='1.5'%3E%3Ccircle cx='8' cy='8' r='6.5'/%3E%3Cpath d='M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4' stroke-linecap='round'/%3E%3C/svg%3E");
+}

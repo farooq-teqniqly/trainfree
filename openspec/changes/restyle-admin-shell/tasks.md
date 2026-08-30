@@ -22,15 +22,24 @@
 
 ## 2. Version indicator restyle
 
-- [ ] 2.1 Restyle `VersionIndicator.razor`'s `.version-stamp` output to the
+- [x] 2.1 Restyle `VersionIndicator.razor`'s `.version-stamp` output to the
       `.version-pill` look (check icon + version text) via `Trainfree.Admin`'s
       `app.css` -- no change to the component's markup structure or `Trainfree.Versioning`
-      itself, per design.md decision 5.
-- [ ] 2.2 Confirm (test or manual check) the version indicator renders exactly once, in
+      itself, per design.md decision 5. Extended per user direction: when the running
+      build is stale, the pill shows a red X in a red circle instead of the green check,
+      achieved purely via a `.version-update + .version-stamp` CSS sibling selector (the
+      stale banner already renders immediately before the stamp), so no markup change was
+      needed.
+- [x] 2.2 Confirm (test or manual check) the version indicator renders exactly once, in
       the navbar, on every admin page including Home.
-- [ ] 2.3 Via `claude-in-chrome`, screenshot the navbar pill against `Home.dc.html`'s
+- [x] 2.3 Via `claude-in-chrome`, screenshot the navbar pill against `Home.dc.html`'s
       `.version-pill` and confirm no second version display exists anywhere in the Home
-      page body.
+      page body. Verified: navbar pill matches (green check + version text), no second
+      copy anywhere on the page. The `/api/version` fetch from the browser to the local
+      AdminApi Worker fails (CORS, unrelated to this styling task -- flagged separately
+      below), so a genuine live-stale state couldn't be produced; instead confirmed the
+      red-X-in-a-red-circle CSS by temporarily inserting a `.version-update` sibling via
+      the page console, screenshotting, and removing it -- renders correctly.
 
 ## 3. Home landing page
 
