@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Trainfree.Domain.Ids;
 
-namespace Trainfree.Admin.Pages.Admin;
+namespace Trainfree.Admin.Pages;
 
 public partial class Programs
 {

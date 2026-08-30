@@ -1,4 +1,4 @@
-@page "/admin"
+@page "/programs"
 @using System.Text.Json
 @using Microsoft.Extensions.Logging
 @using Trainfree.Admin.Admin
@@ -7,183 +7,192 @@
 @inject ISessionsApiClient SessionsApi
 @inject ILogger<Programs> Logger
 
-<PageTitle>Trainfree Admin</PageTitle>
+<PageTitle>Programs - Trainfree Admin</PageTitle>
 
-<h1>Trainfree Admin</h1>
-
-<button
-    class="btn btn-sm btn-outline-dark"
-    data-testid="add-program"
-    @onclick="AddProgramAsync"
->
-    <i class="bi bi-plus-circle" aria-hidden="true"></i>
-    Add Program
-</button>
+<div class="page-header d-flex align-items-end justify-content-between flex-wrap gap-3">
+    <div>
+        <h1>Programs</h1>
+        <p class="page-sub mb-0">
+            Build out programs and sessions for your workouts.
+        </p>
+    </div>
+    <button
+        class="btn btn-dark"
+        data-testid="add-program"
+        @onclick="AddProgramAsync"
+    >
+        <i class="bi bi-plus-circle" aria-hidden="true"></i>
+        Add Program
+    </button>
+</div>
 
 @if (_addProgramError is not null)
 {
-    <div class="text-danger small" data-testid="add-program-error">@_addProgramError</div>
+    <div class="text-danger small mb-2" data-testid="add-program-error">@_addProgramError</div>
 }
 
 @if (_addSessionError is not null)
 {
-    <div class="text-danger small" data-testid="add-session-error">@_addSessionError</div>
+    <div class="text-danger small mb-2" data-testid="add-session-error">@_addSessionError</div>
 }
 
 @if (_deleteError is not null)
 {
-    <div class="text-danger small" data-testid="delete-program-error">@_deleteError</div>
+    <div class="text-danger small mb-2" data-testid="delete-program-error">@_deleteError</div>
 }
 
 @if (_deleteSessionError is not null)
 {
-    <div class="text-danger small" data-testid="delete-session-error">@_deleteSessionError</div>
+    <div class="text-danger small mb-2" data-testid="delete-session-error">@_deleteSessionError</div>
 }
 
 @if (_loadError is not null)
 {
-    <div class="text-danger small" data-testid="load-programs-error">@_loadError</div>
+    <div class="text-danger small mb-2" data-testid="load-programs-error">@_loadError</div>
 }
 
-<table class="table w-auto">
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var row in _rows)
-        {
+<div class="sheet-wrap">
+    <table class="table">
+        <thead>
             <tr>
-                <td>
-                    <input
-                        data-testid="name-input-@row.Id"
-                        value="@row.Name"
-                        autofocus="@(row.Id == _editingId)"
-                        @oninput="e => row.Name = (string)e.Value!" />
-                    @if (row.Error is not null)
-                    {
-                        <div class="text-danger small" data-testid="name-error-@row.Id">
-                            @row.Error
-                        </div>
-                    }
-                </td>
-                <td class="text-nowrap">
-                    <div class="d-flex gap-2">
-                        @if (row.IsDirty)
-                        {
-                            <button
-                                class="btn btn-sm btn-outline-dark"
-                                data-testid="save-@row.Id"
-                                title="Save"
-                                @onclick="() => RenameAsync(row)"
-                            >
-                                <i class="bi bi-floppy" aria-hidden="true"></i>
-                                <span class="visually-hidden">Save</span>
-                            </button>
-                            <button
-                                class="btn btn-sm btn-outline-secondary"
-                                data-testid="revert-@row.Id"
-                                title="Revert"
-                                @onclick="() => Revert(row)"
-                            >
-                                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
-                                <span class="visually-hidden">Revert</span>
-                            </button>
-                        }
-                        <button
-                            class="btn btn-sm btn-outline-dark"
-                            data-testid="add-session-@row.Id"
-                            title="Add Session"
-                            @onclick="() => AddSessionAsync(row)"
-                        >
-                            <i class="bi bi-plus-circle" aria-hidden="true"></i>
-                            <span class="visually-hidden">Add Session</span>
-                        </button>
-                        <button
-                            class="btn btn-sm btn-outline-danger"
-                            data-testid="delete-@row.Id"
-                            title="Delete"
-                            @onclick="() => DeleteAsync(row)"
-                        >
-                            <i class="bi bi-trash" aria-hidden="true"></i>
-                            <span class="visually-hidden">Delete</span>
-                        </button>
-                    </div>
-                </td>
+                <th>Name</th>
             </tr>
-            @if (row.SessionsLoadError is not null)
+        </thead>
+        <tbody>
+            @foreach (var row in _rows)
             {
-                <tr>
-                    <td colspan="2">
-                        <div
-                            class="text-danger small"
-                            data-testid="sessions-load-error-@row.Id"
-                        >
-                            @row.SessionsLoadError
+                <tr class="row-depth-0">
+                    <td>
+                        <div class="name-cell">
+                            <input
+                                class="cell-input"
+                                data-testid="name-input-@row.Id"
+                                value="@row.Name"
+                                autofocus="@(row.Id == _editingId)"
+                                @oninput="e => row.Name = (string)e.Value!" />
+                            <div class="name-actions">
+                                @if (row.IsDirty)
+                                {
+                                    <button
+                                        class="btn btn-sm btn-icon btn-outline-dark"
+                                        data-testid="save-@row.Id"
+                                        title="Save"
+                                        @onclick="() => RenameAsync(row)"
+                                    >
+                                        <i class="bi bi-floppy" aria-hidden="true"></i>
+                                        <span class="visually-hidden">Save</span>
+                                    </button>
+                                    <button
+                                        class="btn btn-sm btn-icon btn-outline-secondary"
+                                        data-testid="revert-@row.Id"
+                                        title="Revert"
+                                        @onclick="() => Revert(row)"
+                                    >
+                                        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                                        <span class="visually-hidden">Revert</span>
+                                    </button>
+                                }
+                                <button
+                                    class="btn btn-sm btn-icon btn-outline-dark"
+                                    data-testid="add-session-@row.Id"
+                                    title="Add Session"
+                                    @onclick="() => AddSessionAsync(row)"
+                                >
+                                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                                    <span class="visually-hidden">Add Session</span>
+                                </button>
+                                <button
+                                    class="btn btn-sm btn-icon btn-outline-danger"
+                                    data-testid="delete-@row.Id"
+                                    title="Delete"
+                                    @onclick="() => DeleteAsync(row)"
+                                >
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                    <span class="visually-hidden">Delete</span>
+                                </button>
+                            </div>
                         </div>
-                    </td>
-                </tr>
-            }
-            @foreach (var session in row.Sessions)
-            {
-                <tr>
-                    <td class="ps-4">
-                        <input
-                            data-testid="session-name-input-@session.Id"
-                            value="@session.Name"
-                            autofocus="@(session.Id == _editingSessionId)"
-                            @oninput="e => session.Name = (string)e.Value!" />
-                        @if (session.Error is not null)
+                        @if (row.Error is not null)
                         {
-                            <div
-                                class="text-danger small"
-                                data-testid="session-name-error-@session.Id"
-                            >
-                                @session.Error
+                            <div class="text-danger small" data-testid="name-error-@row.Id">
+                                @row.Error
                             </div>
                         }
                     </td>
-                    <td class="text-nowrap">
-                        <div class="d-flex gap-2">
-                            @if (session.IsDirty)
-                            {
-                                <button
-                                    class="btn btn-sm btn-outline-dark"
-                                    data-testid="session-save-@session.Id"
-                                    title="Save"
-                                    @onclick="() => RenameSessionAsync(session)"
-                                >
-                                    <i class="bi bi-floppy" aria-hidden="true"></i>
-                                    <span class="visually-hidden">Save</span>
-                                </button>
-                                <button
-                                    class="btn btn-sm btn-outline-secondary"
-                                    data-testid="session-revert-@session.Id"
-                                    title="Revert"
-                                    @onclick="() => RevertSession(session)"
-                                >
-                                    <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
-                                    <span class="visually-hidden">Revert</span>
-                                </button>
-                            }
-                            <button
-                                class="btn btn-sm btn-outline-danger"
-                                data-testid="session-delete-@session.Id"
-                                title="Delete"
-                                @onclick="() => DeleteSessionAsync(row, session)"
-                            >
-                                <i class="bi bi-trash" aria-hidden="true"></i>
-                                <span class="visually-hidden">Delete</span>
-                            </button>
-                        </div>
-                    </td>
                 </tr>
+                @if (row.SessionsLoadError is not null)
+                {
+                    <tr>
+                        <td>
+                            <div
+                                class="text-danger small"
+                                data-testid="sessions-load-error-@row.Id"
+                            >
+                                @row.SessionsLoadError
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @foreach (var session in row.Sessions)
+                {
+                    <tr class="row-depth-1">
+                        <td>
+                            <div class="name-cell">
+                                <input
+                                    class="cell-input"
+                                    data-testid="session-name-input-@session.Id"
+                                    value="@session.Name"
+                                    autofocus="@(session.Id == _editingSessionId)"
+                                    @oninput="e => session.Name = (string)e.Value!" />
+                                <div class="name-actions">
+                                    @if (session.IsDirty)
+                                    {
+                                        <button
+                                            class="btn btn-sm btn-icon btn-outline-dark"
+                                            data-testid="session-save-@session.Id"
+                                            title="Save"
+                                            @onclick="() => RenameSessionAsync(session)"
+                                        >
+                                            <i class="bi bi-floppy" aria-hidden="true"></i>
+                                            <span class="visually-hidden">Save</span>
+                                        </button>
+                                        <button
+                                            class="btn btn-sm btn-icon btn-outline-secondary"
+                                            data-testid="session-revert-@session.Id"
+                                            title="Revert"
+                                            @onclick="() => RevertSession(session)"
+                                        >
+                                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                                            <span class="visually-hidden">Revert</span>
+                                        </button>
+                                    }
+                                    <button
+                                        class="btn btn-sm btn-icon btn-outline-danger"
+                                        data-testid="session-delete-@session.Id"
+                                        title="Delete"
+                                        @onclick="() => DeleteSessionAsync(row, session)"
+                                    >
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                        <span class="visually-hidden">Delete</span>
+                                    </button>
+                                </div>
+                            </div>
+                            @if (session.Error is not null)
+                            {
+                                <div
+                                    class="text-danger small"
+                                    data-testid="session-name-error-@session.Id"
+                                >
+                                    @session.Error
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
             }
-        }
-    </tbody>
-</table>
+        </tbody>
+    </table>
+</div>
 
 @code {
     private readonly List<ProgramRow> _rows = [];

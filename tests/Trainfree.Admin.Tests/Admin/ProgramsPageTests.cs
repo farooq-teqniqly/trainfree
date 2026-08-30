@@ -3,7 +3,7 @@ using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Trainfree.Admin.Admin;
-using Trainfree.Admin.Pages.Admin;
+using Trainfree.Admin.Pages;
 using Trainfree.Domain.Ids;
 
 namespace Trainfree.Admin.Tests.Admin;

@@ -63,33 +63,40 @@
 
 ## 4. Programs page: move, route rename, restyle
 
-- [ ] 4.1 Move `Pages/Admin/Programs.razor` to `Pages/Programs.razor`; update its
+- [x] 4.1 Move `Pages/Admin/Programs.razor` to `Pages/Programs.razor`; update its
       `@page` directive from `/admin` to `/programs` and its namespace/`@using`
       references (`Trainfree.Admin.Admin` -> whatever the new folder resolves to per
       IDE0130).
-- [ ] 4.2 Grep the solution (including `Trainfree.Admin.Tests`) for
+- [x] 4.2 Grep the solution (including `Trainfree.Admin.Tests`) for
       `Trainfree.Admin.Admin` / references to the old file path and update every hit in
       this same PR (design.md risk 1).
-- [ ] 4.3 Restyle the programs table to match `Main.dc.html`'s bordered spreadsheet look,
+- [x] 4.3 Restyle the programs table to match `Main.dc.html`'s bordered spreadsheet look,
       keeping Bootstrap's `.table` as the base (border/tint overrides in `app.css`, not a
       full custom `table.sheet` reset), using only the `Name` column (no Type/Reps/
       Weight/Sets/Rest/Side/Note columns -- those arrive in slice 7).
-- [ ] 4.4 Restyle program and session row action buttons (`Save`/`Revert`/`Delete`) using
+- [x] 4.4 Restyle program and session row action buttons (`Save`/`Revert`/`Delete`) using
       Bootstrap's existing `.btn.btn-sm.btn-outline-*` classes (already used today) sized
       and laid out with utility classes to match the mockup's icon-button look, rather
       than a bespoke `.icon-btn` class set. Preserve all existing `data-testid` attributes
       unchanged.
-- [ ] 4.5 Add the row-depth/indent/border CSS to `app.css` needed to match `Main.dc.html`'s
+- [x] 4.5 Add the row-depth/indent/border CSS to `app.css` needed to match `Main.dc.html`'s
       look (pared down to the Program/Session depth levels this slice has) -- only the
       parts Bootstrap's table/utility classes don't already cover (design.md decision 7).
-- [ ] 4.6 Verify existing Programs/Sessions bUnit tests still pass unmodified against
+- [x] 4.6 Verify existing Programs/Sessions bUnit tests still pass unmodified against
       the restyled markup (should be a pure presentation swap per design.md decision 1)
       -- fix any that accidentally depended on removed Bootstrap classes rather than
-      `data-testid`.
-- [ ] 4.7 Via `claude-in-chrome`, load `/programs` and screenshot the sheet against
+      `data-testid`. Verified: all 61 tests in `Trainfree.Admin.Tests` pass unmodified
+      (no test edits were needed beyond the namespace-rename import fix from 4.1/4.2).
+- [x] 4.7 Via `claude-in-chrome`, load `/programs` and screenshot the sheet against
       `Main.dc.html`'s Program/Session rows; click through add program, edit-and-save,
       edit-and-revert, and delete, confirming the `icon-btn`-style Save/Revert/Delete
-      controls appear/disappear correctly and no console errors are logged.
+      controls appear/disappear correctly and no console errors are logged. Verified:
+      bordered spreadsheet with depth-tinted program rows and indented session rows
+      matches the mockup; Add Program appended a row in edit mode with Save/Revert
+      visible while dirty; Save persisted and hid the buttons; a second edit + Revert
+      restored the name with no API call; Delete removed the row. Only the known benign
+      browser-extension messaging exceptions appeared in the console (same as task
+      3.4) -- no app-level errors.
 
 ## 5. Session expand/collapse
 

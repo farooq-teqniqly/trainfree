@@ -232,3 +232,78 @@ a.tile:hover {
 .tile-disabled .tile-icon {
     opacity: 0.6;
 }
+
+/* Programs page: bordered spreadsheet look, matching docs/design/admin-mockups/Main.dc.html.
+   Built on Bootstrap's .table as the base (it already gives horizontal row borders) rather
+   than the mockup's bespoke table.sheet reset (design.md decision 7) -- the depth tint,
+   row indentation, and the flexed name/actions cell are the only genuinely new rules, since
+   Bootstrap has no concept of nested/indented table rows. */
+.sheet-wrap {
+    background: #fff;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.sheet-wrap .table {
+    margin-bottom: 0;
+}
+
+.sheet-wrap .table thead th {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-secondary-color);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.row-depth-0 > td {
+    background: #f8f9fb;
+    font-weight: 600;
+}
+
+.row-depth-1 > td {
+    padding-left: 2.35rem;
+}
+
+.name-cell {
+    align-items: center;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.name-cell .cell-input {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.2rem;
+    color: inherit;
+    flex: 1 1 auto;
+    font: inherit;
+    min-width: 0;
+    padding: 0.2rem 0.35rem;
+}
+
+.name-cell .cell-input:focus {
+    background: #fff;
+    border-color: #258cfb;
+    box-shadow: 0 0 0 3px rgba(37, 140, 251, 0.15);
+    outline: none;
+}
+
+.name-actions {
+    align-items: center;
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.3rem;
+    margin-left: auto;
+}
+
+.btn-icon {
+    align-items: center;
+    display: inline-flex;
+    height: 28px;
+    justify-content: center;
+    padding: 0;
+    width: 28px;
+}

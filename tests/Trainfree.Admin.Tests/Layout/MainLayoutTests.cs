@@ -5,7 +5,6 @@ using NSubstitute;
 using Trainfree.Admin.Admin;
 using Trainfree.Admin.Layout;
 using Trainfree.Admin.Pages;
-using Trainfree.Admin.Pages.Admin;
 using Trainfree.Versioning;
 
 namespace Trainfree.Admin.Tests.Layout;
