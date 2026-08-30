@@ -1,19 +1,19 @@
 ## 1. Navbar and sidebar shell
 
-- [ ] 1.1 Restyle `MainLayout.razor`'s navbar: fixed 240px dark brand block reading
+- [x] 1.1 Restyle `MainLayout.razor`'s navbar: fixed 240px dark brand block reading
       "Trainfree Admin" with an inline-SVG dumbbell mark, `VersionIndicator` in the
       top-right only.
-- [ ] 1.2 Restyle `NavMenu.razor`'s sidebar to a fixed 240px width; remove the `Admin`
+- [x] 1.2 Restyle `NavMenu.razor`'s sidebar to a fixed 240px width; remove the `Admin`
       `NavLink` entirely, leaving `Home` and `Programs` (pointing at the new `/programs`
       route from task group 3).
-- [ ] 1.3 Add the navbar/sidebar CSS overrides needed to match `Home.dc.html`'s look
+- [x] 1.3 Add the navbar/sidebar CSS overrides needed to match `Home.dc.html`'s look
       (fixed 240px width, brand's dark inset panel) to `app.css`, building on Bootstrap's
       existing `navbar`/`bg-body-tertiary` sidebar classes already in `MainLayout.razor`/
       `NavMenu.razor` -- not a wholesale copy of the mockup's `.navbar`/`.sidebar`/
       `.nav-link` rules (design.md decision 7).
-- [ ] 1.4 Update/add bUnit tests for `MainLayout`/`NavMenu` covering: sidebar shows only
+- [x] 1.4 Update/add bUnit tests for `MainLayout`/`NavMenu` covering: sidebar shows only
       `Home` and `Programs`, no `Admin` link exists, active-link highlighting.
-- [ ] 1.5 With the local dev stack running (`wrangler dev` on port 9999 for
+- [x] 1.5 With the local dev stack running (`wrangler dev` on port 9999 for
       `Trainfree.AdminApi`, `dotnet run` for `Trainfree.Admin` at `localhost:5280`), use
       `claude-in-chrome` to load the app and screenshot the navbar/sidebar against
       `Home.dc.html`/`EmptyState.dc.html`: fixed-width brand block with the dumbbell

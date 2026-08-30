@@ -143,6 +143,21 @@ public sealed class MainLayoutTests : BunitContext
     }
 
     [Fact]
+    public void Render_Always_ShowsTheTrainfreeAdminBrand()
+    {
+        // Arrange
+        _versionCheck.CheckAsync(CancellationToken.None).Returns(new RunningLatestVersion());
+
+        // Act
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, WorkingPage));
+
+        // Assert
+        var brand = cut.Find(".navbar-brand");
+        Assert.Contains("Trainfree Admin", brand.TextContent, StringComparison.Ordinal);
+        Assert.NotEmpty(brand.QuerySelectorAll("svg"));
+    }
+
+    [Fact]
     public void Render_ClickingTheNavToggler_ExpandsTheCollapsedSidebar()
     {
         // Arrange

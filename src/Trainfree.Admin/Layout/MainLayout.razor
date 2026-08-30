@@ -11,10 +11,21 @@
         <span class="navbar-toggler-icon"></span>
     </button>
     <NavLink
-        class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-5 fw-semibold"
+        class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-5 fw-semibold d-flex align-items-center gap-2"
         href=""
         Match="NavLinkMatch.All"
-    >Trainfree</NavLink>
+    >
+        <span class="d-inline-flex" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="1.25" y="8.5" width="2.75" height="7" rx="1" />
+                <rect x="20" y="8.5" width="2.75" height="7" rx="1" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <rect x="6.5" y="6.25" width="2.75" height="11.5" rx="1" />
+                <rect x="14.75" y="6.25" width="2.75" height="11.5" rx="1" />
+            </svg>
+        </span>
+        Trainfree Admin
+    </NavLink>
     <div class="navbar-nav flex-row ms-md-auto">
         <div class="nav-item text-nowrap px-3 d-flex align-items-center gap-3">
             @* The version banner is advisory, so its blast radius is bounded structurally

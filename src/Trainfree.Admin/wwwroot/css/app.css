@@ -119,3 +119,30 @@ code {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+/* Admin shell: fixed 240px navbar-brand/sidebar rail, matching docs/design/admin-mockups. */
+@media (min-width: 768px) {
+    .container-fluid > .row {
+        flex-wrap: nowrap;
+    }
+
+    .navbar-brand.col-md-3,
+    .navbar-brand.col-lg-2 {
+        flex: 0 0 240px;
+        width: 240px;
+        max-width: 240px;
+    }
+
+    .sidebar.col-md-3,
+    .sidebar.col-lg-2 {
+        flex: 0 0 240px;
+        max-width: 240px;
+    }
+
+    main.col-md-9,
+    main.col-lg-10 {
+        flex: 1 1 auto;
+        max-width: 100%;
+        margin-left: 0;
+    }
+}
