@@ -119,3 +119,207 @@ code {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+/* Admin shell: fixed 240px navbar-brand/sidebar rail, matching docs/design/admin-mockups. */
+@media (min-width: 768px) {
+    .container-fluid > .row {
+        flex-wrap: nowrap;
+    }
+
+    .navbar-brand.col-md-3,
+    .navbar-brand.col-lg-2 {
+        flex: 0 0 240px;
+        width: 240px;
+        max-width: 240px;
+    }
+
+    .sidebar.col-md-3,
+    .sidebar.col-lg-2 {
+        flex: 0 0 240px;
+        max-width: 240px;
+    }
+
+    main.col-md-9,
+    main.col-lg-10 {
+        flex: 1 1 auto;
+        max-width: 100%;
+        margin-left: 0;
+    }
+}
+
+/* Version pill: check icon + version text, matching docs/design/admin-mockups.
+   Selectors are scoped with the "header.navbar" prefix so they out-specificity
+   VersionIndicator.razor.css's own ".version-stamp" rule regardless of bundle
+   order -- the pill look is an Admin-app brand choice (design.md decision 5),
+   not something to bake into the shared Trainfree.Versioning component. */
+header.navbar .version-stamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+header.navbar .version-stamp::before {
+    content: "";
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234ade80' stroke-width='1.5'%3E%3Ccircle cx='8' cy='8' r='6.5'/%3E%3Cpath d='M5.5 8l1.8 1.8L10.5 6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+        no-repeat center / contain;
+}
+
+/* .version-update only renders (right before .version-stamp) when the running
+   build is stale, so this sibling selector swaps in the red-X-in-a-red-circle
+   treatment without any markup change to VersionIndicator.razor. */
+header.navbar .version-update + .version-stamp {
+    color: #ea868f;
+}
+
+header.navbar .version-update + .version-stamp::before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23dc3545' stroke-width='1.5'%3E%3Ccircle cx='8' cy='8' r='6.5'/%3E%3Cpath d='M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* Home page: page header + tile grid, matching docs/design/admin-mockups/Home.dc.html.
+   Built on Bootstrap's .row/.card/.card-body rather than the mockup's bespoke
+   .card-grid/.tile classes (design.md decision 7) -- only the parts Bootstrap doesn't
+   already give us (the icon swatch, the "not yet built" muted look) get new rules. */
+.page-header {
+    margin-bottom: 1.75rem;
+}
+
+.page-sub {
+    color: var(--bs-secondary-color);
+    max-width: 620px;
+}
+
+.card-grid {
+    max-width: 1320px;
+}
+
+.tile .tile-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 0.5rem;
+    background: #f1f3f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #212529;
+    font-size: 1.25rem;
+    margin-bottom: 0.9rem;
+}
+
+.tile .tile-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #212529;
+    margin-top: 0.9rem;
+}
+
+a.tile:hover {
+    border-color: #c9cdd2;
+}
+
+.tile-disabled {
+    color: var(--bs-secondary-color);
+}
+
+.tile-disabled .tile-icon {
+    opacity: 0.6;
+}
+
+/* Programs page: bordered spreadsheet look, matching docs/design/admin-mockups/Main.dc.html.
+   Built on Bootstrap's .table as the base (it already gives horizontal row borders) rather
+   than the mockup's bespoke table.sheet reset (design.md decision 7) -- the depth tint,
+   row indentation, and the flexed name/actions cell are the only genuinely new rules, since
+   Bootstrap has no concept of nested/indented table rows. */
+.sheet-wrap {
+    background: #fff;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.sheet-wrap .table {
+    margin-bottom: 0;
+}
+
+.sheet-wrap .table thead th {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-secondary-color);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.row-depth-0 > td {
+    background: #f8f9fb;
+    font-weight: 600;
+}
+
+.row-depth-1 > td {
+    padding-left: 2.35rem;
+}
+
+.name-cell {
+    align-items: center;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.name-cell .cell-input {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.2rem;
+    color: inherit;
+    flex: 1 1 auto;
+    font: inherit;
+    min-width: 0;
+    padding: 0.2rem 0.35rem;
+}
+
+.name-cell .cell-input:focus {
+    background: #fff;
+    border-color: #258cfb;
+    box-shadow: 0 0 0 3px rgba(37, 140, 251, 0.15);
+    outline: none;
+}
+
+.name-actions {
+    align-items: center;
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.3rem;
+    margin-left: auto;
+}
+
+.btn-icon {
+    align-items: center;
+    display: inline-flex;
+    height: 28px;
+    justify-content: center;
+    padding: 0;
+    width: 28px;
+}
+
+/* Session expand/collapse chevron, matching docs/design/admin-mockups/Main.dc.html --
+   a plain rotation transform on the bi-chevron-down glyph, no separate "collapsed" icon. */
+.chevron-btn {
+    border: none;
+    color: var(--bs-secondary-color);
+    flex-shrink: 0;
+}
+
+.chevron-btn i {
+    transition: transform 0.15s ease-in-out;
+}
+
+.chevron-btn i.chevron-collapsed {
+    transform: rotate(-90deg);
+}

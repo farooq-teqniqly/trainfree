@@ -19,6 +19,8 @@ consuming repo's `CLAUDE.md`.
 - Use the icon font already loaded on the page (e.g. Bootstrap Icons) instead of inline
   `<svg>` markup. An inline SVG duplicates an icon the font already provides and drifts
   from it silently.
+- Exception: a brand/wordmark mark with no icon-font equivalent (e.g. a product logo)
+  may stay inline SVG -- it isn't duplicating something the font already provides.
 - Mark decorative icons `aria-hidden="true"`. When an icon is the only content of a
   control, pair it with a `visually-hidden` text label.
 

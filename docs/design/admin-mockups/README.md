@@ -28,7 +28,10 @@ Live canvas: https://claude.ai/code/artifact/a75bff9d-19c2-4707-95c9-999c3687964
 
 Icons are hand-drawn inline SVG (matching the Bootstrap Icons style), not the
 `bi-*` icon font -- the canvas's sandbox can't load Bootstrap Icons' CSS from a
-CDN. Implementation should keep using `bi-*` per `CLAUDE-blazor-ui.md`.
+CDN. Implementation should keep using `bi-*` per `CLAUDE-blazor-ui.md`, with one
+deliberate exception: the navbar brand's dumbbell mark has no `bi-*` equivalent
+and ships as inline SVG in the implementation too (see `CLAUDE-blazor-ui.md`'s
+Icons section).
 
 ## Continuing to refine
 

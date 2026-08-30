@@ -116,9 +116,14 @@ program SHALL also remove all sessions belonging to that program.
   `program_id` matches that program, and responds `204`
 
 ### Requirement: Admin program list UI
-The Blazor admin page SHALL display all programs as rows and allow creating, renaming,
-and deleting them without a full page reload. A row with unsaved name edits SHALL offer
-both `Save` and `Revert`; `Revert` discards the edit locally without calling the API.
+The Blazor admin page, served at `/programs`, SHALL display all programs as rows
+within a bordered spreadsheet-style layout and allow creating, renaming, and deleting
+them without a full page reload. A row with unsaved name edits SHALL offer both `Save`
+and `Revert`; `Revert` discards the edit locally without calling the API.
+
+#### Scenario: Page is served at /programs
+- **WHEN** the admin user navigates to `/programs`
+- **THEN** the program list page loads
 
 #### Scenario: Page loads with existing programs
 - **WHEN** the admin page loads

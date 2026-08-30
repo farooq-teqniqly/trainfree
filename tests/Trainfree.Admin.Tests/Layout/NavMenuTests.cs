@@ -1,4 +1,6 @@
 using Bunit;
+using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.DependencyInjection;
 using Trainfree.Admin.Layout;
 
 namespace Trainfree.Admin.Tests.Layout;
@@ -6,13 +8,14 @@ namespace Trainfree.Admin.Tests.Layout;
 public sealed class NavMenuTests : BunitContext
 {
     [Fact]
-    public void Render_Always_ShowsHomeAndAdminLinks()
+    public void Render_Always_ShowsExactlyHomeAndProgramsLinks()
     {
         // Act
         var cut = Render<NavMenu>(p => p.Add(x => x.Collapsed, true));
 
         // Assert
         var links = cut.FindAll("a.nav-link");
+        Assert.Equal(2, links.Count);
         Assert.Contains(
             links,
             l =>
@@ -22,9 +25,29 @@ public sealed class NavMenuTests : BunitContext
         Assert.Contains(
             links,
             l =>
-                string.Equals(l.GetAttribute("href"), "admin", StringComparison.Ordinal)
-                && l.TextContent.Contains("Admin", StringComparison.Ordinal)
+                string.Equals(l.GetAttribute("href"), "programs", StringComparison.Ordinal)
+                && l.TextContent.Contains("Programs", StringComparison.Ordinal)
         );
+        Assert.DoesNotContain(
+            links,
+            l => l.TextContent.Contains("Admin", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void Render_OnProgramsRoute_HighlightsProgramsLinkAndNotHome()
+    {
+        // Arrange
+        Services.GetRequiredService<NavigationManager>().NavigateTo("/programs");
+
+        // Act
+        var cut = Render<NavMenu>(p => p.Add(x => x.Collapsed, false));
+
+        // Assert
+        var homeLink = cut.Find("a.nav-link[href='']");
+        var programsLink = cut.Find("a.nav-link[href='programs']");
+        Assert.Contains("active", programsLink.ClassList);
+        Assert.DoesNotContain("active", homeLink.ClassList);
     }
 
     [Fact]

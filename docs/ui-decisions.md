@@ -27,6 +27,9 @@ a full-width dark sticky navbar carrying the brand and version stamp, above a li
 nav exposing Home and Admin; this is the reference layout that satisfies it without
 inventing a bespoke design.
 
+_Superseded 2026-08-30: the sidebar's "Home and Admin" description below is out of date --
+see "Sheet-style admin restyle and the /admin -> /programs rename" further down._
+
 ## The empty `<a href="">` bug and why `NavLink` is mandatory (#32)
 
 The navbar brand was originally a raw `<a href="">`. An empty `href` resolves to the
@@ -59,3 +62,27 @@ OpenSpec change -- `openspec/changes/archive/2026-08-23-add-blazor-ui-convention
 backfills the four `Revert` scenarios the `programs` spec was missing. The row's
 working-value/saved-value/`IsDirty` shape is generalized in `CLAUDE-blazor-ui.md`'s
 Editable rows section.
+
+## Sheet-style admin restyle and the /admin -> /programs rename (2026-08-30, restyle-admin-shell)
+
+`docs/design/admin-mockups/` (hi-fi, already reviewed) defined the real v0.1 look for
+`Trainfree.Admin`, which had shipped so far wearing the stock Blazor/Bootstrap dashboard
+scaffold. The `restyle-admin-shell` OpenSpec change implements it: a fixed 240px navbar/
+sidebar rail, the navbar `VersionIndicator` restyled to a pill (with a red-X stale-state
+treatment), a tile-grid `Home` landing page, and the Programs page restyled from a plain
+`<table>` into the mockups' bordered, depth-indented spreadsheet (`sheet-wrap`, `.table`,
+`row-depth-*`) with sized icon-button Save/Revert/Delete controls. The Programs route
+moves from `/admin` to `/programs` (**breaking**, no redirect -- single-user app, nothing
+external to preserve) and the redundant `Admin` sidebar wrapper link is removed, so the
+sidebar is now `Home` / `Programs` only (`Categories` and `Exercises` land in slices 5-6).
+Each program's sessions gained per-program chevron expand/collapse -- new client-only
+state (`HashSet<ProgramId>`, no persistence, no re-fetch on expand), since nothing like it
+existed before. The navbar brand's dumbbell mark has no `bi-*` equivalent and stays inline
+SVG, the one documented exception to `CLAUDE-blazor-ui.md`'s icon-font rule (see its Icons
+section). The mockups themselves were matched *visually* using Bootstrap's existing
+components and utility classes rather than porting their bespoke CSS verbatim -- the
+mockups were built in a Bootstrap-less canvas sandbox, so their class names and rules
+duplicate what Bootstrap already provides (buttons, cards, grid, table borders). This
+matters for whoever implements slices 5-7 (Categories, Exercises, the full spreadsheet):
+those mockups come from the same sandbox and invite the same copy-paste temptation --
+resist it the same way.

@@ -1,9 +1,62 @@
 @page "/"
 
-<PageTitle>Trainfree</PageTitle>
+<PageTitle>Home - Trainfree Admin</PageTitle>
 
-<h1>Trainfree</h1>
+<div class="page-header">
+    <h1>Welcome back</h1>
+    <p class="page-sub">
+        This is where you manage everything the workout app runs off of -- the programs
+        your workouts follow, and the category and exercise libraries they pull from.
+    </p>
+</div>
 
-<p>
-    <a href="admin">Go to Admin</a>
-</p>
+<div class="row row-cols-1 row-cols-md-3 g-3 card-grid">
+    <div class="col">
+        <NavLink class="card h-100 text-decoration-none text-body tile" href="programs" data-testid="home-tile-programs">
+            <div class="card-body">
+                <div class="tile-icon" aria-hidden="true">
+                    <i class="bi bi-grid-3x3-gap-fill"></i>
+                </div>
+                <h2 class="h5 card-title">Programs</h2>
+                <p class="card-text">
+                    Build out programs, sessions and categories, then pick exercises for
+                    each one from your library.
+                </p>
+                <span class="tile-link">
+                    Manage Programs
+                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </span>
+            </div>
+        </NavLink>
+    </div>
+
+    <div class="col">
+        <div class="card h-100 tile tile-disabled" data-testid="home-tile-categories">
+            <div class="card-body">
+                <div class="tile-icon" aria-hidden="true">
+                    <i class="bi bi-tags-fill"></i>
+                </div>
+                <h2 class="h5 card-title">Categories</h2>
+                <p class="card-text">
+                    The canonical category library -- names like "Warm Up" or "A", managed
+                    once and reused across every session.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="card h-100 tile tile-disabled" data-testid="home-tile-exercises">
+            <div class="card-body">
+                <div class="tile-icon" aria-hidden="true">
+                    <i class="bi bi-list-check"></i>
+                </div>
+                <h2 class="h5 card-title">Exercises</h2>
+                <p class="card-text">
+                    The canonical exercise library -- name, type and image, managed once
+                    and reused across every program.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>

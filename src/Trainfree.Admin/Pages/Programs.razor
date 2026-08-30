@@ -1,0 +1,447 @@
+@page "/programs"
+@using System.Text.Json
+@using Microsoft.Extensions.Logging
+@using Trainfree.Admin.Admin
+@using Trainfree.Domain.Ids
+@inject IProgramsApiClient Api
+@inject ISessionsApiClient SessionsApi
+@inject ILogger<Programs> Logger
+
+<PageTitle>Programs - Trainfree Admin</PageTitle>
+
+<div class="page-header d-flex align-items-end justify-content-between flex-wrap gap-3">
+    <div>
+        <h1>Programs</h1>
+        <p class="page-sub mb-0">
+            Build out programs and sessions for your workouts.
+        </p>
+    </div>
+    <button
+        class="btn btn-dark"
+        data-testid="add-program"
+        @onclick="AddProgramAsync"
+    >
+        <i class="bi bi-plus-circle" aria-hidden="true"></i>
+        Add Program
+    </button>
+</div>
+
+@if (_addProgramError is not null)
+{
+    <div class="text-danger small mb-2" data-testid="add-program-error">@_addProgramError</div>
+}
+
+@if (_addSessionError is not null)
+{
+    <div class="text-danger small mb-2" data-testid="add-session-error">@_addSessionError</div>
+}
+
+@if (_deleteError is not null)
+{
+    <div class="text-danger small mb-2" data-testid="delete-program-error">@_deleteError</div>
+}
+
+@if (_deleteSessionError is not null)
+{
+    <div class="text-danger small mb-2" data-testid="delete-session-error">@_deleteSessionError</div>
+}
+
+@if (_loadError is not null)
+{
+    <div class="text-danger small mb-2" data-testid="load-programs-error">@_loadError</div>
+}
+
+<div class="sheet-wrap">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in _rows)
+            {
+                <tr class="row-depth-0">
+                    <td>
+                        <div class="name-cell">
+                            <button
+                                class="btn btn-sm btn-icon chevron-btn"
+                                data-testid="chevron-@row.Id"
+                                title="@(_collapsedIds.Contains(row.Id) ? "Expand" : "Collapse")"
+                                aria-expanded="@(_collapsedIds.Contains(row.Id) ? "false" : "true")"
+                                @onclick="() => ToggleCollapsed(row.Id)"
+                            >
+                                <i
+                                    class="bi bi-chevron-down @(_collapsedIds.Contains(row.Id) ? "chevron-collapsed" : "")"
+                                    aria-hidden="true"
+                                ></i>
+                                <span class="visually-hidden">Toggle sessions</span>
+                            </button>
+                            <input
+                                class="cell-input"
+                                data-testid="name-input-@row.Id"
+                                value="@row.Name"
+                                autofocus="@(row.Id == _editingId)"
+                                @oninput="e => row.Name = (string)e.Value!" />
+                            <div class="name-actions">
+                                @if (row.IsDirty)
+                                {
+                                    <button
+                                        class="btn btn-sm btn-icon btn-outline-dark"
+                                        data-testid="save-@row.Id"
+                                        title="Save"
+                                        @onclick="() => RenameAsync(row)"
+                                    >
+                                        <i class="bi bi-floppy" aria-hidden="true"></i>
+                                        <span class="visually-hidden">Save</span>
+                                    </button>
+                                    <button
+                                        class="btn btn-sm btn-icon btn-outline-secondary"
+                                        data-testid="revert-@row.Id"
+                                        title="Revert"
+                                        @onclick="() => Revert(row)"
+                                    >
+                                        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                                        <span class="visually-hidden">Revert</span>
+                                    </button>
+                                }
+                                <button
+                                    class="btn btn-sm btn-icon btn-outline-dark"
+                                    data-testid="add-session-@row.Id"
+                                    title="Add Session"
+                                    @onclick="() => AddSessionAsync(row)"
+                                >
+                                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                                    <span class="visually-hidden">Add Session</span>
+                                </button>
+                                <button
+                                    class="btn btn-sm btn-icon btn-outline-danger"
+                                    data-testid="delete-@row.Id"
+                                    title="Delete"
+                                    @onclick="() => DeleteAsync(row)"
+                                >
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                    <span class="visually-hidden">Delete</span>
+                                </button>
+                            </div>
+                        </div>
+                        @if (row.Error is not null)
+                        {
+                            <div class="text-danger small" data-testid="name-error-@row.Id">
+                                @row.Error
+                            </div>
+                        }
+                    </td>
+                </tr>
+                @if (!_collapsedIds.Contains(row.Id))
+                {
+                    @if (row.SessionsLoadError is not null)
+                    {
+                        <tr>
+                            <td>
+                                <div
+                                    class="text-danger small"
+                                    data-testid="sessions-load-error-@row.Id"
+                                >
+                                    @row.SessionsLoadError
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var session in row.Sessions)
+                    {
+                        <tr class="row-depth-1">
+                            <td>
+                                <div class="name-cell">
+                                    <input
+                                        class="cell-input"
+                                        data-testid="session-name-input-@session.Id"
+                                        value="@session.Name"
+                                        autofocus="@(session.Id == _editingSessionId)"
+                                        @oninput="e => session.Name = (string)e.Value!" />
+                                    <div class="name-actions">
+                                        @if (session.IsDirty)
+                                        {
+                                            <button
+                                                class="btn btn-sm btn-icon btn-outline-dark"
+                                                data-testid="session-save-@session.Id"
+                                                title="Save"
+                                                @onclick="() => RenameSessionAsync(session)"
+                                            >
+                                                <i class="bi bi-floppy" aria-hidden="true"></i>
+                                                <span class="visually-hidden">Save</span>
+                                            </button>
+                                            <button
+                                                class="btn btn-sm btn-icon btn-outline-secondary"
+                                                data-testid="session-revert-@session.Id"
+                                                title="Revert"
+                                                @onclick="() => RevertSession(session)"
+                                            >
+                                                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                                                <span class="visually-hidden">Revert</span>
+                                            </button>
+                                        }
+                                        <button
+                                            class="btn btn-sm btn-icon btn-outline-danger"
+                                            data-testid="session-delete-@session.Id"
+                                            title="Delete"
+                                            @onclick="() => DeleteSessionAsync(row, session)"
+                                        >
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
+                                            <span class="visually-hidden">Delete</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                @if (session.Error is not null)
+                                {
+                                    <div
+                                        class="text-danger small"
+                                        data-testid="session-name-error-@session.Id"
+                                    >
+                                        @session.Error
+                                    </div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private readonly List<ProgramRow> _rows = [];
+    private readonly HashSet<ProgramId> _collapsedIds = [];
+    private ProgramId? _editingId;
+    private SessionId? _editingSessionId;
+    private string? _addProgramError;
+    private string? _addSessionError;
+    private string? _deleteError;
+    private string? _deleteSessionError;
+    private string? _loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var programs = await Api.GetProgramsAsync();
+            foreach (var program in programs)
+            {
+                var row = new ProgramRow(program.Id, program.Name);
+                _rows.Add(row);
+
+                try
+                {
+                    var sessions = await SessionsApi.GetSessionsAsync(program.Id);
+                    row.Sessions.AddRange(
+                        sessions.Select(s => new SessionRow(s.Id, program.Id, s.Name))
+                    );
+                }
+                catch (Exception ex)
+                    when (ex
+                        is HttpRequestException
+                            or JsonException
+                            or InvalidOperationException
+                            or NotSupportedException
+                            or OperationCanceledException
+                    )
+                {
+                    row.SessionsLoadError = "Could not load sessions. Try refreshing the page.";
+                    LogLoadSessionsForProgramFailed(Logger, program.Id, ex);
+                }
+            }
+        }
+        // HttpRequestException alone was not enough: Cloudflare Access answers a request made
+        // before the session is established with its own HTML login page, which arrives as a
+        // JsonException and escaped, blanking the page instead of showing the load error.
+        // The charset and content-type cases come with it; a timeout arrives as a cancellation.
+        catch (Exception ex)
+            when (ex
+                    is HttpRequestException
+                        or JsonException
+                        or InvalidOperationException
+                        or NotSupportedException
+                        or OperationCanceledException
+            )
+        {
+            _loadError = "Could not load programs. Try refreshing the page.";
+            LogLoadProgramsFailed(Logger, ex);
+        }
+    }
+
+    private void ToggleCollapsed(ProgramId id)
+    {
+        if (!_collapsedIds.Add(id))
+        {
+            _collapsedIds.Remove(id);
+        }
+    }
+
+    private async Task AddProgramAsync()
+    {
+        var outcome = await Api.CreateProgramAsync("New Program");
+        switch (outcome)
+        {
+            case CreateProgramSucceeded succeeded:
+                _rows.Add(new ProgramRow(succeeded.Program.Id, succeeded.Program.Name));
+                _editingId = succeeded.Program.Id;
+                _addProgramError = null;
+                break;
+            case CreateProgramFailed failed:
+                _addProgramError = failed.Error;
+                break;
+        }
+    }
+
+    private const int MinNameLength = 4;
+    private const int MaxNameLength = 100;
+
+    private async Task RenameAsync(ProgramRow row)
+    {
+        var trimmedLength = row.Name.Trim().Length;
+        if (trimmedLength is < MinNameLength or > MaxNameLength)
+        {
+            row.Error = $"Name must be between {MinNameLength} and {MaxNameLength} characters.";
+            return;
+        }
+
+        var outcome = await Api.RenameProgramAsync(row.Id, row.Name);
+        switch (outcome)
+        {
+            case RenameProgramSucceeded succeeded:
+                row.Name = succeeded.Program.Name;
+                row.SavedName = succeeded.Program.Name;
+                row.Error = null;
+                break;
+            case RenameProgramFailed failed:
+                row.Error = failed.Error;
+                break;
+        }
+    }
+
+    private static void Revert(ProgramRow row)
+    {
+        row.Name = row.SavedName;
+        row.Error = null;
+    }
+
+    private async Task DeleteAsync(ProgramRow row)
+    {
+        var outcome = await Api.DeleteProgramAsync(row.Id);
+        switch (outcome)
+        {
+            case DeleteProgramSucceeded:
+                _rows.Remove(row);
+                _deleteError = null;
+                break;
+            case DeleteProgramFailed failed:
+                _deleteError = failed.Error;
+                break;
+        }
+    }
+
+    private async Task AddSessionAsync(ProgramRow row)
+    {
+        var outcome = await SessionsApi.CreateSessionAsync(row.Id, "New Session");
+        switch (outcome)
+        {
+            case CreateSessionSucceeded succeeded:
+                row.Sessions.Add(
+                    new SessionRow(succeeded.Session.Id, row.Id, succeeded.Session.Name)
+                );
+                _editingSessionId = succeeded.Session.Id;
+                _addSessionError = null;
+                _collapsedIds.Remove(row.Id);
+                break;
+            case CreateSessionFailed failed:
+                _addSessionError = failed.Error;
+                break;
+        }
+    }
+
+    private async Task RenameSessionAsync(SessionRow session)
+    {
+        var trimmedLength = session.Name.Trim().Length;
+        if (trimmedLength is < MinNameLength or > MaxNameLength)
+        {
+            session.Error =
+                $"Name must be between {MinNameLength} and {MaxNameLength} characters.";
+            return;
+        }
+
+        var outcome = await SessionsApi.RenameSessionAsync(
+            session.ProgramId,
+            session.Id,
+            session.Name
+        );
+        switch (outcome)
+        {
+            case RenameSessionSucceeded succeeded:
+                session.Name = succeeded.Session.Name;
+                session.SavedName = succeeded.Session.Name;
+                session.Error = null;
+                break;
+            case RenameSessionFailed failed:
+                session.Error = failed.Error;
+                break;
+        }
+    }
+
+    private static void RevertSession(SessionRow session)
+    {
+        session.Name = session.SavedName;
+        session.Error = null;
+    }
+
+    private async Task DeleteSessionAsync(ProgramRow row, SessionRow session)
+    {
+        var outcome = await SessionsApi.DeleteSessionAsync(session.ProgramId, session.Id);
+        switch (outcome)
+        {
+            case DeleteSessionSucceeded:
+                row.Sessions.Remove(session);
+                _deleteSessionError = null;
+                break;
+            case DeleteSessionFailed failed:
+                _deleteSessionError = failed.Error;
+                break;
+        }
+    }
+
+    private sealed class ProgramRow
+    {
+        public ProgramRow(ProgramId id, string name)
+        {
+            Id = id;
+            Name = name;
+            SavedName = name;
+        }
+
+        public ProgramId Id { get; }
+        public string Name { get; set; }
+        public string SavedName { get; set; }
+        public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
+        public string? Error { get; set; }
+        public string? SessionsLoadError { get; set; }
+        public List<SessionRow> Sessions { get; } = [];
+    }
+
+    private sealed class SessionRow
+    {
+        public SessionRow(SessionId id, ProgramId programId, string name)
+        {
+            Id = id;
+            ProgramId = programId;
+            Name = name;
+            SavedName = name;
+        }
+
+        public SessionId Id { get; }
+        public ProgramId ProgramId { get; }
+        public string Name { get; set; }
+        public string SavedName { get; set; }
+        public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
+        public string? Error { get; set; }
+    }
+}
