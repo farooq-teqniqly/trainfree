@@ -55,6 +55,7 @@ shipped and deployed together. TDD applies within each slice on both stacks.
    `docs/design/admin-mockups/Home.dc.html` treatment: a quick-link tile per library page,
    though only the `Programs` tile is live until slices 5 and 6 add the other two. Depends
    on slice 3 so there's a two-level hierarchy to actually demonstrate the indentation on.
+   **Done**.
 5. **`add-category-library-crud`** -- Admin CRUD for a canonical `Category` entity (name
    only -- "Warm Up", "A", "B", ...) per `docs/design/admin-mockups/Categories.dc.html` and
    `CategoriesEmpty.dc.html`. D1 migration: `categories` table. Worker:
