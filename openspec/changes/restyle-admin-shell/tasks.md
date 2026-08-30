@@ -126,15 +126,15 @@
 
 ## 6. Documentation updates
 
-- [ ] 6.1 Edit `docs/design/admin-mockups/Home.dc.html` to remove the redundant
+- [x] 6.1 Edit `docs/design/admin-mockups/Home.dc.html` to remove the redundant
       bottom-of-page `.meta-row` version block (navbar pill is the only instance, per
       design.md decision 5).
-- [ ] 6.2 Edit `docs/design/admin-mockups/README.md` to note the navbar brand icon as
+- [x] 6.2 Edit `docs/design/admin-mockups/README.md` to note the navbar brand icon as
       the deliberate inline-SVG exception to the "implementation should keep using
       `bi-*`" guidance.
-- [ ] 6.3 Edit `CLAUDE-blazor-ui.md`'s Icons section to add the same carve-out
+- [x] 6.3 Edit `CLAUDE-blazor-ui.md`'s Icons section to add the same carve-out
       durably: an icon-font-less brand/wordmark mark may stay inline SVG.
-- [ ] 6.4 Add a new dated entry to `docs/ui-decisions.md` documenting: the sheet-style
+- [x] 6.4 Add a new dated entry to `docs/ui-decisions.md` documenting: the sheet-style
       chrome restyle, chevron collapse as new client state, the `/admin` -> `/programs`
       rename, `Admin` NavLink removal, the `bi-*` brand-icon exception, and the version
       indicator staying single-location. Include a line noting the mockups were matched
@@ -143,7 +143,10 @@
       implements slices 5-7, since those mockups came from the same Bootstrap-less
       canvas sandbox and invite the same copy-paste temptation. Add a one-line
       forward-pointer on the existing "#32" entry noting its "Home and Admin" sidebar
-      description is now superseded, without rewriting #32 itself.
+      description is now superseded, without rewriting #32 itself. No GitHub issue
+      backs this OpenSpec-driven restyle, so the new entry is headed with the change
+      name and date instead of an issue number, consistent with how other undocumented
+      entries in this file are titled.
 
 ## 7. Verification
 
