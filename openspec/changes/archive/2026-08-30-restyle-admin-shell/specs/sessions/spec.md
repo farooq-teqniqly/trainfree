@@ -67,8 +67,9 @@ that program's row; sessions render only while their program is expanded.
 
 #### Scenario: Collapsing a program hides its sessions
 - **WHEN** the admin user clicks an expanded program's chevron
-- **THEN** that program's session rows (and their `Add Session` row) stop rendering,
-  and the chevron's orientation reflects the collapsed state
+- **THEN** that program's session rows stop rendering, the `Add Session` action
+  remains available in the program row, and the chevron's orientation reflects the
+  collapsed state
 
 #### Scenario: Expanding a collapsed program shows its sessions again
 - **WHEN** the admin user clicks a collapsed program's chevron
