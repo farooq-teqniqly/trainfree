@@ -307,3 +307,19 @@ a.tile:hover {
     padding: 0;
     width: 28px;
 }
+
+/* Session expand/collapse chevron, matching docs/design/admin-mockups/Main.dc.html --
+   a plain rotation transform on the bi-chevron-down glyph, no separate "collapsed" icon. */
+.chevron-btn {
+    border: none;
+    color: var(--bs-secondary-color);
+    flex-shrink: 0;
+}
+
+.chevron-btn i {
+    transition: transform 0.15s ease-in-out;
+}
+
+.chevron-btn i.chevron-collapsed {
+    transform: rotate(-90deg);
+}

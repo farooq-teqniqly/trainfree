@@ -100,19 +100,29 @@
 
 ## 5. Session expand/collapse
 
-- [ ] 5.1 Add `HashSet<ProgramId> _collapsedIds` (or equivalent) to `Programs.razor`;
+- [x] 5.1 Add `HashSet<ProgramId> _collapsedIds` (or equivalent) to `Programs.razor`;
       default empty so every program starts expanded.
-- [ ] 5.2 Add a chevron control to each program row that toggles that program's
+- [x] 5.2 Add a chevron control to each program row that toggles that program's
       membership in `_collapsedIds`; render session rows (and the program's
-      `Add Session` row) conditionally on the program being expanded.
-- [ ] 5.3 Add the chevron open/closed CSS treatment (rotation) from `Main.dc.html`.
-- [ ] 5.4 Add bUnit tests for the four expand/collapse scenarios in
+      `Add Session` row) conditionally on the program being expanded. This slice's
+      `Add Session` action lives inside the program row itself (not a separate mockup-
+      style row), so it stays visible regardless of collapse state; only the session
+      rows and the sessions-load-error row are gated on expansion.
+- [x] 5.3 Add the chevron open/closed CSS treatment (rotation) from `Main.dc.html`.
+- [x] 5.4 Add bUnit tests for the four expand/collapse scenarios in
       `specs/sessions/spec.md`: starts expanded, collapsing hides sessions, expanding
       restores them without a re-fetch, collapsing one program leaves others unaffected.
-- [ ] 5.5 Via `claude-in-chrome`, click a program's chevron on `/programs` and screenshot
+      All four added and passing (65/65 total in `Trainfree.Admin.Tests`).
+- [x] 5.5 Via `claude-in-chrome`, click a program's chevron on `/programs` and screenshot
       the collapsed state (sessions hidden, chevron rotated) against `Main.dc.html`'s
       collapsed rows (e.g. "Workout B"); expand it again and confirm sessions reappear
-      with no network request fired (check `read_network_requests`).
+      with no network request fired (check `read_network_requests`). Verified: clicking
+      "Lower body A"'s chevron hid its four session rows and rotated the chevron;
+      clicking again restored all four sessions in their original order, and
+      `read_network_requests` showed no `/api/` call during the expand (only an
+      unrelated screenshot data: URL). No console errors from the app itself (two
+      stale exceptions in the log predated this test, from before the dev server was
+      restarted to pick up the task-group-4/5 build).
 
 ## 6. Documentation updates
 

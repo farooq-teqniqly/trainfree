@@ -64,6 +64,18 @@
                 <tr class="row-depth-0">
                     <td>
                         <div class="name-cell">
+                            <button
+                                class="btn btn-sm btn-icon chevron-btn"
+                                data-testid="chevron-@row.Id"
+                                title="@(_collapsedIds.Contains(row.Id) ? "Expand" : "Collapse")"
+                                @onclick="() => ToggleCollapsed(row.Id)"
+                            >
+                                <i
+                                    class="bi bi-chevron-down @(_collapsedIds.Contains(row.Id) ? "chevron-collapsed" : "")"
+                                    aria-hidden="true"
+                                ></i>
+                                <span class="visually-hidden">Toggle sessions</span>
+                            </button>
                             <input
                                 class="cell-input"
                                 data-testid="name-input-@row.Id"
@@ -120,74 +132,77 @@
                         }
                     </td>
                 </tr>
-                @if (row.SessionsLoadError is not null)
+                @if (!_collapsedIds.Contains(row.Id))
                 {
-                    <tr>
-                        <td>
-                            <div
-                                class="text-danger small"
-                                data-testid="sessions-load-error-@row.Id"
-                            >
-                                @row.SessionsLoadError
-                            </div>
-                        </td>
-                    </tr>
-                }
-                @foreach (var session in row.Sessions)
-                {
-                    <tr class="row-depth-1">
-                        <td>
-                            <div class="name-cell">
-                                <input
-                                    class="cell-input"
-                                    data-testid="session-name-input-@session.Id"
-                                    value="@session.Name"
-                                    autofocus="@(session.Id == _editingSessionId)"
-                                    @oninput="e => session.Name = (string)e.Value!" />
-                                <div class="name-actions">
-                                    @if (session.IsDirty)
-                                    {
-                                        <button
-                                            class="btn btn-sm btn-icon btn-outline-dark"
-                                            data-testid="session-save-@session.Id"
-                                            title="Save"
-                                            @onclick="() => RenameSessionAsync(session)"
-                                        >
-                                            <i class="bi bi-floppy" aria-hidden="true"></i>
-                                            <span class="visually-hidden">Save</span>
-                                        </button>
-                                        <button
-                                            class="btn btn-sm btn-icon btn-outline-secondary"
-                                            data-testid="session-revert-@session.Id"
-                                            title="Revert"
-                                            @onclick="() => RevertSession(session)"
-                                        >
-                                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
-                                            <span class="visually-hidden">Revert</span>
-                                        </button>
-                                    }
-                                    <button
-                                        class="btn btn-sm btn-icon btn-outline-danger"
-                                        data-testid="session-delete-@session.Id"
-                                        title="Delete"
-                                        @onclick="() => DeleteSessionAsync(row, session)"
-                                    >
-                                        <i class="bi bi-trash" aria-hidden="true"></i>
-                                        <span class="visually-hidden">Delete</span>
-                                    </button>
-                                </div>
-                            </div>
-                            @if (session.Error is not null)
-                            {
+                    @if (row.SessionsLoadError is not null)
+                    {
+                        <tr>
+                            <td>
                                 <div
                                     class="text-danger small"
-                                    data-testid="session-name-error-@session.Id"
+                                    data-testid="sessions-load-error-@row.Id"
                                 >
-                                    @session.Error
+                                    @row.SessionsLoadError
                                 </div>
-                            }
-                        </td>
-                    </tr>
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var session in row.Sessions)
+                    {
+                        <tr class="row-depth-1">
+                            <td>
+                                <div class="name-cell">
+                                    <input
+                                        class="cell-input"
+                                        data-testid="session-name-input-@session.Id"
+                                        value="@session.Name"
+                                        autofocus="@(session.Id == _editingSessionId)"
+                                        @oninput="e => session.Name = (string)e.Value!" />
+                                    <div class="name-actions">
+                                        @if (session.IsDirty)
+                                        {
+                                            <button
+                                                class="btn btn-sm btn-icon btn-outline-dark"
+                                                data-testid="session-save-@session.Id"
+                                                title="Save"
+                                                @onclick="() => RenameSessionAsync(session)"
+                                            >
+                                                <i class="bi bi-floppy" aria-hidden="true"></i>
+                                                <span class="visually-hidden">Save</span>
+                                            </button>
+                                            <button
+                                                class="btn btn-sm btn-icon btn-outline-secondary"
+                                                data-testid="session-revert-@session.Id"
+                                                title="Revert"
+                                                @onclick="() => RevertSession(session)"
+                                            >
+                                                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                                                <span class="visually-hidden">Revert</span>
+                                            </button>
+                                        }
+                                        <button
+                                            class="btn btn-sm btn-icon btn-outline-danger"
+                                            data-testid="session-delete-@session.Id"
+                                            title="Delete"
+                                            @onclick="() => DeleteSessionAsync(row, session)"
+                                        >
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
+                                            <span class="visually-hidden">Delete</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                @if (session.Error is not null)
+                                {
+                                    <div
+                                        class="text-danger small"
+                                        data-testid="session-name-error-@session.Id"
+                                    >
+                                        @session.Error
+                                    </div>
+                                }
+                            </td>
+                        </tr>
+                    }
                 }
             }
         </tbody>
@@ -196,6 +211,7 @@
 
 @code {
     private readonly List<ProgramRow> _rows = [];
+    private readonly HashSet<ProgramId> _collapsedIds = [];
     private ProgramId? _editingId;
     private SessionId? _editingSessionId;
     private string? _addProgramError;
@@ -250,6 +266,14 @@
         {
             _loadError = "Could not load programs. Try refreshing the page.";
             LogLoadProgramsFailed(Logger, ex);
+        }
+    }
+
+    private void ToggleCollapsed(ProgramId id)
+    {
+        if (!_collapsedIds.Add(id))
+        {
+            _collapsedIds.Remove(id);
         }
     }
 

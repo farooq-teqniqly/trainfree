@@ -652,6 +652,113 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public void OnInitialized_ProgramHasSessions_StartsExpanded()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.Contains("Monday Lower Body", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Chevron_ClickOnExpandedProgram_HidesItsSessions()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='chevron-PRG-AAAAAA']").Click());
+
+        // Assert
+        Assert.DoesNotContain("Monday Lower Body", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Chevron_ClickOnCollapsedProgram_RestoresSessionsWithoutRefetch()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='chevron-PRG-AAAAAA']").Click());
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='chevron-PRG-AAAAAA']").Click());
+
+        // Assert
+        Assert.Contains("Monday Lower Body", cut.Markup, StringComparison.Ordinal);
+        await _sessionsApiClient
+            .Received(1)
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Chevron_CollapseOneProgram_LeavesOtherProgramsExpanded()
+    {
+        // Arrange
+        var programA = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        var programB = new ProgramSummary(ProgramId.Parse("PRG-BBBBBB"), "Workout B");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([programA, programB]);
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([
+                new SessionSummary(
+                    SessionId.Parse("SNN-AAAAAA"),
+                    ProgramId.Parse("PRG-AAAAAA"),
+                    "Monday Lower Body"
+                ),
+            ]);
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-BBBBBB"), CancellationToken.None)
+            .Returns([
+                new SessionSummary(
+                    SessionId.Parse("SNN-BBBBBB"),
+                    ProgramId.Parse("PRG-BBBBBB"),
+                    "Tuesday Upper Body"
+                ),
+            ]);
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='chevron-PRG-AAAAAA']").Click());
+
+        // Assert
+        Assert.DoesNotContain("Monday Lower Body", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Tuesday Upper Body", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task DeleteSession_ServerRejects_ShowsErrorAndKeepsRowWithoutThrowing()
     {
         // Arrange
