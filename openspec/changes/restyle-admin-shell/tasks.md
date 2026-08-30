@@ -150,9 +150,18 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Run the full `Trainfree.Admin.Tests` suite; all green.
-- [ ] 7.2 Run CSharpier format check.
-- [ ] 7.3 Via `claude-in-chrome`, walk the full flow end to end in one pass (Home ->
+- [x] 7.1 Run the full `Trainfree.Admin.Tests` suite; all green. Ran the full solution
+      (`dotnet test Trainfree.slnx`): 123/123 passing (36 Domain, 22 Versioning, 65
+      Admin).
+- [x] 7.2 Run CSharpier format check. `dotnet csharpier check .` -- 47 files checked,
+      clean.
+- [x] 7.3 Via `claude-in-chrome`, walk the full flow end to end in one pass (Home ->
       Programs tile -> add/rename/revert/delete a program and a session -> expand/
       collapse -> back to Home) to catch anything that only breaks when the groups are
-      combined, not visible in any single group's isolated check.
+      combined, not visible in any single group's isolated check. Verified: Home tile
+      click navigated to `/programs`; added "E2E Program", added and saved "E2E
+      Session" under it, edited-and-reverted the program name (no API call, name
+      restored), collapsed and re-expanded the program's chevron, deleted the session
+      and then the program, and navigated back to Home -- data ended exactly where it
+      started. Only the known benign browser-extension messaging exceptions appeared;
+      no app-level errors.
