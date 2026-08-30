@@ -140,6 +140,8 @@ session.
 The Blazor admin page SHALL display each program's sessions as rows nested beneath
 that program's row, and allow creating, renaming, and deleting them without a full
 page reload, using the same working/saved-value dirty-row pattern as program rows.
+Each program's sessions SHALL be independently expandable/collapsible via a chevron on
+that program's row; sessions render only while their program is expanded.
 
 #### Scenario: Page loads with existing sessions
 - **WHEN** the admin page loads and a program has sessions
@@ -193,4 +195,23 @@ page reload, using the same working/saved-value dirty-row pattern as program row
   `400` or `409`
 - **THEN** the page shows the returned error on that row and remains usable -- it does
   not throw an unhandled exception
+
+#### Scenario: A program starts expanded
+- **WHEN** the admin page loads
+- **THEN** every program's sessions are visible by default (no program starts
+  collapsed)
+
+#### Scenario: Collapsing a program hides its sessions
+- **WHEN** the admin user clicks an expanded program's chevron
+- **THEN** that program's session rows (and their `Add Session` row) stop rendering,
+  and the chevron's orientation reflects the collapsed state
+
+#### Scenario: Expanding a collapsed program shows its sessions again
+- **WHEN** the admin user clicks a collapsed program's chevron
+- **THEN** that program's session rows render again, in the same order as before
+  collapsing, with no re-fetch from the API
+
+#### Scenario: Collapsing one program does not affect others
+- **WHEN** the admin user collapses one program with multiple programs loaded
+- **THEN** every other program's expanded/collapsed state is unchanged
 
