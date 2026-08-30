@@ -3,6 +3,7 @@
 ## Purpose
 The admin app's shared shell -- navbar, sidebar navigation, and the Home landing
 page -- that every admin page renders within.
+
 ## Requirements
 ### Requirement: Navbar brand and version indicator
 The admin app's top navbar SHALL display a fixed-width brand block reading
