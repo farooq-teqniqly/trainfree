@@ -17,8 +17,8 @@ out of scope there.
   used in `Programs.razor`.
 - `tests/Trainfree.Admin.Tests/Layout/MainLayoutTests.cs`: extend the existing
   `Render_ClickingTheNavToggler_ExpandsTheCollapsedSidebar` test in place to also
-  assert the toggler's `aria-expanded` attribute value ("true" before the click,
-  "false" after) -- no new near-duplicate test.
+  assert the toggler's `aria-expanded` attribute value ("false" before the click,
+  "true" after) -- no new near-duplicate test.
 
 ## Capabilities
 
