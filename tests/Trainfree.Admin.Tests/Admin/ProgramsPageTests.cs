@@ -436,6 +436,35 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public async Task AddSession_ClickAddSessionOnCollapsedProgram_ExpandsAndShowsNewRow()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var created = new SessionSummary(
+            SessionId.Parse("SNN-CCCCCC"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "New Session"
+        );
+        _sessionsApiClient
+            .CreateSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                "New Session",
+                CancellationToken.None
+            )
+            .Returns(new CreateSessionSucceeded(created));
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='chevron-PRG-AAAAAA']").Click());
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-session-PRG-AAAAAA']").Click());
+
+        // Assert
+        var input = cut.Find("[data-testid='session-name-input-SNN-CCCCCC']");
+        Assert.True(input.HasAttribute("autofocus"));
+    }
+
+    [Fact]
     public async Task AddSession_ServerRejectsDuplicateName_ShowsErrorAndAddsNoRow()
     {
         // Arrange
@@ -671,6 +700,24 @@ public sealed class ProgramsPageTests : BunitContext
 
         // Assert
         Assert.Contains("Monday Lower Body", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Chevron_ClickOnExpandedProgram_SetsAriaExpandedFalse()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var cut = Render<Programs>();
+        var chevron = cut.Find("[data-testid='chevron-PRG-AAAAAA']");
+        Assert.Equal("true", chevron.GetAttribute("aria-expanded"));
+
+        // Act
+        await cut.InvokeAsync(() => chevron.Click());
+
+        // Assert
+        chevron = cut.Find("[data-testid='chevron-PRG-AAAAAA']");
+        Assert.Equal("false", chevron.GetAttribute("aria-expanded"));
     }
 
     [Fact]

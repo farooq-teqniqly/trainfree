@@ -68,6 +68,7 @@
                                 class="btn btn-sm btn-icon chevron-btn"
                                 data-testid="chevron-@row.Id"
                                 title="@(_collapsedIds.Contains(row.Id) ? "Expand" : "Collapse")"
+                                aria-expanded="@(_collapsedIds.Contains(row.Id) ? "false" : "true")"
                                 @onclick="() => ToggleCollapsed(row.Id)"
                             >
                                 <i
@@ -351,6 +352,7 @@
                 );
                 _editingSessionId = succeeded.Session.Id;
                 _addSessionError = null;
+                _collapsedIds.Remove(row.Id);
                 break;
             case CreateSessionFailed failed:
                 _addSessionError = failed.Error;
