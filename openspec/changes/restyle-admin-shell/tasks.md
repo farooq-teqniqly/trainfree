@@ -43,18 +43,23 @@
 
 ## 3. Home landing page
 
-- [ ] 3.1 Rewrite `Pages/Home.razor` from its one-line stub into the tile-grid layout
+- [x] 3.1 Rewrite `Pages/Home.razor` from its one-line stub into the tile-grid layout
       from `Home.dc.html`: `Programs` tile with a live `NavLink` to `/programs`,
       `Categories` and `Exercises` tiles rendered in the same visual style with no link
       (per design.md decision 4 -- no dead route).
-- [ ] 3.2 Style the tiles using Bootstrap's `.card`/`.card-body` (grid via
+- [x] 3.2 Style the tiles using Bootstrap's `.card`/`.card-body` (grid via
       `row row-cols-* g-*`) with `app.css` overrides to match the mockup's look, rather
       than a bespoke `.card-grid`/`.tile` class set (design.md decision 7).
-- [ ] 3.3 Add bUnit tests: Programs tile navigates to `/programs` on click; Categories
+- [x] 3.3 Add bUnit tests: Programs tile navigates to `/programs` on click; Categories
       and Exercises tiles render but are not clickable/navigable.
-- [ ] 3.4 Via `claude-in-chrome`, load `/` and screenshot the tile grid against
+- [x] 3.4 Via `claude-in-chrome`, load `/` and screenshot the tile grid against
       `Home.dc.html`; click the Programs tile and confirm it navigates to `/programs`;
-      confirm Categories/Exercises tiles are visually present but not clickable.
+      confirm Categories/Exercises tiles are visually present but not clickable. Verified:
+      tile grid matches the mockup layout/spacing; clicking the Programs tile navigated to
+      `/programs` (a 404 today, since that route doesn't exist until task group 4 moves
+      `Programs.razor` -- the navigation itself is correct); Categories/Exercises tiles
+      render as plain, non-clickable cards. No app-level console errors (only a benign
+      browser-extension messaging warning unrelated to the page).
 
 ## 4. Programs page: move, route rename, restyle
 
