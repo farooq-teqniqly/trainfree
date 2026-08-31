@@ -21,6 +21,61 @@ public sealed class CategoriesApiClientTests : IDisposable
     }
 
     [Fact]
+    public async Task GetCategoriesAsync_ServerReturns200_ReturnsMappedCategories()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """
+                [
+                    {"id":"CAT-AAAAAA","name":"Warm Up","createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"},
+                    {"id":"CAT-BBBBBB","name":"Cool Down","createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"}
+                ]
+                """,
+                Encoding.UTF8,
+                "application/json"
+            ),
+        };
+        var client = new CategoriesApiClient(_httpClient, NullLogger<CategoriesApiClient>.Instance);
+
+        // Act
+        var categories = await client.GetCategoriesAsync(CancellationToken.None);
+
+        // Assert
+        Assert.Collection(
+            categories,
+            c =>
+            {
+                Assert.Equal(CategoryId.Parse("CAT-AAAAAA"), c.Id);
+                Assert.Equal("Warm Up", c.Name);
+            },
+            c =>
+            {
+                Assert.Equal(CategoryId.Parse("CAT-BBBBBB"), c.Id);
+                Assert.Equal("Cool Down", c.Name);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task GetCategoriesAsync_ServerReturnsEmptyArray_ReturnsEmptyList()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("[]", Encoding.UTF8, "application/json"),
+        };
+        var client = new CategoriesApiClient(_httpClient, NullLogger<CategoriesApiClient>.Instance);
+
+        // Act
+        var categories = await client.GetCategoriesAsync(CancellationToken.None);
+
+        // Assert
+        Assert.Empty(categories);
+    }
+
+    [Fact]
     public async Task CreateCategoryAsync_ServerReturnsTheAccessLoginPage_ReturnsCreateCategoryFailed()
     {
         // Arrange
