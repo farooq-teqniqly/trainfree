@@ -1,7 +1,7 @@
 # categories Specification
 
 ## Purpose
-Categories are the canonical category library (e.g. "Warm Up", "A", "B") that program
+Categories are the canonical category library (e.g. "Warm Up", "Legs") that program
 sessions pick from instead of typing free text. This spec covers a category's externally
 visible identity and name rules, the Worker's flat CRUD API over the `categories` table,
 and the Blazor admin UI that manages them. Delete is unconditional here -- no other table
