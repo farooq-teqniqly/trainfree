@@ -245,6 +245,59 @@ async function handleSessionResource(request, db, programId, id) {
     return new Response("Method not allowed", { status: 405 });
 }
 
+// Falls through to the assets binding first (the Blazor static output) rather than a
+// hardcoded 404, so a request the platform's own asset routing didn't already
+// intercept still gets a real response.
+function notFoundOrAssets(request, env) {
+    if (env.ASSETS) {
+        return env.ASSETS.fetch(request);
+    }
+    return withCors(new Response("Not found", { status: 404 }), request);
+}
+
+// /api/categories (collection, length 2) or /api/categories/:id (resource, length 3)
+// -- a flat resource, unlike programs/sessions below.
+async function routeCategories(request, env, segments) {
+    if (segments.length > 3) {
+        return notFoundOrAssets(request, env);
+    }
+
+    const id = segments[2];
+    const response = id
+        ? await handleCategoryResource(request, env.DB, id)
+        : await handleCategoriesCollection(request, env.DB);
+    return withCors(response, request);
+}
+
+// /api/programs (collection, length 2), /api/programs/:id (resource, length 3),
+// /api/programs/:id/sessions (nested collection, length 4), or
+// /api/programs/:id/sessions/:sessionId (nested resource, length 5) -- anything else,
+// including trailing segments past those, is not a route this function owns, so it
+// returns null and the caller falls through to notFoundOrAssets.
+async function routePrograms(request, env, segments) {
+    const isSessionsRoute =
+        segments.length >= 4 && segments.length <= 5 && segments[3] === "sessions";
+
+    if (segments.length > 3 && !isSessionsRoute) {
+        return null;
+    }
+
+    if (isSessionsRoute) {
+        const programId = segments[2];
+        const sessionId = segments[4];
+        const response = sessionId
+            ? await handleSessionResource(request, env.DB, programId, sessionId)
+            : await handleSessionsCollection(request, env.DB, programId);
+        return withCors(response, request);
+    }
+
+    const id = segments[2];
+    const response = id
+        ? await handleProgramResource(request, env.DB, id)
+        : await handleProgramsCollection(request, env.DB);
+    return withCors(response, request);
+}
+
 export default {
     async fetch(request, env) {
         if (request.method === "OPTIONS") {
@@ -258,58 +311,17 @@ export default {
             return withCors(handleVersion(request, env), request);
         }
 
-        // /api/categories (collection, length 2) or /api/categories/:id (resource,
-        // length 3) -- a flat resource, unlike programs/sessions below.
-        const isCategoriesRoute = segments[0] === "api" && segments[1] === "categories";
-        if (isCategoriesRoute) {
-            if (segments.length > 3) {
-                if (env.ASSETS) {
-                    return env.ASSETS.fetch(request);
-                }
-                return withCors(new Response("Not found", { status: 404 }), request);
+        if (segments[0] === "api" && segments[1] === "categories") {
+            return routeCategories(request, env, segments);
+        }
+
+        if (segments[0] === "api" && segments[1] === "programs") {
+            const response = await routePrograms(request, env, segments);
+            if (response) {
+                return response;
             }
-            const id = segments[2];
-            const response = id
-                ? await handleCategoryResource(request, env.DB, id)
-                : await handleCategoriesCollection(request, env.DB);
-            return withCors(response, request);
         }
 
-        // /api/programs (collection, length 2), /api/programs/:id (resource, length 3),
-        // /api/programs/:id/sessions (nested collection, length 4), or
-        // /api/programs/:id/sessions/:sessionId (nested resource, length 5) -- anything
-        // else, including trailing segments past those, is not a route this Worker owns.
-        // Falls through to the assets binding first (the Blazor static output) rather
-        // than a hardcoded 404, so a request the platform's own asset routing didn't
-        // already intercept still gets a real response.
-        const isProgramsRoute = segments[0] === "api" && segments[1] === "programs";
-        const isSessionsRoute =
-            isProgramsRoute &&
-            segments.length >= 4 &&
-            segments.length <= 5 &&
-            segments[3] === "sessions";
-
-        if (!isProgramsRoute || (segments.length > 3 && !isSessionsRoute)) {
-            if (env.ASSETS) {
-                return env.ASSETS.fetch(request);
-            }
-            return withCors(new Response("Not found", { status: 404 }), request);
-        }
-
-        let response;
-        if (isSessionsRoute) {
-            const programId = segments[2];
-            const sessionId = segments[4];
-            response = sessionId
-                ? await handleSessionResource(request, env.DB, programId, sessionId)
-                : await handleSessionsCollection(request, env.DB, programId);
-        } else {
-            const id = segments[2];
-            response = id
-                ? await handleProgramResource(request, env.DB, id)
-                : await handleProgramsCollection(request, env.DB);
-        }
-
-        return withCors(response, request);
+        return notFoundOrAssets(request, env);
     },
 };
