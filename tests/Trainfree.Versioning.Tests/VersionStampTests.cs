@@ -1,5 +1,3 @@
-using Trainfree.Versioning;
-
 namespace Trainfree.Versioning.Tests;
 
 public sealed class VersionStampTests

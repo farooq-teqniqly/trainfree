@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging;
-
 namespace Trainfree.Admin.Pages;
 
 public partial class Categories
