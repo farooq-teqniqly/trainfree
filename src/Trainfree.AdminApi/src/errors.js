@@ -13,7 +13,7 @@ export class DuplicateNameError extends Error {
 // the whole trailing clause, is resilient to whatever D1/SQLite appends after the
 // column list (driver-specific error codes, multiple columns, etc.).
 function escapeRegExp(value) {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 export function uniqueConstraintColumns(err, table) {
