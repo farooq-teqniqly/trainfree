@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
-using Trainfree.Versioning;
 
 namespace Trainfree.Versioning.Tests;
 

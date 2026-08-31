@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using Trainfree.Domain.Ids;
 
 namespace Trainfree.Admin.Pages;

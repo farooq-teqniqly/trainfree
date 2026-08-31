@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.Extensions.Logging;
 using Trainfree.Domain.Ids;
 
 namespace Trainfree.Admin.Admin;

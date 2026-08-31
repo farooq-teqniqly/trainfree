@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging;
-
 namespace Trainfree.Admin.Admin;
 
 internal sealed partial class ProgramsApiClient
