@@ -21,6 +21,61 @@ public sealed class ProgramsApiClientTests : IDisposable
     }
 
     [Fact]
+    public async Task GetProgramsAsync_ServerReturnsPrograms_ReturnsMappedProgramSummaries()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """
+                [
+                    {"id":"PRG-AAAAAA","name":"Program A","createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"},
+                    {"id":"PRG-BBBBBB","name":"Program B","createdAt":"2026-01-02T00:00:00.000Z","updatedAt":"2026-01-02T00:00:00.000Z"}
+                ]
+                """,
+                Encoding.UTF8,
+                "application/json"
+            ),
+        };
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
+
+        // Act
+        var programs = await client.GetProgramsAsync(CancellationToken.None);
+
+        // Assert
+        Assert.Collection(
+            programs,
+            program =>
+            {
+                Assert.Equal(ProgramId.Parse("PRG-AAAAAA"), program.Id);
+                Assert.Equal("Program A", program.Name);
+            },
+            program =>
+            {
+                Assert.Equal(ProgramId.Parse("PRG-BBBBBB"), program.Id);
+                Assert.Equal("Program B", program.Name);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task GetProgramsAsync_ServerReturnsEmptyArray_ReturnsEmptyList()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("[]", Encoding.UTF8, "application/json"),
+        };
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
+
+        // Act
+        var programs = await client.GetProgramsAsync(CancellationToken.None);
+
+        // Assert
+        Assert.Empty(programs);
+    }
+
+    [Fact]
     public async Task CreateProgramAsync_ServerReturnsTheAccessLoginPage_ReturnsCreateProgramFailed()
     {
         // Arrange
