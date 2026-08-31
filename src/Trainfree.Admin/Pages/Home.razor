@@ -31,7 +31,7 @@
     </div>
 
     <div class="col">
-        <div class="card h-100 tile tile-disabled" data-testid="home-tile-categories">
+        <NavLink class="card h-100 text-decoration-none text-body tile" href="categories" data-testid="home-tile-categories">
             <div class="card-body">
                 <div class="tile-icon" aria-hidden="true">
                     <i class="bi bi-tags-fill"></i>
@@ -41,8 +41,12 @@
                     The canonical category library -- names like "Warm Up" or "A", managed
                     once and reused across every session.
                 </p>
+                <span class="tile-link">
+                    Manage Categories
+                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </span>
             </div>
-        </div>
+        </NavLink>
     </div>
 
     <div class="col">

@@ -25,3 +25,7 @@ export function validateProgramName(name) {
 export function validateSessionName(name) {
     return validateName(name);
 }
+
+export function validateCategoryName(name) {
+    return validateName(name);
+}

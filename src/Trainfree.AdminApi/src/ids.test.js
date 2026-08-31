@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+    generateCategoryId,
     generateId,
     generateProgramId,
     generateSessionId,
+    isValidCategoryId,
     isValidId,
     isValidProgramId,
     isValidSessionId,
@@ -128,5 +130,46 @@ describe("isValidSessionId", () => {
         ["SNN7K2QXM"],
     ])("rejects an ill-formed id %s", (value) => {
         expect(isValidSessionId(value)).toBe(false);
+    });
+});
+
+describe("generateCategoryId", () => {
+    it("produces a CAT- prefixed id with a 6-character Crockford base32 body", () => {
+        const id = generateCategoryId();
+
+        expect(id).toMatch(/^CAT-[ABCDEFGHJKMNPQRSTVWXYZ23456789]{6}$/);
+    });
+
+    it("produces effectively unique ids across calls", () => {
+        const ids = new Set(Array.from({ length: 50 }, () => generateCategoryId()));
+
+        expect(ids.size).toBe(50);
+    });
+});
+
+describe("isValidCategoryId", () => {
+    it.each([["CAT-7K2QXM"], ["CAT-234567"], ["CAT-ABCDEF"]])(
+        "accepts a well-formed id %s",
+        (value) => {
+            expect(isValidCategoryId(value)).toBe(true);
+        },
+    );
+
+    it.each([
+        [null],
+        [undefined],
+        [""],
+        ["CAT-7K2QX"],
+        ["CAT-7K2QXMM"],
+        ["CAT-7K2Q0M"],
+        ["CAT-7K2Q1M"],
+        ["CAT-7K2QOM"],
+        ["CAT-7K2QIM"],
+        ["CAT-7K2QLM"],
+        ["cat-7K2QXM"],
+        ["PRG-7K2QXM"],
+        ["CAT7K2QXM"],
+    ])("rejects an ill-formed id %s", (value) => {
+        expect(isValidCategoryId(value)).toBe(false);
     });
 });

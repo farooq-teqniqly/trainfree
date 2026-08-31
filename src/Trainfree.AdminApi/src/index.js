@@ -6,7 +6,17 @@ import {
     programExists,
     renameSession,
 } from "./sessions.js";
-import { validateProgramName, validateSessionName } from "./validation.js";
+import {
+    createCategory,
+    deleteCategory,
+    listCategories,
+    renameCategory,
+} from "./categories.js";
+import {
+    validateCategoryName,
+    validateProgramName,
+    validateSessionName,
+} from "./validation.js";
 import { DuplicateNameError } from "./errors.js";
 import { versionStamp } from "./version.js";
 
@@ -119,6 +129,62 @@ async function handleProgramResource(request, db, id) {
     return new Response("Method not allowed", { status: 405 });
 }
 
+async function handleCategoriesCollection(request, db) {
+    if (request.method === "GET") {
+        return jsonResponse(await listCategories(db));
+    }
+
+    if (request.method === "POST") {
+        const body = await request.json().catch(() => ({}));
+        const validation = validateCategoryName(body.name);
+        if (!validation.valid) {
+            return jsonResponse({ error: validation.error }, 400);
+        }
+        try {
+            return jsonResponse(await createCategory(db, validation.name), 201);
+        } catch (err) {
+            if (err instanceof DuplicateNameError) {
+                return jsonResponse({ error: err.message }, 409);
+            }
+            throw err;
+        }
+    }
+
+    return new Response("Method not allowed", { status: 405 });
+}
+
+async function handleCategoryResource(request, db, id) {
+    if (request.method === "PATCH") {
+        const body = await request.json().catch(() => ({}));
+        const validation = validateCategoryName(body.name);
+        if (!validation.valid) {
+            return jsonResponse({ error: validation.error }, 400);
+        }
+        try {
+            const category = await renameCategory(db, id, validation.name);
+            if (!category) {
+                return jsonResponse({ error: "category not found" }, 404);
+            }
+            return jsonResponse(category);
+        } catch (err) {
+            if (err instanceof DuplicateNameError) {
+                return jsonResponse({ error: err.message }, 409);
+            }
+            throw err;
+        }
+    }
+
+    if (request.method === "DELETE") {
+        const deleted = await deleteCategory(db, id);
+        if (!deleted) {
+            return jsonResponse({ error: "category not found" }, 404);
+        }
+        return new Response(null, { status: 204 });
+    }
+
+    return new Response("Method not allowed", { status: 405 });
+}
+
 async function handleSessionsCollection(request, db, programId) {
     if (!(await programExists(db, programId))) {
         return jsonResponse({ error: "program not found" }, 404);
@@ -190,6 +256,23 @@ export default {
 
         if (segments[0] === "api" && segments[1] === "version" && segments.length === 2) {
             return withCors(handleVersion(request, env), request);
+        }
+
+        // /api/categories (collection, length 2) or /api/categories/:id (resource,
+        // length 3) -- a flat resource, unlike programs/sessions below.
+        const isCategoriesRoute = segments[0] === "api" && segments[1] === "categories";
+        if (isCategoriesRoute) {
+            if (segments.length > 3) {
+                if (env.ASSETS) {
+                    return env.ASSETS.fetch(request);
+                }
+                return withCors(new Response("Not found", { status: 404 }), request);
+            }
+            const id = segments[2];
+            const response = id
+                ? await handleCategoryResource(request, env.DB, id)
+                : await handleCategoriesCollection(request, env.DB);
+            return withCors(response, request);
         }
 
         // /api/programs (collection, length 2), /api/programs/:id (resource, length 3),

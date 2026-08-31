@@ -40,14 +40,21 @@ own, per the roadmap's slice 5, so slice 7 isn't blocked on it later.
 
 ## Impact
 
-- New: `src/Trainfree.AdminApi/migrations/000N_create_categories.sql`,
-  `src/Trainfree.AdminApi/src/categories.js`,
-  `src/Trainfree.Admin/Pages/Categories.razor`,
+- New: `src/Trainfree.AdminApi/migrations/0004_create_categories.sql` and
+  `0005_add_categories_name_unique_index.sql`, `src/Trainfree.AdminApi/src/categories.js`,
+  `src/Trainfree.Admin/Pages/Categories.razor` + `Categories.razor.Logging.cs`,
   `src/Trainfree.Admin/Admin/ICategoriesApiClient.cs` + implementation + outcome types
-  + `CategorySummary.cs`, following the `Programs`/`ProgramsApiClient` pattern exactly
-  (no session-style nesting).
+  + `CategorySummary.cs`, and `src/Trainfree.Domain/Ids/CategoryId.cs`, following the
+  `Programs`/`ProgramsApiClient`/`ProgramId` pattern exactly (no session-style nesting).
+  Also new: `tests/Trainfree.Admin.Tests/Admin/CategoriesApiClientTests.cs` and
+  `CategoriesPageTests.cs`, mirroring the existing `Programs` equivalents in that
+  project (found during implementation -- not anticipated when this proposal was
+  written).
 - Modified: `src/Trainfree.AdminApi/src/index.js` (new `/api/categories` route
-  branches), `src/Trainfree.Admin/Layout/NavMenu.razor`, `src/Trainfree.Admin/Pages/Home.razor`.
+  branches), `src/Trainfree.Admin/Layout/NavMenu.razor`, `src/Trainfree.Admin/Pages/Home.razor`,
+  `src/Trainfree.Admin/Program.cs` (registers `ICategoriesApiClient` in DI). Also
+  modified: `tests/Trainfree.Admin.Tests/Layout/NavMenuTests.cs` and
+  `Pages/HomeTests.cs`, updated for the new nav link and the now-live `Home` tile.
 - Out of scope: the `session_categories` join table, the category picker on session
   rows, and the usage-guarded delete / "Used in" column from `Categories.dc.html` -- all
   slice 7.

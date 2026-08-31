@@ -17,6 +17,14 @@ async function createSession(programId, name) {
     });
 }
 
+async function createCategory(name) {
+    return SELF.fetch("http://worker/api/categories", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+    });
+}
+
 describe("CORS", () => {
     it("responds to an OPTIONS preflight from the dev origin with allow headers and no body", async () => {
         const response = await SELF.fetch("http://worker/api/programs", {
@@ -544,6 +552,163 @@ describe("DELETE /api/programs/:programId/sessions/:id", () => {
             `http://worker/api/programs/${programB.id}/sessions/${session.id}`,
             { method: "DELETE" },
         );
+
+        expect(response.status).toBe(404);
+    });
+});
+
+describe("GET /api/categories", () => {
+    it("returns an empty array when no categories exist", async () => {
+        const response = await SELF.fetch("http://worker/api/categories");
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual([]);
+    });
+
+    it("returns categories in creation order", async () => {
+        await createCategory("Warm Up");
+        await createCategory("Cool Down");
+
+        const response = await SELF.fetch("http://worker/api/categories");
+        const categories = await response.json();
+
+        expect(categories.map((c) => c.name)).toEqual(["Warm Up", "Cool Down"]);
+    });
+});
+
+describe("POST /api/categories", () => {
+    it("creates a category with a generated id and timestamps", async () => {
+        const response = await createCategory("Warm Up");
+        const category = await response.json();
+
+        expect(response.status).toBe(201);
+        expect(category.id).toMatch(/^CAT-[ABCDEFGHJKMNPQRSTVWXYZ23456789]{6}$/);
+        expect(category.name).toBe("Warm Up");
+        expect(category.createdAt).toBeTypeOf("string");
+        expect(category.updatedAt).toBeTypeOf("string");
+    });
+
+    it("rejects a name that fails the length bound and creates no row", async () => {
+        const response = await createCategory("Ab");
+
+        expect(response.status).toBe(400);
+        expect((await response.json()).error).toBeTypeOf("string");
+
+        const list = await (await SELF.fetch("http://worker/api/categories")).json();
+        expect(list).toHaveLength(0);
+    });
+
+    it("rejects a missing name", async () => {
+        const response = await SELF.fetch("http://worker/api/categories", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({}),
+        });
+
+        expect(response.status).toBe(400);
+    });
+
+    it("rejects a name that already exists, case-insensitively, and creates no row", async () => {
+        await createCategory("Warm Up");
+
+        const response = await createCategory("warm up");
+
+        expect(response.status).toBe(409);
+        expect((await response.json()).error).toBeTypeOf("string");
+
+        const list = await (await SELF.fetch("http://worker/api/categories")).json();
+        expect(list).toHaveLength(1);
+    });
+});
+
+describe("PATCH /api/categories/:id", () => {
+    it("renames an existing category", async () => {
+        const created = await (await createCategory("Warm Up")).json();
+
+        const response = await SELF.fetch(`http://worker/api/categories/${created.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "Cool Down" }),
+        });
+        const category = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(category.name).toBe("Cool Down");
+        expect(category.id).toBe(created.id);
+    });
+
+    it("returns 404 for an unknown id", async () => {
+        const response = await SELF.fetch("http://worker/api/categories/CAT-ZZZZZZ", {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "Cool Down" }),
+        });
+
+        expect(response.status).toBe(404);
+    });
+
+    it("rejects a name that fails the length bound and makes no change", async () => {
+        const created = await (await createCategory("Warm Up")).json();
+
+        const response = await SELF.fetch(`http://worker/api/categories/${created.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "Ab" }),
+        });
+
+        expect(response.status).toBe(400);
+
+        const list = await (await SELF.fetch("http://worker/api/categories")).json();
+        expect(list[0].name).toBe("Warm Up");
+    });
+
+    it("rejects renaming to another category's name, case-insensitively, and makes no change", async () => {
+        await createCategory("Warm Up");
+        const other = await (await createCategory("Cool Down")).json();
+
+        const response = await SELF.fetch(`http://worker/api/categories/${other.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "warm up" }),
+        });
+
+        expect(response.status).toBe(409);
+
+        const list = await (await SELF.fetch("http://worker/api/categories")).json();
+        expect(list.map((c) => c.name)).toEqual(["Warm Up", "Cool Down"]);
+    });
+
+    it("allows renaming a category to its own current name", async () => {
+        const created = await (await createCategory("Warm Up")).json();
+
+        const response = await SELF.fetch(`http://worker/api/categories/${created.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "Warm Up" }),
+        });
+
+        expect(response.status).toBe(200);
+    });
+});
+
+describe("DELETE /api/categories/:id", () => {
+    it("deletes an existing category", async () => {
+        const created = await (await createCategory("Warm Up")).json();
+
+        const response = await SELF.fetch(`http://worker/api/categories/${created.id}`, {
+            method: "DELETE",
+        });
+
+        expect(response.status).toBe(204);
+
+        const list = await (await SELF.fetch("http://worker/api/categories")).json();
+        expect(list).toHaveLength(0);
+    });
+
+    it("returns 404 for an unknown id", async () => {
+        const response = await SELF.fetch("http://worker/api/categories/CAT-ZZZZZZ", {
+            method: "DELETE",
+        });
 
         expect(response.status).toBe(404);
     });
