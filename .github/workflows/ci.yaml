@@ -190,6 +190,13 @@ jobs:
       #  - Blazor's service-worker glue which runs in the browser's service-worker scope and no .NET test can execute.
       #  - Bootstrap JavaScript
       SONAR_EXCLUSIONS: "**/*.Tests/**,**/*.ArchitectureTests/**,**/samples/**,**/*.py,**/Scripts/*.sql,**/*.js"
+      # Analysis exclusions: docs/design/**/*.dc.html are Claude Design canvas
+      # mockups, not application HTML -- SonarCloud's Web analyzer was scanning
+      # them for real-page rules (missing <title>/lang/label) and counting their
+      # near-identical boilerplate as duplication, which alone failed the
+      # reliability and duplication quality gate conditions on main. Excluded
+      # from analysis entirely, not just from coverage.
+      SONAR_ANALYSIS_EXCLUSIONS: "docs/**"
 
     steps:
       - name: Checkout code
@@ -232,7 +239,8 @@ jobs:
             /d:sonar.cs.cobertura.reportsPaths="**/coverage.cobertura.xml" \
             /d:sonar.security.enableProjectScan=true \
             /d:sonar.qualitygate.wait=true \
-            /d:sonar.coverage.exclusions="${{env.SONAR_EXCLUSIONS}}"
+            /d:sonar.coverage.exclusions="${{env.SONAR_EXCLUSIONS}}" \
+            /d:sonar.exclusions="${{env.SONAR_ANALYSIS_EXCLUSIONS}}"
 
       - name: Build solution
         run: dotnet build "Trainfree.slnx" --configuration Release --no-restore
