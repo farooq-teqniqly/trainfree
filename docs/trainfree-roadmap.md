@@ -62,7 +62,7 @@ shipped and deployed together. TDD applies within each slice on both stacks.
    `GET/POST/PATCH/DELETE /api/categories` (delete blocked while any session references the
    category, per the design's disabled-delete state). Blazor: new `Categories` page, added
    to the sidebar nav between `Home` and the not-yet-built `Exercises` link, and a
-   `Categories` tile added to the `Home` page.
+   `Categories` tile added to the `Home` page. **Done**.
 6. **`add-exercise-library-crud`** -- Admin CRUD for a canonical `Exercise` entity (name,
    type: Reps or Timed) per `docs/design/admin-mockups/Exercises.dc.html` and
    `ExercisesEmpty.dc.html`. D1 migration: `exercises` table. Worker:
