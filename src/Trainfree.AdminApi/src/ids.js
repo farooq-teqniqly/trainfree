@@ -2,6 +2,7 @@ const BODY_LENGTH = 6;
 const ALPHABET = "ABCDEFGHJKMNPQRSTVWXYZ23456789";
 const PROGRAM_PREFIX = "PRG-";
 const SESSION_PREFIX = "SNN-";
+const CATEGORY_PREFIX = "CAT-";
 
 export function generateId(prefix) {
     const randomBytes = new Uint8Array(BODY_LENGTH);
@@ -51,4 +52,12 @@ export function generateSessionId() {
 
 export function isValidSessionId(value) {
     return isValidId(value, SESSION_PREFIX);
+}
+
+export function generateCategoryId() {
+    return generateId(CATEGORY_PREFIX);
+}
+
+export function isValidCategoryId(value) {
+    return isValidId(value, CATEGORY_PREFIX);
 }
