@@ -37,23 +37,23 @@ readonly RETRY_SECONDS=10
 readonly CONNECT_TIMEOUT_SECONDS=10
 readonly MAX_SECONDS=30
 
-if [ -z "${BASE_URL:-}" ]; then
-  echo "::error::No URL to verify. Set the APP_BASE_URL repository variable to the deployed origin (e.g. https://trainfree-admin.example.com)."
+if [[ -z "${BASE_URL:-}" ]]; then
+  echo "::error::No URL to verify. Set the APP_BASE_URL repository variable to the deployed origin (e.g. https://trainfree-admin.example.com)." >&2
   exit 1
 fi
-if [ -z "${CF_ACCESS_CLIENT_ID:-}" ] || [ -z "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
-  echo "::error::CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET are not set. Access returns its login page to unauthenticated callers, so the version check cannot run without a service token."
+if [[ -z "${CF_ACCESS_CLIENT_ID:-}" ]] || [[ -z "${CF_ACCESS_CLIENT_SECRET:-}" ]]; then
+  echo "::error::CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET are not set. Access returns its login page to unauthenticated callers, so the version check cannot run without a service token." >&2
   exit 1
 fi
-if [ -z "${EXPECTED_VERSION:-}" ] || [ -z "${EXPECTED_COMMIT:-}" ]; then
-  echo "::error::EXPECTED_VERSION / EXPECTED_COMMIT are not set, so there is nothing to compare the deployed stamp against."
+if [[ -z "${EXPECTED_VERSION:-}" ]] || [[ -z "${EXPECTED_COMMIT:-}" ]]; then
+  echo "::error::EXPECTED_VERSION / EXPECTED_COMMIT are not set, so there is nothing to compare the deployed stamp against." >&2
   exit 1
 fi
 # jq ships on the GitHub-hosted runner images, so this is really about local runs and any
 # future self-hosted runner. Checked up front because a missing jq would otherwise surface
 # below as "200 but not version JSON", blaming the response for a missing tool.
 if ! command -v jq >/dev/null 2>&1; then
-  echo "::error::jq is required to parse /api/version but was not found on PATH."
+  echo "::error::jq is required to parse /api/version but was not found on PATH." >&2
   exit 1
 fi
 
@@ -77,16 +77,19 @@ for attempt in $(seq 1 "$ATTEMPTS"); do
 
   case "$status" in
     30*)
-      echo "::error::$url redirected to the Access login page (HTTP $status). The service token was not accepted -- check that the application has a Service Auth policy including this token."
+      echo "::error::$url redirected to the Access login page (HTTP $status). The service token was not accepted -- check that the application has a Service Auth policy including this token." >&2
       exit 1
       ;;
     403)
-      echo "::error::$url returned 403. The service token authenticated but is not admitted by any policy on the application."
+      echo "::error::$url returned 403. The service token authenticated but is not admitted by any policy on the application." >&2
       exit 1
+      ;;
+    *)
+      # No action here -- fall through to the response-body check below.
       ;;
   esac
 
-  if [ "$status" = "200" ] && [ -n "$body" ]; then
+  if [[ "$status" = "200" ]] && [[ -n "$body" ]]; then
     # Anything non-JSON at 200 is the app misbehaving rather than Access, which the cases
     # above have already ruled out -- quote it so the log says what. Both fields must be
     # non-empty strings, not merely present: `jq -r` renders a null or numeric field as
@@ -100,13 +103,13 @@ for attempt in $(seq 1 "$ATTEMPTS"); do
       # newline would truncate the annotation, and the runner parses any line beginning
       # with "::" as a workflow command, so a crafted response could forge one. Collapsing
       # CR/LF keeps the snippet on the single line that already starts with safe text.
-      echo "::error::$url returned 200 but not a version object with non-empty string 'version' and 'commit'."
-      echo "Response began: $(printf '%s' "$body" | head -c 200 | tr '\r\n' '  ')"
+      echo "::error::$url returned 200 but not a version object with non-empty string 'version' and 'commit'." >&2
+      echo "Response began: $(printf '%s' "$body" | head -c 200 | tr '\r\n' '  ')" >&2
       exit 1
     fi
 
     actual="$(printf '%s' "$body" | jq -r '.version')+$(printf '%s' "$body" | jq -r '.commit')"
-    if [ "$actual" = "$expected" ]; then
+    if [[ "$actual" = "$expected" ]]; then
       echo "Deployed version verified: $actual"
       exit 0
     fi
@@ -118,5 +121,5 @@ for attempt in $(seq 1 "$ATTEMPTS"); do
   sleep "$RETRY_SECONDS"
 done
 
-echo "::error::$url never reported $expected. The app header will show a stale-version banner on every load."
+echo "::error::$url never reported $expected. The app header will show a stale-version banner on every load." >&2
 exit 1
