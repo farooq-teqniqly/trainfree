@@ -21,6 +21,69 @@ public sealed class SessionsApiClientTests : IDisposable
     }
 
     [Fact]
+    public async Task GetSessionsAsync_ServerReturnsSessions_ReturnsMappedSessionSummaries()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """
+                [
+                    {"id":"SNN-AAAAAA","programId":"PRG-AAAAAA","name":"Monday Lower Body","createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"},
+                    {"id":"SNN-BBBBBB","programId":"PRG-AAAAAA","name":"Wednesday Upper Body","createdAt":"2026-01-02T00:00:00.000Z","updatedAt":"2026-01-02T00:00:00.000Z"}
+                ]
+                """,
+                Encoding.UTF8,
+                "application/json"
+            ),
+        };
+        var client = new SessionsApiClient(_httpClient, NullLogger<SessionsApiClient>.Instance);
+
+        // Act
+        var sessions = await client.GetSessionsAsync(
+            ProgramId.Parse("PRG-AAAAAA"),
+            CancellationToken.None
+        );
+
+        // Assert
+        Assert.Collection(
+            sessions,
+            session =>
+            {
+                Assert.Equal(SessionId.Parse("SNN-AAAAAA"), session.Id);
+                Assert.Equal(ProgramId.Parse("PRG-AAAAAA"), session.ProgramId);
+                Assert.Equal("Monday Lower Body", session.Name);
+            },
+            session =>
+            {
+                Assert.Equal(SessionId.Parse("SNN-BBBBBB"), session.Id);
+                Assert.Equal(ProgramId.Parse("PRG-AAAAAA"), session.ProgramId);
+                Assert.Equal("Wednesday Upper Body", session.Name);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task GetSessionsAsync_ServerReturnsEmptyArray_ReturnsEmptyList()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("[]", Encoding.UTF8, "application/json"),
+        };
+        var client = new SessionsApiClient(_httpClient, NullLogger<SessionsApiClient>.Instance);
+
+        // Act
+        var sessions = await client.GetSessionsAsync(
+            ProgramId.Parse("PRG-AAAAAA"),
+            CancellationToken.None
+        );
+
+        // Assert
+        Assert.Empty(sessions);
+    }
+
+    [Fact]
     public async Task CreateSessionAsync_ServerReturns201_ReturnsCreateSessionSucceeded()
     {
         // Arrange
