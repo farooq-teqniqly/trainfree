@@ -5,8 +5,8 @@ using Trainfree.Domain.Ids;
 
 namespace Trainfree.Admin.Admin;
 
-/// <inheritdoc cref="ICategoriesApiClient"/>
-internal sealed partial class CategoriesApiClient : ICategoriesApiClient
+/// <inheritdoc cref="IPhasesApiClient"/>
+internal sealed partial class PhasesApiClient : IPhasesApiClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -14,21 +14,21 @@ internal sealed partial class CategoriesApiClient : ICategoriesApiClient
     };
 
     private readonly HttpClient _httpClient;
-    private readonly ILogger<CategoriesApiClient> _logger;
+    private readonly ILogger<PhasesApiClient> _logger;
 
-    public CategoriesApiClient(HttpClient httpClient, ILogger<CategoriesApiClient> logger)
+    public PhasesApiClient(HttpClient httpClient, ILogger<PhasesApiClient> logger)
     {
         _httpClient = httpClient;
         _logger = logger;
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<CategorySummary>> GetCategoriesAsync(
+    public async Task<IReadOnlyList<PhaseSummary>> GetPhasesAsync(
         CancellationToken cancellationToken = default
     )
     {
-        var dtos = await _httpClient.GetFromJsonAsync<List<CategoryDto>>(
-            "categories",
+        var dtos = await _httpClient.GetFromJsonAsync<List<PhaseDto>>(
+            "phases",
             JsonOptions,
             cancellationToken
         );
@@ -37,71 +37,67 @@ internal sealed partial class CategoriesApiClient : ICategoriesApiClient
     }
 
     /// <inheritdoc/>
-    public async Task<CreateCategoryOutcome> CreateCategoryAsync(
+    public async Task<CreatePhaseOutcome> CreatePhaseAsync(
         string name,
         CancellationToken cancellationToken = default
     )
     {
-        var response = await _httpClient.PostAsJsonAsync(
-            "categories",
-            new { name },
-            cancellationToken
-        );
+        var response = await _httpClient.PostAsJsonAsync("phases", new { name }, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
-            return new CreateCategoryFailed(await ReadErrorAsync(response, cancellationToken));
+            return new CreatePhaseFailed(await ReadErrorAsync(response, cancellationToken));
         }
 
-        var dto = await response.Content.ReadFromJsonAsync<CategoryDto>(
+        var dto = await response.Content.ReadFromJsonAsync<PhaseDto>(
             JsonOptions,
             cancellationToken
         );
-        return new CreateCategorySucceeded(ToSummary(dto!));
+        return new CreatePhaseSucceeded(ToSummary(dto!));
     }
 
     /// <inheritdoc/>
-    public async Task<RenameCategoryOutcome> RenameCategoryAsync(
-        CategoryId id,
+    public async Task<RenamePhaseOutcome> RenamePhaseAsync(
+        PhaseId id,
         string name,
         CancellationToken cancellationToken = default
     )
     {
         var response = await _httpClient.PatchAsJsonAsync(
-            $"categories/{id}",
+            $"phases/{id}",
             new { name },
             cancellationToken
         );
 
         if (!response.IsSuccessStatusCode)
         {
-            return new RenameCategoryFailed(await ReadErrorAsync(response, cancellationToken));
+            return new RenamePhaseFailed(await ReadErrorAsync(response, cancellationToken));
         }
 
-        var dto = await response.Content.ReadFromJsonAsync<CategoryDto>(
+        var dto = await response.Content.ReadFromJsonAsync<PhaseDto>(
             JsonOptions,
             cancellationToken
         );
-        return new RenameCategorySucceeded(ToSummary(dto!));
+        return new RenamePhaseSucceeded(ToSummary(dto!));
     }
 
     /// <inheritdoc/>
-    public async Task<DeleteCategoryOutcome> DeleteCategoryAsync(
-        CategoryId id,
+    public async Task<DeletePhaseOutcome> DeletePhaseAsync(
+        PhaseId id,
         CancellationToken cancellationToken = default
     )
     {
         var response = await _httpClient.DeleteAsync(
-            new Uri($"categories/{id}", UriKind.Relative),
+            new Uri($"phases/{id}", UriKind.Relative),
             cancellationToken
         );
 
         if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
         {
-            return new DeleteCategorySucceeded();
+            return new DeletePhaseSucceeded();
         }
 
-        return new DeleteCategoryFailed(await ReadErrorAsync(response, cancellationToken));
+        return new DeletePhaseFailed(await ReadErrorAsync(response, cancellationToken));
     }
 
     private async Task<string> ReadErrorAsync(
@@ -145,10 +141,9 @@ internal sealed partial class CategoriesApiClient : ICategoriesApiClient
         }
     }
 
-    private static CategorySummary ToSummary(CategoryDto dto) =>
-        new(CategoryId.Parse(dto.Id), dto.Name);
+    private static PhaseSummary ToSummary(PhaseDto dto) => new(PhaseId.Parse(dto.Id), dto.Name);
 
-    private sealed record CategoryDto(string Id, string Name, string CreatedAt, string UpdatedAt);
+    private sealed record PhaseDto(string Id, string Name, string CreatedAt, string UpdatedAt);
 
     private sealed record ErrorDto(string Error);
 }

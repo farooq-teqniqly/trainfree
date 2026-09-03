@@ -26,6 +26,6 @@ export function validateSessionName(name) {
     return validateName(name);
 }
 
-export function validateCategoryName(name) {
+export function validatePhaseName(name) {
     return validateName(name);
 }

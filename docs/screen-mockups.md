@@ -89,7 +89,7 @@
 ```
 
 - Top-right: global workout timer (counts up, subtle).
-- Category name and set counter below header.
+- Phase name and set counter below header.
 - Exercise image uploaded via admin UI, stored in Cloudflare R2.
 - "Next" preview shows upcoming exercise.
 
@@ -327,7 +327,7 @@
 │    Goblet Sq [x] │ Reps  │  12  │   50   │  3   │   60    │ Both  │      │[Brws]│
 │    Sumo DL   [x] │ Reps  │  12  │   50   │  3   │   60    │ Both  │      │[Brws]│
 │              [+ Exercise]│      │        │      │         │       │      │      │
-│              [+ Category]│      │        │      │         │       │      │      │
+│              [+ Phase]   │      │        │      │         │       │      │      │
 │  ▼ Tue Upper [x] │       │      │        │      │         │       │      │      │
 │   ...            │       │      │        │      │         │       │      │      │
 │              [+ Session] │      │        │      │         │       │      │      │

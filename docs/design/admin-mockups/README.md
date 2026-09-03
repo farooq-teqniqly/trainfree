@@ -9,20 +9,20 @@ Live canvas: https://claude.ai/code/artifact/a75bff9d-19c2-4707-95c9-999c3687964
 
 ## Screens
 
-- `Home.dc.html` -- landing page, quick links into Programs, Categories and
+- `Home.dc.html` -- landing page, quick links into Programs, Phases and
   Exercises.
 - `EmptyState.dc.html` -- Programs, before any program exists.
 - `Main.dc.html` -- Programs, the full nested spreadsheet (Program > Session >
-  Category > Exercise), sized at 1920px to prove out a wide desktop monitor.
-  Category rows pick from the canonical category library and exercise rows from
+  Phase > Exercise), sized at 1920px to prove out a wide desktop monitor.
+  Phase rows pick from the canonical phase library and exercise rows from
   the canonical exercise library, both instead of free text -- see the open
   pickers on the "Warm Up" and "Bodyweight Squat" rows.
 - `ExercisesEmpty.dc.html` -- Exercises, before any exercise exists.
 - `Exercises.dc.html` -- Exercises, the canonical name/image/type library that
   `Main.dc.html`'s exercise picker draws from.
-- `CategoriesEmpty.dc.html` -- Categories, before any category exists.
-- `Categories.dc.html` -- Categories, the canonical name library (e.g. "Warm Up",
-  "A") that `Main.dc.html`'s category picker draws from.
+- `PhasesEmpty.dc.html` -- Phases, before any phase exists.
+- `Phases.dc.html` -- Phases, the canonical name library (e.g. "Warm Up",
+  "A") that `Main.dc.html`'s phase picker draws from.
 - `canvas.json` -- layout manifest: artboard positions and the flow annotations
   connecting the empty states to their populated screens.
 

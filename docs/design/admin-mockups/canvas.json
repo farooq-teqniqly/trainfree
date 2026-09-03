@@ -5,11 +5,11 @@
     { "file": "Main.dc.html", "x": 1600, "y": 0, "w": 1920, "h": 1200, "title": "3. Programs — after Add Program (wide screen)" },
     { "file": "ExercisesEmpty.dc.html", "x": 3680, "y": 0, "w": 1440, "h": 900, "title": "Exercises — empty state" },
     { "file": "Exercises.dc.html", "x": 5240, "y": 0, "w": 1920, "h": 980, "title": "Exercises — after Add Exercise" },
-    { "file": "CategoriesEmpty.dc.html", "x": 7280, "y": 0, "w": 1440, "h": 900, "title": "Categories — empty state" },
-    { "file": "Categories.dc.html", "x": 8840, "y": 0, "w": 1440, "h": 900, "title": "Categories — after Add Category" }
+    { "file": "PhasesEmpty.dc.html", "x": 7280, "y": 0, "w": 1440, "h": 900, "title": "Phases — empty state" },
+    { "file": "Phases.dc.html", "x": 8840, "y": 0, "w": 1440, "h": 900, "title": "Phases — after Add Phase" }
   ],
   "annotations": [
-    { "id": "flow-0", "x": -1560, "y": -110, "w": 340, "text": "1. Home\nLanding page — quick links into Programs, Categories and Exercises." },
+    { "id": "flow-0", "x": -1560, "y": -110, "w": 340, "text": "1. Home\nLanding page — quick links into Programs, Phases and Exercises." },
     { "id": "flow-arrow-0", "x": -120, "y": 380, "w": 120, "text": "Click Programs →" },
     { "id": "flow-1", "x": 0, "y": -110, "w": 340, "text": "2. Start here\nNo programs yet." },
     { "id": "flow-arrow", "x": 1440, "y": 380, "w": 160, "text": "Click \"Add Program\" →" },
@@ -17,9 +17,9 @@
     { "id": "flow-4", "x": 3680, "y": -110, "w": 340, "text": "Exercises — before any are added\nSame empty-state pattern as Programs." },
     { "id": "flow-arrow-1", "x": 5120, "y": 380, "w": 120, "text": "Click \"Add Exercise\" →" },
     { "id": "flow-3", "x": 5240, "y": -110, "w": 700, "text": "Exercise library\nReached from the Exercises nav item. Programs picks exercise name + image from here instead of free text — see the open picker in step 3's \"Bodyweight Squat\" row." },
-    { "id": "flow-5", "x": 7280, "y": -110, "w": 340, "text": "Categories — before any are added\nSame empty-state pattern as Programs and Exercises." },
-    { "id": "flow-arrow-2", "x": 8720, "y": 380, "w": 120, "text": "Click \"Add Category\" →" },
-    { "id": "flow-6", "x": 8840, "y": -110, "w": 460, "text": "Category library\nReached from the Categories nav item. Programs picks a session's category from here instead of free text — see the open picker on the \"Warm Up\" row in step 3." }
+    { "id": "flow-5", "x": 7280, "y": -110, "w": 340, "text": "Phases — before any are added\nSame empty-state pattern as Programs and Exercises." },
+    { "id": "flow-arrow-2", "x": 8720, "y": 380, "w": 120, "text": "Click \"Add Phase\" →" },
+    { "id": "flow-6", "x": 8840, "y": -110, "w": 460, "text": "Phase library\nReached from the Phases nav item. Programs picks a session's phase from here instead of free text — see the open picker on the \"Warm Up\" row in step 3." }
   ],
   "launch": { "view": "canvas" }
 }

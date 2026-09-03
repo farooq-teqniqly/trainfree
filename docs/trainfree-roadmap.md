@@ -47,8 +47,8 @@ shipped and deployed together. TDD applies within each slice on both stacks.
    `Trainfree.Admin` UI (the plain list from slice 1, extended with session rows by slice 3)
    to match `docs/design/admin-mockups/`. Navbar brand becomes "Trainfree Admin" with a
    dumbbell icon; sidebar nav flattens to `Home` / `Programs` (no `Admin` wrapper --
-   `Categories` and `Exercises` links are added in slices 5 and 6 once those pages exist,
-   landing in the final order `Home` / `Categories` / `Exercises` / `Programs`); the plain
+   `Phases` and `Exercises` links are added in slices 5 and 6 once those pages exist,
+   landing in the final order `Home` / `Phases` / `Exercises` / `Programs`); the plain
    unstyled table becomes the bordered, depth-indented spreadsheet look (chevron
    expand/collapse for Program -> Session) with a wide-screen-friendly layout (fixed 240px
    sidebar, body copy capped for readability). The `Home` page also gets its
@@ -56,32 +56,33 @@ shipped and deployed together. TDD applies within each slice on both stacks.
    though only the `Programs` tile is live until slices 5 and 6 add the other two. Depends
    on slice 3 so there's a two-level hierarchy to actually demonstrate the indentation on.
    **Done**.
-5. **`add-category-library-crud`** -- Admin CRUD for a canonical `Category` entity (name
-   only -- "Warm Up", "A", "B", ...) per `docs/design/admin-mockups/Categories.dc.html` and
-   `CategoriesEmpty.dc.html`. D1 migration: `categories` table. Worker:
-   `GET/POST/PATCH/DELETE /api/categories` (delete blocked while any session references the
-   category, per the design's disabled-delete state). Blazor: new `Categories` page, added
+5. **`add-category-library-crud`** -- Admin CRUD for a canonical `Phase` entity (name
+   only -- "Warm Up", "A", "B", ...) per `docs/design/admin-mockups/Phases.dc.html` and
+   `PhasesEmpty.dc.html`. D1 migration: `phases` table. Worker:
+   `GET/POST/PATCH/DELETE /api/phases` (delete blocked while any session references the
+   phase, per the design's disabled-delete state). Blazor: new `Phases` page, added
    to the sidebar nav between `Home` and the not-yet-built `Exercises` link, and a
-   `Categories` tile added to the `Home` page. **Done**.
+   `Phases` tile added to the `Home` page. **Done**; renamed from `Category` to `Phase` by
+   `rename-category-to-phase` before slice 7 introduced any references to it.
 6. **`add-exercise-library-crud`** -- Admin CRUD for a canonical `Exercise` entity (name,
    type: Reps or Timed) per `docs/design/admin-mockups/Exercises.dc.html` and
    `ExercisesEmpty.dc.html`. D1 migration: `exercises` table. Worker:
    `GET/POST/PATCH/DELETE /api/exercises` (delete blocked while any program references the
    exercise, per the design's disabled-delete state). Blazor: new `Exercises` page, landing
-   the sidebar nav in its final order (`Home` / `Categories` / `Exercises` / `Programs`) and
+   the sidebar nav in its final order (`Home` / `Phases` / `Exercises` / `Programs`) and
    completing the `Home` page's three tiles. Image upload is deferred to slice 13; the page
    shows the upload affordance but it's inert until then.
 7. **`add-program-categories-exercises-crud`** -- Extends admin CRUD with a per-session
-   `SessionCategory` join (referencing a `Category` from slice 5's library) and a
+   `SessionPhase` join (referencing a `Phase` from slice 5's library) and a
    per-program `ProgramExercise` join (reps, weight in lbs as a bare number, sets,
    restSeconds, side, note) referencing an `Exercise` from slice 6's library, completing the
-   full spreadsheet per `docs/design/admin-mockups/Main.dc.html`. A category or exercise
+   full spreadsheet per `docs/design/admin-mockups/Main.dc.html`. A phase or exercise
    row's name is picked from its library via a searchable dropdown (each with a "New
-   category..." / "New exercise..." shortcut into slices 5/6's create flow) instead of typed
+   phase..." / "New exercise..." shortcut into slices 5/6's create flow) instead of typed
    as free text -- the per-row `Image` column from the original mockup 11 is gone, since the
-   image now lives once on the canonical `Exercise`. D1 migrations: `session_categories`,
+   image now lives once on the canonical `Exercise`. D1 migrations: `session_phases`,
    `program_exercises` tables. Worker: nested routes. Blazor: full inline-editable
-   spreadsheet admin UI, collapsible rows, category- and exercise-picker controls. This is
+   spreadsheet admin UI, collapsible rows, phase- and exercise-picker controls. This is
    the last purely-admin slice -- `Trainfree.Admin` is feature-complete for v0.1 after this,
    and slice 8 begins the workout app.
 8. **`add-program-session-select`** -- Client-facing screens 1-2 (Program Select, Session

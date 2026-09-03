@@ -7,13 +7,13 @@ import {
     renameSession,
 } from "./sessions.js";
 import {
-    createCategory,
-    deleteCategory,
-    listCategories,
-    renameCategory,
-} from "./categories.js";
+    createPhase,
+    deletePhase,
+    listPhases,
+    renamePhase,
+} from "./phases.js";
 import {
-    validateCategoryName,
+    validatePhaseName,
     validateProgramName,
     validateSessionName,
 } from "./validation.js";
@@ -129,19 +129,19 @@ async function handleProgramResource(request, db, id) {
     return new Response("Method not allowed", { status: 405 });
 }
 
-async function handleCategoriesCollection(request, db) {
+async function handlePhasesCollection(request, db) {
     if (request.method === "GET") {
-        return jsonResponse(await listCategories(db));
+        return jsonResponse(await listPhases(db));
     }
 
     if (request.method === "POST") {
         const body = await request.json().catch(() => ({}));
-        const validation = validateCategoryName(body.name);
+        const validation = validatePhaseName(body.name);
         if (!validation.valid) {
             return jsonResponse({ error: validation.error }, 400);
         }
         try {
-            return jsonResponse(await createCategory(db, validation.name), 201);
+            return jsonResponse(await createPhase(db, validation.name), 201);
         } catch (err) {
             if (err instanceof DuplicateNameError) {
                 return jsonResponse({ error: err.message }, 409);
@@ -153,19 +153,19 @@ async function handleCategoriesCollection(request, db) {
     return new Response("Method not allowed", { status: 405 });
 }
 
-async function handleCategoryResource(request, db, id) {
+async function handlePhaseResource(request, db, id) {
     if (request.method === "PATCH") {
         const body = await request.json().catch(() => ({}));
-        const validation = validateCategoryName(body.name);
+        const validation = validatePhaseName(body.name);
         if (!validation.valid) {
             return jsonResponse({ error: validation.error }, 400);
         }
         try {
-            const category = await renameCategory(db, id, validation.name);
-            if (!category) {
-                return jsonResponse({ error: "category not found" }, 404);
+            const phase = await renamePhase(db, id, validation.name);
+            if (!phase) {
+                return jsonResponse({ error: "phase not found" }, 404);
             }
-            return jsonResponse(category);
+            return jsonResponse(phase);
         } catch (err) {
             if (err instanceof DuplicateNameError) {
                 return jsonResponse({ error: err.message }, 409);
@@ -175,9 +175,9 @@ async function handleCategoryResource(request, db, id) {
     }
 
     if (request.method === "DELETE") {
-        const deleted = await deleteCategory(db, id);
+        const deleted = await deletePhase(db, id);
         if (!deleted) {
-            return jsonResponse({ error: "category not found" }, 404);
+            return jsonResponse({ error: "phase not found" }, 404);
         }
         return new Response(null, { status: 204 });
     }
@@ -255,17 +255,17 @@ function notFoundOrAssets(request, env) {
     return withCors(new Response("Not found", { status: 404 }), request);
 }
 
-// /api/categories (collection, length 2) or /api/categories/:id (resource, length 3)
+// /api/phases (collection, length 2) or /api/phases/:id (resource, length 3)
 // -- a flat resource, unlike programs/sessions below.
-async function routeCategories(request, env, segments) {
+async function routePhases(request, env, segments) {
     if (segments.length > 3) {
         return notFoundOrAssets(request, env);
     }
 
     const id = segments[2];
     const response = id
-        ? await handleCategoryResource(request, env.DB, id)
-        : await handleCategoriesCollection(request, env.DB);
+        ? await handlePhaseResource(request, env.DB, id)
+        : await handlePhasesCollection(request, env.DB);
     return withCors(response, request);
 }
 
@@ -311,8 +311,8 @@ export default {
             return withCors(handleVersion(request, env), request);
         }
 
-        if (segments[0] === "api" && segments[1] === "categories") {
-            return routeCategories(request, env, segments);
+        if (segments[0] === "api" && segments[1] === "phases") {
+            return routePhases(request, env, segments);
         }
 
         if (segments[0] === "api" && segments[1] === "programs") {

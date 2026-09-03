@@ -1,18 +1,18 @@
-@page "/categories"
+@page "/phases"
 @using System.Text.Json
 @using Microsoft.Extensions.Logging
 @using Trainfree.Admin.Admin
 @using Trainfree.Domain.Ids
-@inject ICategoriesApiClient Api
-@inject ILogger<Categories> Logger
+@inject IPhasesApiClient Api
+@inject ILogger<Phases> Logger
 
-<PageTitle>Categories - Trainfree Admin</PageTitle>
+<PageTitle>Phases - Trainfree Admin</PageTitle>
 
 <div class="page-header d-flex align-items-end justify-content-between flex-wrap gap-3">
     <div>
-        <h1>Categories</h1>
+        <h1>Phases</h1>
         <p class="page-sub mb-0">
-            The canonical category library -- names like "Warm Up" or "Legs" live here once,
+            The canonical phase library -- names like "Warm Up" or "Legs" live here once,
             and program sessions pick from this list instead of typing free text.
         </p>
     </div>
@@ -20,45 +20,45 @@
     {
         <button
             class="btn btn-dark"
-            data-testid="add-category"
-            @onclick="AddCategoryAsync"
+            data-testid="add-phase"
+            @onclick="AddPhaseAsync"
         >
             <i class="bi bi-plus-circle" aria-hidden="true"></i>
-            Add Category
+            Add Phase
         </button>
     }
 </div>
 
-@if (_addCategoryError is not null)
+@if (_addPhaseError is not null)
 {
-    <div class="text-danger small mb-2" data-testid="add-category-error">@_addCategoryError</div>
+    <div class="text-danger small mb-2" data-testid="add-phase-error">@_addPhaseError</div>
 }
 
 @if (_deleteError is not null)
 {
-    <div class="text-danger small mb-2" data-testid="delete-category-error">@_deleteError</div>
+    <div class="text-danger small mb-2" data-testid="delete-phase-error">@_deleteError</div>
 }
 
 @if (_loadError is not null)
 {
-    <div class="text-danger small mb-2" data-testid="load-categories-error">@_loadError</div>
+    <div class="text-danger small mb-2" data-testid="load-phases-error">@_loadError</div>
 }
 
 @if (_rows.Count == 0)
 {
-    <div class="text-center py-5" data-testid="categories-empty">
+    <div class="text-center py-5" data-testid="phases-empty">
         <div class="tile-icon mx-auto mb-3" aria-hidden="true">
             <i class="bi bi-tags-fill"></i>
         </div>
-        <h2 class="h5">No categories yet</h2>
+        <h2 class="h5">No phases yet</h2>
         <p class="page-sub mx-auto">
-            Your category library holds the canonical names sessions group exercises
+            Your phase library holds the canonical names sessions group exercises
             under -- things like "Warm Up" or "Legs". Add your first one, then pick it from
             any session instead of typing it out.
         </p>
-        <button class="btn btn-dark" data-testid="add-category-empty" @onclick="AddCategoryAsync">
+        <button class="btn btn-dark" data-testid="add-phase-empty" @onclick="AddPhaseAsync">
             <i class="bi bi-plus-circle" aria-hidden="true"></i>
-            Add Category
+            Add Phase
         </button>
     </div>
 }
@@ -131,9 +131,9 @@ else
 }
 
 @code {
-    private readonly List<CategoryRow> _rows = [];
-    private CategoryId? _editingId;
-    private string? _addCategoryError;
+    private readonly List<PhaseRow> _rows = [];
+    private PhaseId? _editingId;
+    private string? _addPhaseError;
     private string? _deleteError;
     private string? _loadError;
 
@@ -144,8 +144,8 @@ else
     {
         try
         {
-            var categories = await Api.GetCategoriesAsync();
-            _rows.AddRange(categories.Select(c => new CategoryRow(c.Id, c.Name)));
+            var phases = await Api.GetPhasesAsync();
+            _rows.AddRange(phases.Select(p => new PhaseRow(p.Id, p.Name)));
         }
         // HttpRequestException alone was not enough: Cloudflare Access answers a request made
         // before the session is established with its own HTML login page, which arrives as a
@@ -160,28 +160,28 @@ else
                         or OperationCanceledException
             )
         {
-            _loadError = "Could not load categories. Try refreshing the page.";
-            LogLoadCategoriesFailed(Logger, ex);
+            _loadError = "Could not load phases. Try refreshing the page.";
+            LogLoadPhasesFailed(Logger, ex);
         }
     }
 
-    private async Task AddCategoryAsync()
+    private async Task AddPhaseAsync()
     {
-        var outcome = await Api.CreateCategoryAsync("New Category");
+        var outcome = await Api.CreatePhaseAsync("New Phase");
         switch (outcome)
         {
-            case CreateCategorySucceeded succeeded:
-                _rows.Add(new CategoryRow(succeeded.Category.Id, succeeded.Category.Name));
-                _editingId = succeeded.Category.Id;
-                _addCategoryError = null;
+            case CreatePhaseSucceeded succeeded:
+                _rows.Add(new PhaseRow(succeeded.Phase.Id, succeeded.Phase.Name));
+                _editingId = succeeded.Phase.Id;
+                _addPhaseError = null;
                 break;
-            case CreateCategoryFailed failed:
-                _addCategoryError = failed.Error;
+            case CreatePhaseFailed failed:
+                _addPhaseError = failed.Error;
                 break;
         }
     }
 
-    private async Task RenameAsync(CategoryRow row)
+    private async Task RenameAsync(PhaseRow row)
     {
         var trimmedLength = row.Name.Trim().Length;
         if (trimmedLength is < MinNameLength or > MaxNameLength)
@@ -190,51 +190,51 @@ else
             return;
         }
 
-        var outcome = await Api.RenameCategoryAsync(row.Id, row.Name);
+        var outcome = await Api.RenamePhaseAsync(row.Id, row.Name);
         switch (outcome)
         {
-            case RenameCategorySucceeded succeeded:
-                row.Name = succeeded.Category.Name;
-                row.SavedName = succeeded.Category.Name;
+            case RenamePhaseSucceeded succeeded:
+                row.Name = succeeded.Phase.Name;
+                row.SavedName = succeeded.Phase.Name;
                 row.Error = null;
                 break;
-            case RenameCategoryFailed failed:
+            case RenamePhaseFailed failed:
                 row.Error = failed.Error;
                 break;
         }
     }
 
-    private static void Revert(CategoryRow row)
+    private static void Revert(PhaseRow row)
     {
         row.Name = row.SavedName;
         row.Error = null;
     }
 
-    private async Task DeleteAsync(CategoryRow row)
+    private async Task DeleteAsync(PhaseRow row)
     {
-        var outcome = await Api.DeleteCategoryAsync(row.Id);
+        var outcome = await Api.DeletePhaseAsync(row.Id);
         switch (outcome)
         {
-            case DeleteCategorySucceeded:
+            case DeletePhaseSucceeded:
                 _rows.Remove(row);
                 _deleteError = null;
                 break;
-            case DeleteCategoryFailed failed:
+            case DeletePhaseFailed failed:
                 _deleteError = failed.Error;
                 break;
         }
     }
 
-    private sealed class CategoryRow
+    private sealed class PhaseRow
     {
-        public CategoryRow(CategoryId id, string name)
+        public PhaseRow(PhaseId id, string name)
         {
             Id = id;
             Name = name;
             SavedName = name;
         }
 
-        public CategoryId Id { get; }
+        public PhaseId Id { get; }
         public string Name { get; set; }
         public string SavedName { get; set; }
         public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
