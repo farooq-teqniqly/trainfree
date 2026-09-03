@@ -38,7 +38,8 @@ internal sealed partial class SessionsApiClient : ISessionsApiClient
     }
 
     /// <inheritdoc/>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is <see langword="null"/>, empty, or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is empty or whitespace.</exception>
     public async Task<CreateSessionOutcome> CreateSessionAsync(
         ProgramId programId,
         string name,
@@ -66,7 +67,8 @@ internal sealed partial class SessionsApiClient : ISessionsApiClient
     }
 
     /// <inheritdoc/>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is <see langword="null"/>, empty, or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is empty or whitespace.</exception>
     public async Task<RenameSessionOutcome> RenameSessionAsync(
         ProgramId programId,
         SessionId id,

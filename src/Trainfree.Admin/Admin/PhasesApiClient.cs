@@ -37,7 +37,8 @@ internal sealed partial class PhasesApiClient : IPhasesApiClient
     }
 
     /// <inheritdoc/>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is <see langword="null"/>, empty, or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is empty or whitespace.</exception>
     public async Task<CreatePhaseOutcome> CreatePhaseAsync(
         string name,
         CancellationToken cancellationToken = default
@@ -60,7 +61,8 @@ internal sealed partial class PhasesApiClient : IPhasesApiClient
     }
 
     /// <inheritdoc/>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is <see langword="null"/>, empty, or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is empty or whitespace.</exception>
     public async Task<RenamePhaseOutcome> RenamePhaseAsync(
         PhaseId id,
         string name,

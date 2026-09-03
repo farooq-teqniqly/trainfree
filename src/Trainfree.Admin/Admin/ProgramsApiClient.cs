@@ -37,7 +37,8 @@ internal sealed partial class ProgramsApiClient : IProgramsApiClient
     }
 
     /// <inheritdoc/>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is <see langword="null"/>, empty, or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is empty or whitespace.</exception>
     public async Task<CreateProgramOutcome> CreateProgramAsync(
         string name,
         CancellationToken cancellationToken = default
@@ -64,7 +65,8 @@ internal sealed partial class ProgramsApiClient : IProgramsApiClient
     }
 
     /// <inheritdoc/>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is <see langword="null"/>, empty, or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is empty or whitespace.</exception>
     public async Task<RenameProgramOutcome> RenameProgramAsync(
         ProgramId id,
         string name,
