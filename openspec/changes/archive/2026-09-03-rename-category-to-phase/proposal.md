@@ -48,8 +48,9 @@ references `categories` yet and delete is unconditional.
 - **Worker** (`Trainfree.AdminApi`): `src/categories.js` -> `phases.js`, route
   registration in `src/index.js`, ID generation in `src/ids.js`, validation in
   `src/validation.js`, plus their `.test.js` files.
-- **D1 schema**: new migration adding `phases`, dropping `categories` (greenfield, no
-  data to preserve).
+- **D1 schema**: new migrations adding `phases` and copying existing `categories` rows
+  into it; `categories` itself is dropped in a later slice, once the new Worker is
+  confirmed live.
 - **Admin client** (`Trainfree.Admin`): `Admin/CategoriesApiClient.cs`,
   `Admin/ICategoriesApiClient.cs`, `Admin/CategorySummary.cs`,
   `Admin/CreateCategoryOutcome.cs`, `Admin/RenameCategoryOutcome.cs`,

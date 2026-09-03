@@ -4,7 +4,8 @@
       shape (`id`, `phase_id TEXT NOT NULL UNIQUE`, `name`, `created_at`, `updated_at`).
 - [x] 1.2 Add `0007_add_phases_name_unique_index.sql`: `CREATE UNIQUE INDEX
       idx_phases_name_nocase ON phases (name COLLATE NOCASE)`.
-- [x] 1.3 Add `0008_drop_categories.sql`: `DROP TABLE categories` (no data to preserve).
+- [x] 1.3 Add `0008_copy_categories_to_phases.sql`: copy existing `categories` rows into
+      `phases` (prefix rewrite); `categories` is not dropped in this change.
 
 ## 2. Worker (`Trainfree.AdminApi`)
 

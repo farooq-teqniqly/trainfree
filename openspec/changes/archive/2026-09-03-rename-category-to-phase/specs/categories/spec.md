@@ -3,8 +3,8 @@
 ### Requirement: Category identifier format
 **Reason**: The `Category` entity is renamed to `Phase`; see the `phases` capability's
 `Phase identifier format` requirement.
-**Migration**: Replace `CAT-` surrogate keys with `PHS-` keys. No data migration is
-needed -- there is no production data at rename time.
+**Migration**: Existing rows are copied from `categories` to `phases`, replacing the
+`CAT-` surrogate key prefix with `PHS-`.
 
 ### Requirement: List categories
 **Reason**: Renamed to `phases`' `List phases` requirement.

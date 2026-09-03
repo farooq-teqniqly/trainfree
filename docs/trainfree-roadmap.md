@@ -123,3 +123,8 @@ this repo; nothing to build unless that decision changes later.
 - Offline-first / local queuing for set logging and history writes during connectivity
   loss.
 - Any move of Cloudflare Access configuration from manual dashboard setup into repo IaC.
+- A migration dropping the `categories` D1 table, now that `rename-category-to-phase`
+  copies its rows into `phases` instead of dropping it outright. Deferred to a later
+  slice/PR so the drop happens only once the new Worker serving `/api/phases` is
+  confirmed live -- doing create+copy and drop in the same deploy would open a window
+  where the still-deploying old Worker 500s on `/api/categories`.

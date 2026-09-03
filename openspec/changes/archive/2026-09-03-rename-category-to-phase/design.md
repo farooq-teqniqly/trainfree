@@ -8,8 +8,9 @@ attach a category to a session) is slice 7, not yet built. This is the last poin
 that dependency exists where a rename touches only the entity itself, not a foreign key
 or a picker UI built on top of it.
 
-There is no production data (v0.1 hasn't shipped), so this is a pure rename, not a data
-migration.
+`v0.1.0` and `v0.2.0` are already deployed, and the live `categories` table holds rows
+from the already-shipped category-library CRUD (slice 5). This is a rename with an
+accompanying data migration, not a pure rename.
 
 ## Goals / Non-Goals
 
@@ -23,18 +24,20 @@ migration.
 **Non-Goals:**
 - No new capability (usage guard, ordering, session linkage) -- that's slice 7's job and
   stays out of scope here.
-- No data migration path from `categories` to `phases` -- there is no data to migrate.
 - No renaming of unrelated concepts (`SessionCategory` in the roadmap's slice-7
   description becomes `SessionPhase` as a side effect of this rename existing first, but
   building that join itself is still slice 7's work, not this change's).
 
 ## Decisions
 
-- **New D1 migration, not an edit to the old one.** `wrangler d1 migrations` files are
-  immutable once applied conceptually (even though no environment has applied slice 5's
-  migration outside dev/CI yet, editing history in place sets a bad precedent). The new
-  migration creates `phases` and drops `categories` in one file, since there's no data to
-  preserve.
+- **New D1 migrations, not an edit to the old ones.** `wrangler d1 migrations` files are
+  immutable once applied -- editing history in place sets a bad precedent. The new
+  migrations create `phases`, copy existing `categories` rows into it (rewriting the
+  `CAT-` prefix to `PHS-`), and leave `categories` in place. Dropping `categories` is
+  deferred to a follow-up migration in a later slice, once the new Worker is confirmed
+  live -- doing create+copy and drop in the same deploy would open a window where the
+  still-running old Worker 500s on `/api/categories` once the table it depends on is
+  gone.
 - **Surrogate key prefix `CAT-` -> `PHS-`.** Every existing prefix (`PRG-` for programs,
   `SNN-` for sessions, `CAT-` for categories) is exactly 3 characters; `PHS-` keeps that
   convention rather than introducing a first 5-character prefix (`PHASE-`). Alternative
@@ -67,8 +70,9 @@ migration.
 
 ## Migration Plan
 
-1. Add the new `phases` D1 migration (create `phases`, drop `categories`); no rollback
-   path needed since there's no production data.
+1. Add the new `phases` D1 migrations: create `phases`, add its unique index, then copy
+   existing `categories` rows into `phases` (prefix rewrite). `categories` is not
+   dropped in this change -- see Decisions.
 2. Rename Worker source, tests, and routes.
 3. Rename domain `CategoryId` -> `PhaseId` and its tests.
 4. Rename Admin client types, page, and tests; update sidebar nav and Home tile labels.
