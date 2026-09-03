@@ -708,6 +708,14 @@ public sealed class ProgramsPageTests : BunitContext
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
         _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
         var cut = Render<Programs>();
         var chevron = cut.Find("[data-testid='chevron-PRG-AAAAAA']");
         Assert.Equal("true", chevron.GetAttribute("aria-expanded"));
@@ -803,6 +811,26 @@ public sealed class ProgramsPageTests : BunitContext
         // Assert
         Assert.DoesNotContain("Monday Lower Body", cut.Markup, StringComparison.Ordinal);
         Assert.Contains("Tuesday Upper Body", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Chevron_ClickOnProgramWithNoSessions_StaysStaticAndDisabled()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var cut = Render<Programs>();
+        var chevron = cut.Find("[data-testid='chevron-PRG-AAAAAA']");
+        Assert.True(chevron.HasAttribute("disabled"));
+        Assert.Equal("false", chevron.GetAttribute("aria-expanded"));
+
+        // Act
+        await cut.InvokeAsync(() => chevron.Click());
+
+        // Assert
+        chevron = cut.Find("[data-testid='chevron-PRG-AAAAAA']");
+        Assert.Equal("false", chevron.GetAttribute("aria-expanded"));
+        Assert.DoesNotContain("chevron-collapsed", chevron.InnerHtml, StringComparison.Ordinal);
     }
 
     [Fact]
