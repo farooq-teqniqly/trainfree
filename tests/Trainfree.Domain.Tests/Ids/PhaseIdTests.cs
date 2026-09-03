@@ -58,6 +58,13 @@ public sealed class PhaseIdTests
     }
 
     [Fact]
+    public void Parse_NullValue_ThrowsArgumentNullException()
+    {
+        // Act / Assert
+        Assert.Throws<ArgumentNullException>(() => PhaseId.Parse(null!));
+    }
+
+    [Fact]
     public void ToString_ParsedValue_RoundTripsOriginalValue()
     {
         // Arrange

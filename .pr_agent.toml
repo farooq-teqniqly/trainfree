@@ -39,4 +39,13 @@ Respect these deliberate baseline conventions and do not flag them as defects:
   concurrent-request handling, and multi-user locking/isolation concerns are
   not a priority -- do not flag missing concurrency guards, optimistic
   locking, or request-ordering races as defects.
+- Null-guard coverage tests ([Fact]/[Theory] methods that pass null, empty, or
+  whitespace to a production method specifically to assert it throws) must not
+  themselves guard that same parameter -- the whole point of the test is to
+  send the invalid value through unguarded so the production guard is what
+  fires. This is a repo-specific exception decided in PR #64, not a case
+  CLAUDE-baseline.md's null-guard rule already carves out (that rule's own
+  test exemption is scoped to XML documentation, not to guarding). Do not
+  flag a test theory/fact method for missing a guard on the value it is
+  deliberately passing invalid.
 """

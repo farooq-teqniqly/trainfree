@@ -58,6 +58,13 @@ public sealed class SessionIdTests
     }
 
     [Fact]
+    public void Parse_NullValue_ThrowsArgumentNullException()
+    {
+        // Act / Assert
+        Assert.Throws<ArgumentNullException>(() => SessionId.Parse(null!));
+    }
+
+    [Fact]
     public void ToString_ParsedValue_RoundTripsOriginalValue()
     {
         // Arrange

@@ -307,6 +307,58 @@ public sealed class PhasesApiClientTests : IDisposable
         Assert.Equal("internal error", failed.Error);
     }
 
+    [Fact]
+    public async Task CreatePhaseAsync_NameIsNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var client = new PhasesApiClient(_httpClient, NullLogger<PhasesApiClient>.Instance);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            client.CreatePhaseAsync(null!, CancellationToken.None)
+        );
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task CreatePhaseAsync_NameIsEmptyOrWhiteSpace_ThrowsArgumentException(string name)
+    {
+        // Arrange
+        var client = new PhasesApiClient(_httpClient, NullLogger<PhasesApiClient>.Instance);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.CreatePhaseAsync(name, CancellationToken.None)
+        );
+    }
+
+    [Fact]
+    public async Task RenamePhaseAsync_NameIsNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var client = new PhasesApiClient(_httpClient, NullLogger<PhasesApiClient>.Instance);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            client.RenamePhaseAsync(PhaseId.Parse("PHS-AAAAAA"), null!, CancellationToken.None)
+        );
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task RenamePhaseAsync_NameIsEmptyOrWhiteSpace_ThrowsArgumentException(string name)
+    {
+        // Arrange
+        var client = new PhasesApiClient(_httpClient, NullLogger<PhasesApiClient>.Instance);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.RenamePhaseAsync(PhaseId.Parse("PHS-AAAAAA"), name, CancellationToken.None)
+        );
+    }
+
     private sealed class TestHttpMessageHandler : HttpMessageHandler
     {
         public HttpResponseMessage? NextResponse { get; set; }

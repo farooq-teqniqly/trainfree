@@ -312,6 +312,72 @@ public sealed class SessionsApiClientTests : IDisposable
         Assert.Equal("internal error", failed.Error);
     }
 
+    [Fact]
+    public async Task CreateSessionAsync_NameIsNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var client = new SessionsApiClient(_httpClient, NullLogger<SessionsApiClient>.Instance);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            client.CreateSessionAsync(ProgramId.Parse("PRG-AAAAAA"), null!, CancellationToken.None)
+        );
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task CreateSessionAsync_NameIsEmptyOrWhiteSpace_ThrowsArgumentException(
+        string name
+    )
+    {
+        // Arrange
+        var client = new SessionsApiClient(_httpClient, NullLogger<SessionsApiClient>.Instance);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.CreateSessionAsync(ProgramId.Parse("PRG-AAAAAA"), name, CancellationToken.None)
+        );
+    }
+
+    [Fact]
+    public async Task RenameSessionAsync_NameIsNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var client = new SessionsApiClient(_httpClient, NullLogger<SessionsApiClient>.Instance);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            client.RenameSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                null!,
+                CancellationToken.None
+            )
+        );
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task RenameSessionAsync_NameIsEmptyOrWhiteSpace_ThrowsArgumentException(
+        string name
+    )
+    {
+        // Arrange
+        var client = new SessionsApiClient(_httpClient, NullLogger<SessionsApiClient>.Instance);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.RenameSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                name,
+                CancellationToken.None
+            )
+        );
+    }
+
     private sealed class TestHttpMessageHandler : HttpMessageHandler
     {
         public HttpResponseMessage? NextResponse { get; set; }

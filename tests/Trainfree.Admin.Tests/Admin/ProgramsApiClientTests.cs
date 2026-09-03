@@ -307,6 +307,62 @@ public sealed class ProgramsApiClientTests : IDisposable
         Assert.Equal("internal error", failed.Error);
     }
 
+    [Fact]
+    public async Task CreateProgramAsync_NameIsNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            client.CreateProgramAsync(null!, CancellationToken.None)
+        );
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task CreateProgramAsync_NameIsEmptyOrWhiteSpace_ThrowsArgumentException(
+        string name
+    )
+    {
+        // Arrange
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.CreateProgramAsync(name, CancellationToken.None)
+        );
+    }
+
+    [Fact]
+    public async Task RenameProgramAsync_NameIsNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            client.RenameProgramAsync(ProgramId.Parse("PRG-AAAAAA"), null!, CancellationToken.None)
+        );
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task RenameProgramAsync_NameIsEmptyOrWhiteSpace_ThrowsArgumentException(
+        string name
+    )
+    {
+        // Arrange
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.RenameProgramAsync(ProgramId.Parse("PRG-AAAAAA"), name, CancellationToken.None)
+        );
+    }
+
     private sealed class TestHttpMessageHandler : HttpMessageHandler
     {
         public HttpResponseMessage? NextResponse { get; set; }

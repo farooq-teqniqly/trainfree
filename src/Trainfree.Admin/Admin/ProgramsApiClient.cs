@@ -37,11 +37,15 @@ internal sealed partial class ProgramsApiClient : IProgramsApiClient
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is empty or whitespace.</exception>
     public async Task<CreateProgramOutcome> CreateProgramAsync(
         string name,
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         var response = await _httpClient.PostAsJsonAsync(
             "programs",
             new { name },
@@ -61,12 +65,16 @@ internal sealed partial class ProgramsApiClient : IProgramsApiClient
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is empty or whitespace.</exception>
     public async Task<RenameProgramOutcome> RenameProgramAsync(
         ProgramId id,
         string name,
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         var response = await _httpClient.PatchAsJsonAsync(
             $"programs/{id}",
             new { name },

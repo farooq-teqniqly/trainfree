@@ -38,12 +38,16 @@ internal sealed partial class SessionsApiClient : ISessionsApiClient
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is empty or whitespace.</exception>
     public async Task<CreateSessionOutcome> CreateSessionAsync(
         ProgramId programId,
         string name,
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         var response = await _httpClient.PostAsJsonAsync(
             $"programs/{programId}/sessions",
             new { name },
@@ -63,6 +67,8 @@ internal sealed partial class SessionsApiClient : ISessionsApiClient
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is empty or whitespace.</exception>
     public async Task<RenameSessionOutcome> RenameSessionAsync(
         ProgramId programId,
         SessionId id,
@@ -70,6 +76,8 @@ internal sealed partial class SessionsApiClient : ISessionsApiClient
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         var response = await _httpClient.PatchAsJsonAsync(
             $"programs/{programId}/sessions/{id}",
             new { name },
