@@ -24,9 +24,10 @@ references `categories` yet and delete is unconditional.
   `docs/design/admin-mockups/Categories.dc.html`,
   `docs/design/admin-mockups/CategoriesEmpty.dc.html`, `Main.dc.html`, `Home.dc.html`,
   `README.md`, `canvas.json`) to say "Phase"/"Phases" instead of "Category"/"Categories".
-- **BREAKING**: the `categories` table and `/api/categories` routes are removed and
-  replaced by `phases` / `/api/phases` -- no data migration, since there is no production
-  data yet (v0.1 not shipped).
+- **BREAKING**: the `/api/categories` routes are removed and replaced by
+  `phases` / `/api/phases`. Existing `categories` rows are copied into `phases` by a data
+  migration; the `categories` table itself is kept for now and dropped in a later slice,
+  once the new Worker is confirmed live.
 - No behavior change: name-length bounds (4-100 chars), case-insensitive uniqueness,
   creation-order listing, and unconditional delete all carry over unchanged under the new
   name.
