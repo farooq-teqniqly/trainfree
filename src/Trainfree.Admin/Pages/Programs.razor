@@ -67,15 +67,16 @@
                             <button
                                 class="btn btn-sm btn-icon chevron-btn"
                                 data-testid="chevron-@row.Id"
-                                title="@(_collapsedIds.Contains(row.Id) ? "Expand" : "Collapse")"
-                                aria-expanded="@(_collapsedIds.Contains(row.Id) ? "false" : "true")"
-                                @onclick="() => ToggleCollapsed(row.Id)"
+                                title="@ChevronTitle(row)"
+                                aria-expanded="@(HasToggleableContent(row) && !_collapsedIds.Contains(row.Id) ? "true" : "false")"
+                                disabled="@(!HasToggleableContent(row))"
+                                @onclick="() => ToggleCollapsed(row)"
                             >
                                 <i
-                                    class="bi bi-chevron-down @(_collapsedIds.Contains(row.Id) ? "chevron-collapsed" : "")"
+                                    class="bi bi-chevron-down @(HasToggleableContent(row) && _collapsedIds.Contains(row.Id) ? "chevron-collapsed" : "")"
                                     aria-hidden="true"
                                 ></i>
-                                <span class="visually-hidden">Toggle sessions</span>
+                                <span class="visually-hidden">@ChevronTitle(row)</span>
                             </button>
                             <input
                                 class="cell-input"
@@ -270,11 +271,29 @@
         }
     }
 
-    private void ToggleCollapsed(ProgramId id)
+    private static bool HasToggleableContent(ProgramRow row) =>
+        row.Sessions.Count > 0 || row.SessionsLoadError is not null;
+
+    private string ChevronTitle(ProgramRow row)
     {
-        if (!_collapsedIds.Add(id))
+        if (!HasToggleableContent(row))
         {
-            _collapsedIds.Remove(id);
+            return "No sessions";
+        }
+
+        return _collapsedIds.Contains(row.Id) ? "Expand" : "Collapse";
+    }
+
+    private void ToggleCollapsed(ProgramRow row)
+    {
+        if (!HasToggleableContent(row))
+        {
+            return;
+        }
+
+        if (!_collapsedIds.Add(row.Id))
+        {
+            _collapsedIds.Remove(row.Id);
         }
     }
 
@@ -401,6 +420,11 @@
         {
             case DeleteSessionSucceeded:
                 row.Sessions.Remove(session);
+                if (!HasToggleableContent(row))
+                {
+                    _collapsedIds.Remove(row.Id);
+                }
+
                 _deleteSessionError = null;
                 break;
             case DeleteSessionFailed failed:
