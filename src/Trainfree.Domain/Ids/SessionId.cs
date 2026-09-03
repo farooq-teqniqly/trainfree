@@ -15,11 +15,16 @@ public readonly record struct SessionId
     private SessionId(string value) => Value = value;
 
     /// <summary>Parses <paramref name="value"/> as a <see cref="SessionId"/>.</summary>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is <see langword="null"/>.</exception>
     /// <exception cref="FormatException">Thrown when <paramref name="value"/> is ill-formed.</exception>
-    public static SessionId Parse(string value) =>
-        TryParse(value, out var id)
+    public static SessionId Parse(string value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        return TryParse(value, out var id)
             ? id
             : throw new FormatException($"Invalid SessionId: '{value}'.");
+    }
 
     /// <summary>
     /// Attempts to parse <paramref name="value"/> as a <see cref="SessionId"/>.

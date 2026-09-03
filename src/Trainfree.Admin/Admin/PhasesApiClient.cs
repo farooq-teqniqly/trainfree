@@ -37,11 +37,14 @@ internal sealed partial class PhasesApiClient : IPhasesApiClient
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is <see langword="null"/>, empty, or whitespace.</exception>
     public async Task<CreatePhaseOutcome> CreatePhaseAsync(
         string name,
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         var response = await _httpClient.PostAsJsonAsync("phases", new { name }, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
@@ -57,12 +60,15 @@ internal sealed partial class PhasesApiClient : IPhasesApiClient
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is <see langword="null"/>, empty, or whitespace.</exception>
     public async Task<RenamePhaseOutcome> RenamePhaseAsync(
         PhaseId id,
         string name,
         CancellationToken cancellationToken = default
     )
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         var response = await _httpClient.PatchAsJsonAsync(
             $"phases/{id}",
             new { name },
