@@ -90,7 +90,12 @@ double-braced PROJECT_NAME token when the baseline copy is synced.
   before use: `ArgumentNullException.ThrowIfNull(x)` for objects,
   `ArgumentException.ThrowIfNullOrWhiteSpace(s)` for required strings. Guards come first,
   in parameter order. Document each with an `<exception>` tag. Exception: DI-injected
-  dependencies -- trust the container, no defensive null-checks.
+  dependencies -- trust the container, no defensive null-checks. **Self-audit before
+  calling a change done:** grep the diff for new or changed public/internal members with
+  required reference-type parameters and confirm each has its guard. `Nullable` being
+  enabled repo-wide suppresses CA1062 (the analyzer that would otherwise catch a missing
+  guard), so this mechanical check is the only thing that closes the gap -- do not rely on
+  remembering the rule while writing the code.
 - Remove any DI-injected dependency that is not used in the file it is injected into.
 - `CancellationToken` parameters take a default (`CancellationToken cancellationToken = default`)
   and come last, so callers may omit them. Async methods carry the `Async` suffix.
