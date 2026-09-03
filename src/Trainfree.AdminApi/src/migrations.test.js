@@ -6,7 +6,7 @@ describe("0008_copy_categories_to_phases migration", () => {
         await env.DB.prepare(
             "INSERT INTO categories (category_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
         )
-            .bind("CAT-ABC123", "Warm Up", "2026-08-31T00:00:00.000Z", "2026-08-31T00:00:00.000Z")
+            .bind("CAT-AB2345", "Warm Up", "2026-08-31T00:00:00.000Z", "2026-08-31T00:00:00.000Z")
             .run();
         await env.DB.prepare(
             "DELETE FROM d1_migrations WHERE name = ?",
@@ -19,10 +19,10 @@ describe("0008_copy_categories_to_phases migration", () => {
         const phase = await env.DB.prepare(
             "SELECT phase_id, name, created_at, updated_at FROM phases WHERE phase_id = ?",
         )
-            .bind("PHS-ABC123")
+            .bind("PHS-AB2345")
             .first();
         expect(phase).toEqual({
-            phase_id: "PHS-ABC123",
+            phase_id: "PHS-AB2345",
             name: "Warm Up",
             created_at: "2026-08-31T00:00:00.000Z",
             updated_at: "2026-08-31T00:00:00.000Z",
@@ -30,7 +30,7 @@ describe("0008_copy_categories_to_phases migration", () => {
         const category = await env.DB.prepare(
             "SELECT category_id FROM categories WHERE category_id = ?",
         )
-            .bind("CAT-ABC123")
+            .bind("CAT-AB2345")
             .first();
         expect(category).not.toBeNull();
     });
