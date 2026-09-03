@@ -21,7 +21,14 @@ Respect these deliberate baseline conventions and do not flag them as defects:
 - *.Logging.cs partial void Log... methods are [LoggerMessage] source-generated;
   the generator supplies the bodies, so they are not unimplemented partials.
 - Classes and structs use explicit constructors with _field backing fields, not
-  primary constructors (IDE0290 is off). Do not suggest converting them.
+  primary constructors (IDE0290 is off). Do not suggest converting them. This
+  rule does NOT apply to records (sealed record, readonly record struct):
+  CLAUDE-baseline.md and CLAUDE-domain-driven-design.md explicitly call for
+  record positional syntax for pure data carriers with no validation and
+  default equality -- DTOs, value objects, and discriminated-union outcome
+  types (e.g. CreateXOutcome/XSucceeded/XFailed hierarchies). Do not flag a
+  record's positional constructor as a primary-constructor violation, and do
+  not suggest adding underscore-prefixed backing fields to one.
 - EF Core-generated migration classes under Migrations/ (including the model
   snapshot) are public partial by generator design; regeneration reverts
   hand-edits, so do not flag their public surface or suggest sealing them.
