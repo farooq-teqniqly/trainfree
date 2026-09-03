@@ -824,6 +824,7 @@ public sealed class ProgramsPageTests : BunitContext
         Assert.True(chevron.HasAttribute("disabled"));
         Assert.Equal("false", chevron.GetAttribute("aria-expanded"));
         Assert.Equal("No sessions", chevron.GetAttribute("title"));
+        Assert.Contains("No sessions", chevron.InnerHtml, StringComparison.Ordinal);
 
         // Act
         await cut.InvokeAsync(() => chevron.Click());

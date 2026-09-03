@@ -76,7 +76,7 @@
                                     class="bi bi-chevron-down @(HasToggleableContent(row) && _collapsedIds.Contains(row.Id) ? "chevron-collapsed" : "")"
                                     aria-hidden="true"
                                 ></i>
-                                <span class="visually-hidden">Toggle sessions</span>
+                                <span class="visually-hidden">@ChevronTitle(row)</span>
                             </button>
                             <input
                                 class="cell-input"
