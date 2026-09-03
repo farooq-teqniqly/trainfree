@@ -42,9 +42,8 @@ Respect these deliberate baseline conventions and do not flag them as defects:
   whitespace to a production method specifically to assert it throws) must not
   themselves guard that same parameter -- the whole point of the test is to
   send the invalid value through unguarded so the production guard is what
-  fires. CLAUDE-baseline.md's null-guard rule scopes to "public or internal
-  constructor or method" in non-test projects; test methods are explicitly
-  exempt (see CLAUDE-baseline.md's Documentation section: "Test projects are
-  exempt -- test names document intent"). Do not flag a test theory/fact
-  method for missing a guard on the value it is deliberately passing invalid.
-  (PR #64)
+  fires. This is a repo-specific exception decided in PR #64, not a case
+  CLAUDE-baseline.md's null-guard rule already carves out (that rule's own
+  test exemption is scoped to XML documentation, not to guarding). Do not
+  flag a test theory/fact method for missing a guard on the value it is
+  deliberately passing invalid.
