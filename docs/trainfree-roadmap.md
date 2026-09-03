@@ -59,10 +59,11 @@ shipped and deployed together. TDD applies within each slice on both stacks.
 5. **`add-category-library-crud`** -- Admin CRUD for a canonical `Phase` entity (name
    only -- "Warm Up", "A", "B", ...) per `docs/design/admin-mockups/Phases.dc.html` and
    `PhasesEmpty.dc.html`. D1 migration: `phases` table. Worker:
-   `GET/POST/PATCH/DELETE /api/phases` (delete blocked while any session references the
-   phase, per the design's disabled-delete state). Blazor: new `Phases` page, added
-   to the sidebar nav between `Home` and the not-yet-built `Exercises` link, and a
-   `Phases` tile added to the `Home` page. **Done**; renamed from `Category` to `Phase` by
+   `GET/POST/PATCH/DELETE /api/phases` (delete is unconditional -- nothing references a
+   phase yet, since slice 7's `SessionPhase` join doesn't exist). Blazor: new `Phases`
+   page, added to the sidebar nav between `Home` and the not-yet-built `Exercises` link,
+   and a `Phases` tile added to the `Home` page. **Done**; renamed from `Category` to
+   `Phase` by
    `rename-category-to-phase` before slice 7 introduced any references to it.
 6. **`add-exercise-library-crud`** -- Admin CRUD for a canonical `Exercise` entity (name,
    type: Reps or Timed) per `docs/design/admin-mockups/Exercises.dc.html` and
