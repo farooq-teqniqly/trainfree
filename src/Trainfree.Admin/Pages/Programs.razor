@@ -68,12 +68,12 @@
                                 class="btn btn-sm btn-icon chevron-btn"
                                 data-testid="chevron-@row.Id"
                                 title="@ChevronTitle(row)"
-                                aria-expanded="@(row.Sessions.Count > 0 && !_collapsedIds.Contains(row.Id) ? "true" : "false")"
-                                disabled="@(row.Sessions.Count == 0)"
+                                aria-expanded="@(HasToggleableContent(row) && !_collapsedIds.Contains(row.Id) ? "true" : "false")"
+                                disabled="@(!HasToggleableContent(row))"
                                 @onclick="() => ToggleCollapsed(row)"
                             >
                                 <i
-                                    class="bi bi-chevron-down @(row.Sessions.Count > 0 && _collapsedIds.Contains(row.Id) ? "chevron-collapsed" : "")"
+                                    class="bi bi-chevron-down @(HasToggleableContent(row) && _collapsedIds.Contains(row.Id) ? "chevron-collapsed" : "")"
                                     aria-hidden="true"
                                 ></i>
                                 <span class="visually-hidden">Toggle sessions</span>
@@ -271,9 +271,12 @@
         }
     }
 
+    private static bool HasToggleableContent(ProgramRow row) =>
+        row.Sessions.Count > 0 || row.SessionsLoadError is not null;
+
     private string ChevronTitle(ProgramRow row)
     {
-        if (row.Sessions.Count == 0)
+        if (!HasToggleableContent(row))
         {
             return "No sessions";
         }
@@ -283,7 +286,7 @@
 
     private void ToggleCollapsed(ProgramRow row)
     {
-        if (row.Sessions.Count == 0)
+        if (!HasToggleableContent(row))
         {
             return;
         }
@@ -417,6 +420,11 @@
         {
             case DeleteSessionSucceeded:
                 row.Sessions.Remove(session);
+                if (!HasToggleableContent(row))
+                {
+                    _collapsedIds.Remove(row.Id);
+                }
+
                 _deleteSessionError = null;
                 break;
             case DeleteSessionFailed failed:
