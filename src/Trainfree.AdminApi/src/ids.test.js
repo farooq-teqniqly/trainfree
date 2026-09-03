@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-    generateCategoryId,
     generateId,
+    generatePhaseId,
     generateProgramId,
     generateSessionId,
-    isValidCategoryId,
     isValidId,
+    isValidPhaseId,
     isValidProgramId,
     isValidSessionId,
 } from "./ids.js";
@@ -133,25 +133,25 @@ describe("isValidSessionId", () => {
     });
 });
 
-describe("generateCategoryId", () => {
-    it("produces a CAT- prefixed id with a 6-character Crockford base32 body", () => {
-        const id = generateCategoryId();
+describe("generatePhaseId", () => {
+    it("produces a PHS- prefixed id with a 6-character Crockford base32 body", () => {
+        const id = generatePhaseId();
 
-        expect(id).toMatch(/^CAT-[ABCDEFGHJKMNPQRSTVWXYZ23456789]{6}$/);
+        expect(id).toMatch(/^PHS-[ABCDEFGHJKMNPQRSTVWXYZ23456789]{6}$/);
     });
 
     it("produces effectively unique ids across calls", () => {
-        const ids = new Set(Array.from({ length: 50 }, () => generateCategoryId()));
+        const ids = new Set(Array.from({ length: 50 }, () => generatePhaseId()));
 
         expect(ids.size).toBe(50);
     });
 });
 
-describe("isValidCategoryId", () => {
-    it.each([["CAT-7K2QXM"], ["CAT-234567"], ["CAT-ABCDEF"]])(
+describe("isValidPhaseId", () => {
+    it.each([["PHS-7K2QXM"], ["PHS-234567"], ["PHS-ABCDEF"]])(
         "accepts a well-formed id %s",
         (value) => {
-            expect(isValidCategoryId(value)).toBe(true);
+            expect(isValidPhaseId(value)).toBe(true);
         },
     );
 
@@ -159,17 +159,17 @@ describe("isValidCategoryId", () => {
         [null],
         [undefined],
         [""],
-        ["CAT-7K2QX"],
-        ["CAT-7K2QXMM"],
-        ["CAT-7K2Q0M"],
-        ["CAT-7K2Q1M"],
-        ["CAT-7K2QOM"],
-        ["CAT-7K2QIM"],
-        ["CAT-7K2QLM"],
-        ["cat-7K2QXM"],
+        ["PHS-7K2QX"],
+        ["PHS-7K2QXMM"],
+        ["PHS-7K2Q0M"],
+        ["PHS-7K2Q1M"],
+        ["PHS-7K2QOM"],
+        ["PHS-7K2QIM"],
+        ["PHS-7K2QLM"],
+        ["phs-7K2QXM"],
         ["PRG-7K2QXM"],
-        ["CAT7K2QXM"],
+        ["PHS7K2QXM"],
     ])("rejects an ill-formed id %s", (value) => {
-        expect(isValidCategoryId(value)).toBe(false);
+        expect(isValidPhaseId(value)).toBe(false);
     });
 });

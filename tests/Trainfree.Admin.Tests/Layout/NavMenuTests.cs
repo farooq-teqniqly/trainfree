@@ -8,7 +8,7 @@ namespace Trainfree.Admin.Tests.Layout;
 public sealed class NavMenuTests : BunitContext
 {
     [Fact]
-    public void Render_Always_ShowsExactlyHomeCategoriesAndProgramsLinks()
+    public void Render_Always_ShowsExactlyHomePhasesAndProgramsLinks()
     {
         // Act
         var cut = Render<NavMenu>(p => p.Add(x => x.Collapsed, true));
@@ -25,8 +25,8 @@ public sealed class NavMenuTests : BunitContext
         Assert.Contains(
             links,
             l =>
-                string.Equals(l.GetAttribute("href"), "categories", StringComparison.Ordinal)
-                && l.TextContent.Contains("Categories", StringComparison.Ordinal)
+                string.Equals(l.GetAttribute("href"), "phases", StringComparison.Ordinal)
+                && l.TextContent.Contains("Phases", StringComparison.Ordinal)
         );
         Assert.Contains(
             links,
@@ -51,11 +51,11 @@ public sealed class NavMenuTests : BunitContext
 
         // Assert
         var homeLink = cut.Find("a.nav-link[href='']");
-        var categoriesLink = cut.Find("a.nav-link[href='categories']");
+        var phasesLink = cut.Find("a.nav-link[href='phases']");
         var programsLink = cut.Find("a.nav-link[href='programs']");
         Assert.Contains("active", programsLink.ClassList);
         Assert.DoesNotContain("active", homeLink.ClassList);
-        Assert.DoesNotContain("active", categoriesLink.ClassList);
+        Assert.DoesNotContain("active", phasesLink.ClassList);
     }
 
     [Fact]

@@ -1,6 +1,6 @@
 namespace Trainfree.Admin.Admin;
 
-internal sealed partial class CategoriesApiClient
+internal sealed partial class PhasesApiClient
 {
     [LoggerMessage(
         Level = LogLevel.Warning,

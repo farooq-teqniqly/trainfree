@@ -150,7 +150,7 @@ logical dataset, no data duplication or sync step between the two apps.
 - **Exercise advance: auto.** When the rest timer for the last set of an exercise hits
   zero, the next exercise loads automatically and shows the Start Set button. No tap
   required between exercises.
-- **"Categories" is the correct term** for what the workout images call sections (Warm Up,
+- **"Phases" is the correct term** for what the workout images call sections (Warm Up,
   A, B). Already modeled in the object model diagram.
 
 - **Exercise images: Cloudflare R2.** Uploaded per-exercise in the admin UI, stored in R2

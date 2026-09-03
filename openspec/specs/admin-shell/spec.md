@@ -28,13 +28,13 @@ the admin app). The active page's link SHALL be visually distinguished.
 
 #### Scenario: Sidebar shows only implemented pages
 - **WHEN** any admin page loads
-- **THEN** the sidebar lists exactly `Home`, `Categories`, and `Programs` -- no `Admin`
+- **THEN** the sidebar lists exactly `Home`, `Phases`, and `Programs` -- no `Admin`
   link, no `Exercises` link (that ships when its page exists)
 
 #### Scenario: Active link is highlighted
 - **WHEN** the admin user is on the Programs page
 - **THEN** the sidebar's `Programs` link is styled as active and the `Home` and
-  `Categories` links are not
+  `Phases` links are not
 
 ### Requirement: Home landing page
 The admin app's root route (`/`) SHALL render a tile-grid landing page. Each tile
@@ -46,9 +46,9 @@ link.
 - **WHEN** the admin user clicks the `Programs` tile on the Home page
 - **THEN** the app navigates to `/programs`
 
-#### Scenario: Categories tile links to the Categories page
-- **WHEN** the admin user clicks the `Categories` tile on the Home page
-- **THEN** the app navigates to `/categories`
+#### Scenario: Phases tile links to the Phases page
+- **WHEN** the admin user clicks the `Phases` tile on the Home page
+- **THEN** the app navigates to `/phases`
 
 #### Scenario: Not-yet-built tiles render without a link
 - **WHEN** the Home page loads

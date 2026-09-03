@@ -74,7 +74,7 @@ treatment), a tile-grid `Home` landing page, and the Programs page restyled from
 `row-depth-*`) with sized icon-button Save/Revert/Delete controls. The Programs route
 moves from `/admin` to `/programs` (**breaking**, no redirect -- single-user app, nothing
 external to preserve) and the redundant `Admin` sidebar wrapper link is removed, so the
-sidebar is now `Home` / `Programs` only (`Categories` and `Exercises` land in slices 5-6).
+sidebar is now `Home` / `Programs` only (`Phases` and `Exercises` land in slices 5-6).
 Each program's sessions gained per-program chevron expand/collapse -- new client-only
 state (`HashSet<ProgramId>`, no persistence, no re-fetch on expand), since nothing like it
 existed before. The navbar brand's dumbbell mark has no `bi-*` equivalent and stays inline
@@ -83,6 +83,6 @@ section). The mockups themselves were matched *visually* using Bootstrap's exist
 components and utility classes rather than porting their bespoke CSS verbatim -- the
 mockups were built in a Bootstrap-less canvas sandbox, so their class names and rules
 duplicate what Bootstrap already provides (buttons, cards, grid, table borders). This
-matters for whoever implements slices 5-7 (Categories, Exercises, the full spreadsheet):
+matters for whoever implements slices 5-7 (Phases, Exercises, the full spreadsheet):
 those mockups come from the same sandbox and invite the same copy-paste temptation --
 resist it the same way.
