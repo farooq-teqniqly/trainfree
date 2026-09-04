@@ -32,35 +32,51 @@ drop-categories-table`). If omitted, infer from conversation context or ask.
 2. **Find the frozen anchor**
 
    The anchor is named in the `## Requirement coverage` header of the change's primary
-   spec file (a GitHub issue number, a `docs/trainfree-roadmap.md` slice, or
-   `openspec/changes/<name>/intent.md`). Every anchor type is frozen to a commit before
-   step 1 reads it - a live re-fetch (of the issue, or of the working tree) is never the
-   source of truth, or a mid-change edit to agree with the spec would be silently
-   absorbed instead of flagged:
+   spec file: a GitHub issue number, or a quoted-into-`intent.md` roadmap slice or
+   explore doc (`openspec/changes/<name>/intent.md`). Every anchor type is frozen to a
+   commit before step 1 reads it - a live re-fetch (of the issue, of `docs/trainfree-
+   roadmap.md`, or of the working tree) is never the source of truth, or a mid-change
+   edit to agree with the spec would be silently absorbed instead of flagged. There is
+   no freeze path that reads `docs/trainfree-roadmap.md` directly: that file's own
+   history spans every slice ever written, so "the oldest commit touching it" is not a
+   meaningful freeze point for one change. A roadmap-slice anchor is only ever frozen by
+   quoting the slice text into `intent.md`, same as an explore-doc anchor.
 
-   - **Roadmap slice or `intent.md`**: find the freeze commit with
+   First, confirm the working tree is clean (`git status --porcelain` prints nothing) -
+   before staging or committing anything below, not just before step 4's diff. A dirty
+   tree here means unrelated staged/unstaged work could get swept into the freeze
+   commit.
+
+   - **`intent.md`** (roadmap-slice quote or explore doc): find the freeze commit with
      ```bash
      git log --follow --reverse --format=%H -- "openspec/changes/<name>/intent.md"
      ```
-     (or the equivalent path for a roadmap-slice quote) and take the **first** line -
-     `--reverse` makes that the oldest commit touching the file, not the newest. Read the
-     frozen text with `git show <freeze-sha>:<path>`.
+     and take the **first** line - `--reverse` makes that the oldest commit touching the
+     file, not the newest. Read the frozen text with `git show <freeze-sha>:<path>`.
    - **GitHub issue**: check whether
      `openspec/changes/<name>/.anchor-snapshot.md` exists and is committed. If not (first
-     gate run for this change), create it now and commit it immediately, before doing
-     anything else:
+     gate run for this change), create it now:
      ```bash
      gh issue view <n> --json title,body --template '# {{.title}}
 
      {{.body}}' > "openspec/changes/<name>/.anchor-snapshot.md"
-     git add "openspec/changes/<name>/.anchor-snapshot.md"
-     git commit -m "chore(openspec): freeze anchor snapshot for <name> (issue #<n>)"
      ```
-     Then resolve its freeze commit the same way as `intent.md` above (same
-     `git log --follow --reverse` command, against `.anchor-snapshot.md`) and always read
-     the frozen text via `git show <freeze-sha>:<path>` - never via a fresh `gh issue
-     view` call, which would read the issue's current (possibly edited) state instead of
-     what was frozen when the gate first ran.
+     Check the command's exit status and that the file is non-empty before going
+     further - `gh issue view` can fail (bad issue number, auth, network) while the
+     redirect still creates an empty file, and an empty anchor snapshot would freeze
+     zero requirements and make step 1 pass vacuously. On failure, stop and report the
+     error instead of committing anything. On success:
+     ```bash
+     git add "openspec/changes/<name>/.anchor-snapshot.md"
+     git commit -- "openspec/changes/<name>/.anchor-snapshot.md" -m "chore(openspec): freeze anchor snapshot for <name> (issue #<n>)"
+     ```
+     Commit with a pathspec (`git commit -- <path>`), not a bare `git commit`, so this
+     step can never sweep up other staged changes even if the clean-tree check above
+     were somehow bypassed. Then resolve its freeze commit the same way as `intent.md`
+     above (same `git log --follow --reverse` command, against `.anchor-snapshot.md`)
+     and always read the frozen text via `git show <freeze-sha>:<path>` - never via a
+     fresh `gh issue view` call, which would read the issue's current (possibly edited)
+     state instead of what was frozen when the gate first ran.
 
 3. **Step 1 - anchor diff (mechanical)**
 

@@ -33,10 +33,17 @@ describe("0009_drop_categories migration", () => {
             .run();
         await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
 
-        const phase = await env.DB.prepare("SELECT phase_id, name FROM phases WHERE phase_id = ?")
+        const phase = await env.DB.prepare(
+            "SELECT phase_id, name, created_at, updated_at FROM phases WHERE phase_id = ?",
+        )
             .bind("PHS-ZZ9999")
             .first();
-        expect(phase).toEqual({ phase_id: "PHS-ZZ9999", name: "Cooldown" });
+        expect(phase).toEqual({
+            phase_id: "PHS-ZZ9999",
+            name: "Cooldown",
+            created_at: "2026-09-04T00:00:00.000Z",
+            updated_at: "2026-09-04T00:00:00.000Z",
+        });
 
         const table = await env.DB.prepare(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'categories'",

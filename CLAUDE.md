@@ -99,3 +99,12 @@ conventions were chosen.
 - **Brand values for the Blazor UI conventions:** Inter as the typeface, black
   `.btn-primary` (`#000`, `#1a1a1a` on hover), and the Bootstrap dashboard shell (dark
   sticky navbar, light `bg-body-tertiary` sidebar) -- all overridden in `app.css`.
+- **Override to `CLAUDE-baseline.md`'s "archive in the same PR" rule:** a change on the
+  project-local `trainfree-lean` OpenSpec schema (issue #68 pilot,
+  `openspec/schemas/trainfree-lean/`) is closed by syncing its deltas into
+  `openspec/specs/` and deleting `openspec/changes/<name>/`, not by `openspec archive`
+  -- git history is the archive. `.github/scripts/require-archived-changes.sh` already
+  accepts either remediation (it only checks the directory is gone); see README.md's
+  "OpenSpec changes" section for the exact steps. This lives here rather than in
+  `CLAUDE-baseline.md` because that file is synced from `claude-templates` and this rule
+  is specific to this repo's pilot.
