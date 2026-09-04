@@ -58,9 +58,10 @@ if [[ "${#violations[@]}" -ne 0 ]]; then
   echo "(moves it under openspec/changes/archive/ and folds its deltas into the main specs)."
   echo
   echo "A change on the trainfree-lean schema (openspec/schemas/trainfree-lean) uses"
-  echo "sync-and-delete instead: sync its deltas into openspec/specs/ (openspec-sync-specs"
-  echo "skill / /opsx:sync), then delete openspec/changes/<change-name>/ -- see README.md's"
-  echo "\"OpenSpec changes\" section. Either way, this check requires the directory gone."
+  echo "sync-and-delete instead: sync its deltas into openspec/specs/ (the"
+  echo "openspec-sync-specs skill, or /opsx:sync), then delete"
+  echo "openspec/changes/<change-name>/ -- see README.md's \"OpenSpec changes\" section."
+  echo "Either way, this check requires the directory gone."
   exit 1
 fi
 

@@ -68,7 +68,7 @@ drop-categories-table`). If omitted, infer from conversation context or ask.
      error instead of committing anything. On success:
      ```bash
      git add "openspec/changes/<name>/.anchor-snapshot.md"
-     git commit -- "openspec/changes/<name>/.anchor-snapshot.md" -m "chore(openspec): freeze anchor snapshot for <name> (issue #<n>)"
+     git commit -m "chore(openspec): freeze anchor snapshot for <name> (issue #<n>)" -- "openspec/changes/<name>/.anchor-snapshot.md"
      ```
      Commit with a pathspec (`git commit -- <path>`), not a bare `git commit`, so this
      step can never sweep up other staged changes even if the clean-tree check above
