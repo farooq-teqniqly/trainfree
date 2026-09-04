@@ -1,7 +1,7 @@
 ---
 name: "OPSX: Gate"
 description: "Fresh-context review gate for the trainfree-lean schema - anchor coverage check plus a cold diff review"
-allowed-tools: Bash(openspec:*), Bash(git:*), Agent
+allowed-tools: Bash(openspec:*), Bash(git:*), Bash(gh:*), Agent
 category: "Workflow"
 tags: ["workflow", "gate", "trainfree-lean", "experimental"]
 ---
@@ -33,26 +33,45 @@ drop-categories-table`). If omitted, infer from conversation context or ask.
 
    The anchor is named in the `## Requirement coverage` header of the change's primary
    spec file (a GitHub issue number, a `docs/trainfree-roadmap.md` slice, or
-   `openspec/changes/<name>/intent.md`). If the anchor is a roadmap slice or `intent.md`,
-   find its freeze commit:
+   `openspec/changes/<name>/intent.md`). Every anchor type is frozen to a commit before
+   step 1 reads it - a live re-fetch (of the issue, or of the working tree) is never the
+   source of truth, or a mid-change edit to agree with the spec would be silently
+   absorbed instead of flagged:
 
-   ```bash
-   git log --oneline --follow -- "openspec/changes/<name>/intent.md"
-   ```
+   - **Roadmap slice or `intent.md`**: find the freeze commit with
+     ```bash
+     git log --follow --reverse --format=%H -- "openspec/changes/<name>/intent.md"
+     ```
+     (or the equivalent path for a roadmap-slice quote) and take the **first** line -
+     `--reverse` makes that the oldest commit touching the file, not the newest. Read the
+     frozen text with `git show <freeze-sha>:<path>`.
+   - **GitHub issue**: check whether
+     `openspec/changes/<name>/.anchor-snapshot.md` exists and is committed. If not (first
+     gate run for this change), create it now and commit it immediately, before doing
+     anything else:
+     ```bash
+     gh issue view <n> --json title,body --template '# {{.title}}
 
-   (or the equivalent path for a roadmap-slice quote). The **first** commit touching that
-   file is the freeze point - the gate diffs the anchor against that commit, not the
-   working tree, so an anchor edited mid-change to agree with the spec is visible as a
-   diff rather than silently absorbed.
+     {{.body}}' > "openspec/changes/<name>/.anchor-snapshot.md"
+     git add "openspec/changes/<name>/.anchor-snapshot.md"
+     git commit -m "chore(openspec): freeze anchor snapshot for <name> (issue #<n>)"
+     ```
+     Then resolve its freeze commit the same way as `intent.md` above (same
+     `git log --follow --reverse` command, against `.anchor-snapshot.md`) and always read
+     the frozen text via `git show <freeze-sha>:<path>` - never via a fresh `gh issue
+     view` call, which would read the issue's current (possibly edited) state instead of
+     what was frozen when the gate first ran.
 
 3. **Step 1 - anchor diff (mechanical)**
 
    Delegate this step to a `haiku`-model subagent (cheap, mechanical - no judgment call
    needed). Give it:
-   - The anchor's frozen text (the GitHub issue body via `gh issue view <n>`, or the
-     frozen `intent.md`/roadmap-slice text at the freeze commit via
-     `git show <freeze-sha>:<path>`)
+   - The anchor's frozen text, read via `git show <freeze-sha>:<path>` per step 2 - never
+     a live `gh issue view` or working-tree read
    - The current `## Requirement coverage` table from the spec
+   - The full contents of `tasks.md` (`artifactPaths.tasks` from the step-1 status
+     response) - required for the task-coverage check below; do not ask for that check
+     without supplying this file
 
    Ask it to check, and report PASS/FAIL with specifics:
    - Every requirement in the frozen anchor text has a row in the coverage table
@@ -60,13 +79,18 @@ drop-categories-table`). If omitted, infer from conversation context or ask.
    - No row was fabricated (summarized from the spec instead of the anchor)
    - Every `Not covered` row carries a reason
    - Every `Covered by` row that names a requirement has at least one task in `tasks.md`
-     referencing it (verification step) or an explicit note why not
+     referencing it, or an explicit note why not
 
    **Deliberate negative test** (run once, when first wiring up this command, not on
    every gate run): delete a row from a test change's coverage index and confirm this
    step reports FAIL. An index that cannot fail is decoration.
 
 4. **Step 2 - cold diff review**
+
+   First, confirm the working tree is clean: `git status --porcelain`. If it prints
+   anything, stop and tell the user to commit or stash outstanding changes before
+   gating - `git diff main...HEAD` only sees committed history, so an uncommitted
+   implementation change would silently bypass this review.
 
    Spawn a **fresh, non-fork** subagent (`general-purpose` or a code-review-oriented
    agent type) with **no context from this conversation** - it must not inherit any

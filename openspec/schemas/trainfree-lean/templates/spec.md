@@ -18,7 +18,8 @@
 
 ## Requirement coverage
 <!-- Once per change, in the primary spec file only, as the last section. -->
-<!-- Anchor: <!-- issue #N, roadmap slice, or intent.md --> -->
+
+Anchor: <!-- issue #N, roadmap slice, or intent.md -->
 
 | # | Anchor requirement | Covered by |
 |---|--------------------|-----------|
