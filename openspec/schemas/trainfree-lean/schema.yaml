@@ -1,0 +1,180 @@
+name: trainfree-lean
+version: 1
+description: "Trimmed OpenSpec workflow (pilot, issue #68) - specs -> tasks, no proposal/design artifacts"
+artifacts:
+  - id: specs
+    generates: "specs/**/*.md"
+    description: Specifications for the change - behavior, rationale, decisions, and anchor coverage
+    template: spec.md
+    instruction: |
+      Create specification files that define WHAT the system should do and WHY.
+
+      A spec is a behavior contract plus the rationale and decisions behind it - not an
+      implementation plan. This schema has no separate proposal.md or design.md: the WHY
+      that would have lived in proposal.md is now per-requirement rationale, and the
+      technical decisions that would have lived in design.md now live in this file's
+      `## Decisions` section.
+
+      Good spec content:
+      - Observable behavior users or downstream systems rely on
+      - Inputs, outputs, and error conditions
+      - External constraints (security, privacy, reliability, compatibility)
+      - Scenarios that can be tested or explicitly validated
+      - One or two sentences of rationale under each requirement - the trade-off or
+        constraint that justifies it, not a restatement of the requirement text
+
+      Avoid in specs:
+      - Internal class/function names
+      - Library or framework choices
+      - Step-by-step implementation details (those belong in tasks.md)
+
+      Quick test: if the implementation can change without changing externally
+      visible behavior, it likely does not belong in the spec.
+
+      Identify which capabilities are new or modified before creating spec files:
+      - **New capabilities**: each becomes a new `specs/<capability-path>/spec.md`. Use
+        kebab-case for path segments you introduce (e.g. `user-auth` or
+        `identity/user-auth`) and follow the project's existing spec organization.
+      - **Modified capabilities**: use the exact existing path under
+        `openspec/specs/<capability-path>/` for the delta at `specs/<capability-path>/spec.md`.
+        Only create a delta when spec-level behavior changes, not for implementation-only
+        changes.
+
+      There must be at least one spec file unless the change's `.openspec.yaml` sets
+      `skip_specs: true` (no spec-level behavior change) - `openspec validate` rejects a
+      zero-delta change without that marker. Do not invent a requirement just to satisfy
+      validation.
+
+      Delta operations (use ## headers):
+      - **ADDED Requirements**: New capabilities
+      - **MODIFIED Requirements**: Changed behavior - MUST include full updated content
+      - **REMOVED Requirements**: Deprecated features - MUST include **Reason** and **Migration**
+      - **RENAMED Requirements**: Name changes only - use FROM:/TO: format
+
+      Format requirements:
+      - Each requirement: `### Requirement: <name>` followed by description, then a
+        `**Rationale**` line (the WHY - trade-off or constraint, not a restatement)
+      - Use SHALL/MUST for normative requirements (avoid should/may)
+      - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
+      - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
+      - Every requirement MUST have at least one scenario.
+
+      New capabilities only: start the delta spec with a `## Purpose` section -
+      one or two sentences (50+ characters, or `openspec validate --strict`
+      reports it as too brief) describing what the capability is for. Archive
+      copies it into the main spec it creates; without it the new main spec is
+      left with a `TBD ... Update Purpose after archive` placeholder to fill in
+      by hand. Do NOT add `## Purpose` to a delta for an existing capability -
+      that spec already has one and the delta's is ignored. To change an
+      existing capability's Purpose - including a leftover `TBD` placeholder -
+      edit `<planningHome.root>/openspec/specs/<capability-path>/spec.md`
+      directly. `planningHome.root` comes from the `openspec instructions ...
+      --json` response. Always use it rather than a repo-relative path.
+
+      MODIFIED requirements workflow:
+      1. Locate the existing requirement in `<planningHome.root>/openspec/specs/<capability-path>/spec.md`
+      2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)
+      3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
+      4. Ensure header text matches exactly (whitespace-insensitive)
+
+      After the requirement sections, add two more top-level sections (once per change,
+      not per capability file - put them in the primary/first spec file touched):
+
+      - **`## Decisions`**: Key technical choices with rationale (why X over Y?). One
+        entry per decision: the choice made, the rejected alternative, and the condition
+        under which the alternative would become right instead (a mini-ADR). This is the
+        genuine architectural reasoning that would have lived in design.md.
+
+      - **`## Requirement coverage`** (last section): a table enumerating every
+        requirement in the change's **anchor** (a GitHub issue, a
+        `docs/trainfree-roadmap.md` slice, or a frozen `intent.md` - state which, and its
+        identifier, in a header line above the table) and what covers it in this spec.
+        Three rules, without which this section is worthless:
+        1. Rows are enumerated **by reading the anchor**, never by summarizing the spec.
+        2. One row per anchor requirement, covered or not. Absence must be visible.
+        3. `Not covered` is a legal value and **must** carry a reason (in the table or in
+           `## Decisions`).
+
+      Example:
+      ```
+      ## Purpose
+
+      Lets users take their data out of the product in a portable format.
+
+      ## ADDED Requirements
+
+      ### Requirement: User can export data
+      The system SHALL allow users to export their data in CSV format.
+      **Rationale**: CSV is the only format the downstream import tool accepts.
+
+      #### Scenario: Successful export
+      - **WHEN** user clicks "Export" button
+      - **THEN** system downloads a CSV file with all user data
+
+      ## Decisions
+
+      - Chose CSV over JSON because the downstream import tool only accepts CSV. JSON
+        would be right if that tool ever adds a JSON importer.
+
+      ## Requirement coverage
+
+      Anchor: issue #67 (chore(db): drop deprecated categories table)
+
+      | # | Anchor requirement | Covered by |
+      |---|--------------------|-----------|
+      | 1 | Drop the categories table | Req: Categories table removal |
+      | 2 | Preserve existing phase rows | Req: Migration preserves rows |
+      | 3 | Roll back cleanly | Not covered - D1 has no down-migration; accepted, see Decisions |
+      ```
+
+      Specs should be testable - each scenario is a potential test case.
+    requires: []
+
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist with trackable tasks
+    template: tasks.md
+    instruction: |
+      Create the task list that breaks down the implementation work.
+
+      Before writing tasks, check the spec's `## Decisions` section for anything left
+      unresolved. If an open decision would change what gets built, resolve it with the
+      user first - do not bake an unstated assumption into the task list.
+
+      **IMPORTANT: Follow the template below exactly.** The apply phase parses
+      checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+
+      Guidelines:
+      - Group related tasks under ## numbered headings
+      - Each task MUST be a checkbox: `- [ ] X.Y Task description`
+      - Tasks should be small enough to complete in one session
+      - Order tasks by dependency (what must be done first?)
+      - Each task MUST state how to verify completion (a test, command,
+        observable behavior, or delivered artifact). Put the verification in
+        that task's checkbox description. Use a separate verification task only
+        when it checks broader integration or system behavior that spans
+        multiple implementation tasks.
+
+      Example:
+      ```
+      ## 1. Setup
+
+      - [ ] 1.1 Create new module structure and verify expected files are present
+      - [ ] 1.2 Add dependencies to package.json and verify package installation succeeds
+
+      ## 2. Core Implementation
+
+      - [ ] 2.1 Implement data export function and verify the export test passes
+      - [ ] 2.2 Add CSV formatting utilities and verify unit tests cover quoting and delimiters
+      ```
+
+      Reference the spec for what needs to be built and its `## Decisions` for how.
+    requires:
+      - specs
+
+apply:
+  requires: [ tasks ]
+  tracks: tasks.md
+  instruction: |
+    Read context files, work through pending tasks, mark complete as you go.
+    Pause if you hit blockers or need clarification.
