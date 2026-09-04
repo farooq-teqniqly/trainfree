@@ -165,6 +165,37 @@ rm -rf .wrangler
 npm run db:migrate:local
 ```
 
+## OpenSpec changes
+
+Spec-driven changes live under `openspec/`. Most changes use the stock `spec-driven`
+schema (`openspec new change <name>`), but this repo also has a project-local
+`trainfree-lean` schema (issue #68) that drops `proposal.md`/`design.md` in favor of a
+leaner `specs/` + `tasks.md` pair -- see `openspec/schemas/trainfree-lean/schema.yaml`.
+
+### Create a new change on `trainfree-lean`
+
+```sh
+openspec new change <change-name> --schema trainfree-lean --description "<short description>"
+```
+
+This scaffolds `openspec/changes/<change-name>/` with no `proposal.md`/`design.md`. Then:
+
+1. `openspec instructions specs --change <change-name> --json` to get the current
+   `specs` artifact instruction, and write `specs/<capability-path>/spec.md` -- one
+   requirement per behavior change, each with a `**Rationale**` line, plus (in the
+   primary spec file, once per change) a `## Decisions` section and a
+   `## Requirement coverage` table naming the change's anchor (a GitHub issue,
+   `docs/trainfree-roadmap.md` slice, or `intent.md`) and mapping every anchor
+   requirement to what covers it.
+2. `openspec instructions tasks --change <change-name> --json`, then write `tasks.md`.
+3. `openspec validate <change-name> --strict` to confirm both artifacts are complete.
+4. Implement, TDD as usual.
+5. Run `/opsx:gate <change-name>` before opening the PR -- it re-checks the coverage
+   table against the anchor, then runs a fresh-context diff review.
+6. Sync the delta into `openspec/specs/` (`openspec-sync-specs` skill, or `/opsx:sync
+   <change-name>`), then delete `openspec/changes/<change-name>/` -- this schema
+   replaces `openspec archive` with sync-and-delete; git history is the archive.
+
 ## Running the tests
 
 ```sh
