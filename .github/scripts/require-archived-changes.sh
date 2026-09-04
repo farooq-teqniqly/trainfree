@@ -56,6 +56,12 @@ if [[ "${#violations[@]}" -ne 0 ]]; then
   echo "Archive each in this PR before merging:"
   echo "  openspec archive <change-name> -y"
   echo "(moves it under openspec/changes/archive/ and folds its deltas into the main specs)."
+  echo
+  echo "A change on the trainfree-lean schema (openspec/schemas/trainfree-lean) uses"
+  echo "sync-and-delete instead: sync its deltas into openspec/specs/ (the"
+  echo "openspec-sync-specs skill, or /opsx:sync), then delete"
+  echo "openspec/changes/<change-name>/ -- see README.md's \"OpenSpec changes\" section."
+  echo "Either way, this check requires the directory gone."
   exit 1
 fi
 
