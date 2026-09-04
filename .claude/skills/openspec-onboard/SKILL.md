@@ -185,7 +185,6 @@ openspec new change "<derived-name>"
 Created: <changeRoot from status JSON>
 
 The folder structure:
-```
 <changeRoot>/
 ├── proposal.md    ← Why we're doing this (empty, we'll fill it)
 ├── design.md      ← How we'll build it (empty)
@@ -194,7 +193,6 @@ The folder structure:
 ```
 
 Now let's fill in the first artifact—the proposal.
-```
 
 ---
 
