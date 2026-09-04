@@ -147,9 +147,9 @@ Spend 1-2 minutes investigating the relevant code:
 
 [Your brief analysis—what you found, any considerations]
 
-┌─────────────────────────────────────────┐
-│   [Optional: ASCII diagram if helpful]  │
-└─────────────────────────────────────────┘
++-----------------------------------------+
+|   [Optional: ASCII diagram if helpful]  |
++-----------------------------------------+
 
 Explore mode (`/opsx:explore`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
 
