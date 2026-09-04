@@ -204,12 +204,19 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
       ```bash
       mkdir -p "<planningHome.changesDir>/archive"
+      ```
+
+      **Check if target already exists:**
+      - If yes: record this change as Failed ("archive target exists"), leave `changeRoot` intact, continue with the next change
+      - If no: move `changeRoot` to the archive directory
+
+      ```bash
       mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
       ```
 
    d. **Track outcome** for each change:
       - Success: archived successfully
-      - Failed: error during archive or spec verification (record error)
+      - Failed: error during archive or spec verification, or archive target already exists (record error)
       - Skipped: user chose not to archive (if applicable)
       - Sync skipped: for every delta in `excludedDeltas`, report `sync skipped` with the change, `<capability-path>`, and recorded reason. This is distinct from skipping the archive.
 
