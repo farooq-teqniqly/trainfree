@@ -14,8 +14,8 @@ internal interface IPhasesApiClient
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="CreatePhaseSucceeded"/> on success, or a <see cref="CreatePhaseFailed"/>
-    /// carrying the server's error message when the server rejects the request (e.g. a
-    /// duplicate name).
+    /// carrying an error message when the server rejects the request (e.g. a duplicate name)
+    /// or a transport/parse exception is caught.
     /// </returns>
     Task<CreatePhaseOutcome> CreatePhaseAsync(
         string name,
@@ -28,7 +28,8 @@ internal interface IPhasesApiClient
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="RenamePhaseSucceeded"/> on success, or a <see cref="RenamePhaseFailed"/>
-    /// carrying the server's error message when the server rejects the request.
+    /// carrying an error message when the server rejects the request or a transport/parse
+    /// exception is caught.
     /// </returns>
     Task<RenamePhaseOutcome> RenamePhaseAsync(
         PhaseId id,
@@ -41,8 +42,8 @@ internal interface IPhasesApiClient
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="DeletePhaseSucceeded"/> when the phase is deleted or was already
-    /// gone, or a <see cref="DeletePhaseFailed"/> carrying the server's error message for
-    /// any other non-success response.
+    /// gone, or a <see cref="DeletePhaseFailed"/> carrying an error message for any other
+    /// non-success response or a transport/parse exception caught during the request.
     /// </returns>
     Task<DeletePhaseOutcome> DeletePhaseAsync(
         PhaseId id,

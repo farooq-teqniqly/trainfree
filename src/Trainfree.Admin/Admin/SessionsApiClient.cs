@@ -35,7 +35,7 @@ internal sealed class SessionsApiClient : ApiClientBase, ISessionsApiClient
     /// <inheritdoc/>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is empty or whitespace.</exception>
-    public async Task<CreateSessionOutcome> CreateSessionAsync(
+    public Task<CreateSessionOutcome> CreateSessionAsync(
         ProgramId programId,
         string name,
         CancellationToken cancellationToken = default
@@ -43,30 +43,38 @@ internal sealed class SessionsApiClient : ApiClientBase, ISessionsApiClient
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var response = await _httpClient.PostAsJsonAsync(
-            $"programs/{programId}/sessions",
-            new { name },
-            cancellationToken
-        );
+        return ExecuteAsync<CreateSessionOutcome>(
+            async () =>
+            {
+                var response = await _httpClient.PostAsJsonAsync(
+                    $"programs/{programId}/sessions",
+                    new { name },
+                    cancellationToken
+                );
 
-        if (!response.IsSuccessStatusCode)
-        {
-            return new CreateSessionFailed(
-                await ReadErrorAsync(response, _logger, cancellationToken)
-            );
-        }
+                if (!response.IsSuccessStatusCode)
+                {
+                    return new CreateSessionFailed(
+                        await ReadErrorAsync(response, _logger, cancellationToken)
+                    );
+                }
 
-        var dto = await response.Content.ReadFromJsonAsync<SessionDto>(
-            JsonOptions,
-            cancellationToken
+                var dto = await response.Content.ReadFromJsonAsync<SessionDto>(
+                    JsonOptions,
+                    cancellationToken
+                );
+                return new CreateSessionSucceeded(ToSummary(dto!));
+            },
+            error => new CreateSessionFailed(error),
+            "Could not create session. Try again.",
+            _logger
         );
-        return new CreateSessionSucceeded(ToSummary(dto!));
     }
 
     /// <inheritdoc/>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is empty or whitespace.</exception>
-    public async Task<RenameSessionOutcome> RenameSessionAsync(
+    public Task<RenameSessionOutcome> RenameSessionAsync(
         ProgramId programId,
         SessionId id,
         string name,
@@ -75,45 +83,61 @@ internal sealed class SessionsApiClient : ApiClientBase, ISessionsApiClient
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var response = await _httpClient.PatchAsJsonAsync(
-            $"programs/{programId}/sessions/{id}",
-            new { name },
-            cancellationToken
-        );
+        return ExecuteAsync<RenameSessionOutcome>(
+            async () =>
+            {
+                var response = await _httpClient.PatchAsJsonAsync(
+                    $"programs/{programId}/sessions/{id}",
+                    new { name },
+                    cancellationToken
+                );
 
-        if (!response.IsSuccessStatusCode)
-        {
-            return new RenameSessionFailed(
-                await ReadErrorAsync(response, _logger, cancellationToken)
-            );
-        }
+                if (!response.IsSuccessStatusCode)
+                {
+                    return new RenameSessionFailed(
+                        await ReadErrorAsync(response, _logger, cancellationToken)
+                    );
+                }
 
-        var dto = await response.Content.ReadFromJsonAsync<SessionDto>(
-            JsonOptions,
-            cancellationToken
+                var dto = await response.Content.ReadFromJsonAsync<SessionDto>(
+                    JsonOptions,
+                    cancellationToken
+                );
+                return new RenameSessionSucceeded(ToSummary(dto!));
+            },
+            error => new RenameSessionFailed(error),
+            "Could not rename session. Try again.",
+            _logger
         );
-        return new RenameSessionSucceeded(ToSummary(dto!));
     }
 
     /// <inheritdoc/>
-    public async Task<DeleteSessionOutcome> DeleteSessionAsync(
+    public Task<DeleteSessionOutcome> DeleteSessionAsync(
         ProgramId programId,
         SessionId id,
         CancellationToken cancellationToken = default
-    )
-    {
-        var response = await _httpClient.DeleteAsync(
-            new Uri($"programs/{programId}/sessions/{id}", UriKind.Relative),
-            cancellationToken
+    ) =>
+        ExecuteAsync<DeleteSessionOutcome>(
+            async () =>
+            {
+                var response = await _httpClient.DeleteAsync(
+                    new Uri($"programs/{programId}/sessions/{id}", UriKind.Relative),
+                    cancellationToken
+                );
+
+                if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    return new DeleteSessionSucceeded();
+                }
+
+                return new DeleteSessionFailed(
+                    await ReadErrorAsync(response, _logger, cancellationToken)
+                );
+            },
+            error => new DeleteSessionFailed(error),
+            "Could not delete session. Try again.",
+            _logger
         );
-
-        if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
-        {
-            return new DeleteSessionSucceeded();
-        }
-
-        return new DeleteSessionFailed(await ReadErrorAsync(response, _logger, cancellationToken));
-    }
 
     private static SessionSummary ToSummary(SessionDto dto) =>
         new(SessionId.Parse(dto.Id), ProgramId.Parse(dto.ProgramId), dto.Name);

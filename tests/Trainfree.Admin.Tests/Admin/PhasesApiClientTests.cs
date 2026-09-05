@@ -359,13 +359,66 @@ public sealed class PhasesApiClientTests : IDisposable
         );
     }
 
+    [Fact]
+    public async Task CreatePhaseAsync_HttpClientThrowsOperationCanceledException_ReturnsCreatePhaseFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextException = new OperationCanceledException("canceled");
+        var client = new PhasesApiClient(_httpClient, NullLogger<PhasesApiClient>.Instance);
+
+        // Act
+        var outcome = await client.CreatePhaseAsync("New Phase", CancellationToken.None);
+
+        // Assert
+        Assert.IsType<CreatePhaseFailed>(outcome);
+    }
+
+    [Fact]
+    public async Task RenamePhaseAsync_HttpClientThrowsOperationCanceledException_ReturnsRenamePhaseFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextException = new OperationCanceledException("canceled");
+        var client = new PhasesApiClient(_httpClient, NullLogger<PhasesApiClient>.Instance);
+
+        // Act
+        var outcome = await client.RenamePhaseAsync(
+            PhaseId.Parse("PHS-AAAAAA"),
+            "Renamed",
+            CancellationToken.None
+        );
+
+        // Assert
+        Assert.IsType<RenamePhaseFailed>(outcome);
+    }
+
+    [Fact]
+    public async Task DeletePhaseAsync_HttpClientThrowsOperationCanceledException_ReturnsDeletePhaseFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextException = new OperationCanceledException("canceled");
+        var client = new PhasesApiClient(_httpClient, NullLogger<PhasesApiClient>.Instance);
+
+        // Act
+        var outcome = await client.DeletePhaseAsync(
+            PhaseId.Parse("PHS-AAAAAA"),
+            CancellationToken.None
+        );
+
+        // Assert
+        Assert.IsType<DeletePhaseFailed>(outcome);
+    }
+
     private sealed class TestHttpMessageHandler : HttpMessageHandler
     {
         public HttpResponseMessage? NextResponse { get; set; }
+        public Exception? NextException { get; set; }
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
-        ) => Task.FromResult(NextResponse ?? new HttpResponseMessage(HttpStatusCode.OK));
+        ) =>
+            NextException is not null
+                ? Task.FromException<HttpResponseMessage>(NextException)
+                : Task.FromResult(NextResponse ?? new HttpResponseMessage(HttpStatusCode.OK));
     }
 }

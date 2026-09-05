@@ -16,4 +16,11 @@ public abstract partial class ApiClientBase
         int statusCode,
         Exception exception
     );
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "A mutation call failed with a transport or parse exception; reporting a "
+            + "generic failure instead of letting it propagate."
+    )]
+    private static partial void LogMutationExceptionCaught(ILogger logger, Exception exception);
 }

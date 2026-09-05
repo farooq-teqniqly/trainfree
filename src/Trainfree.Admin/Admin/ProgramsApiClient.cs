@@ -34,37 +34,45 @@ internal sealed class ProgramsApiClient : ApiClientBase, IProgramsApiClient
     /// <inheritdoc/>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is empty or whitespace.</exception>
-    public async Task<CreateProgramOutcome> CreateProgramAsync(
+    public Task<CreateProgramOutcome> CreateProgramAsync(
         string name,
         CancellationToken cancellationToken = default
     )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var response = await _httpClient.PostAsJsonAsync(
-            "programs",
-            new { name },
-            cancellationToken
-        );
+        return ExecuteAsync<CreateProgramOutcome>(
+            async () =>
+            {
+                var response = await _httpClient.PostAsJsonAsync(
+                    "programs",
+                    new { name },
+                    cancellationToken
+                );
 
-        if (!response.IsSuccessStatusCode)
-        {
-            return new CreateProgramFailed(
-                await ReadErrorAsync(response, _logger, cancellationToken)
-            );
-        }
+                if (!response.IsSuccessStatusCode)
+                {
+                    return new CreateProgramFailed(
+                        await ReadErrorAsync(response, _logger, cancellationToken)
+                    );
+                }
 
-        var dto = await response.Content.ReadFromJsonAsync<ProgramDto>(
-            JsonOptions,
-            cancellationToken
+                var dto = await response.Content.ReadFromJsonAsync<ProgramDto>(
+                    JsonOptions,
+                    cancellationToken
+                );
+                return new CreateProgramSucceeded(ToSummary(dto!));
+            },
+            error => new CreateProgramFailed(error),
+            "Could not create program. Try again.",
+            _logger
         );
-        return new CreateProgramSucceeded(ToSummary(dto!));
     }
 
     /// <inheritdoc/>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is empty or whitespace.</exception>
-    public async Task<RenameProgramOutcome> RenameProgramAsync(
+    public Task<RenameProgramOutcome> RenameProgramAsync(
         ProgramId id,
         string name,
         CancellationToken cancellationToken = default
@@ -72,44 +80,60 @@ internal sealed class ProgramsApiClient : ApiClientBase, IProgramsApiClient
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var response = await _httpClient.PatchAsJsonAsync(
-            $"programs/{id}",
-            new { name },
-            cancellationToken
-        );
+        return ExecuteAsync<RenameProgramOutcome>(
+            async () =>
+            {
+                var response = await _httpClient.PatchAsJsonAsync(
+                    $"programs/{id}",
+                    new { name },
+                    cancellationToken
+                );
 
-        if (!response.IsSuccessStatusCode)
-        {
-            return new RenameProgramFailed(
-                await ReadErrorAsync(response, _logger, cancellationToken)
-            );
-        }
+                if (!response.IsSuccessStatusCode)
+                {
+                    return new RenameProgramFailed(
+                        await ReadErrorAsync(response, _logger, cancellationToken)
+                    );
+                }
 
-        var dto = await response.Content.ReadFromJsonAsync<ProgramDto>(
-            JsonOptions,
-            cancellationToken
+                var dto = await response.Content.ReadFromJsonAsync<ProgramDto>(
+                    JsonOptions,
+                    cancellationToken
+                );
+                return new RenameProgramSucceeded(ToSummary(dto!));
+            },
+            error => new RenameProgramFailed(error),
+            "Could not rename program. Try again.",
+            _logger
         );
-        return new RenameProgramSucceeded(ToSummary(dto!));
     }
 
     /// <inheritdoc/>
-    public async Task<DeleteProgramOutcome> DeleteProgramAsync(
+    public Task<DeleteProgramOutcome> DeleteProgramAsync(
         ProgramId id,
         CancellationToken cancellationToken = default
-    )
-    {
-        var response = await _httpClient.DeleteAsync(
-            new Uri($"programs/{id}", UriKind.Relative),
-            cancellationToken
+    ) =>
+        ExecuteAsync<DeleteProgramOutcome>(
+            async () =>
+            {
+                var response = await _httpClient.DeleteAsync(
+                    new Uri($"programs/{id}", UriKind.Relative),
+                    cancellationToken
+                );
+
+                if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    return new DeleteProgramSucceeded();
+                }
+
+                return new DeleteProgramFailed(
+                    await ReadErrorAsync(response, _logger, cancellationToken)
+                );
+            },
+            error => new DeleteProgramFailed(error),
+            "Could not delete program. Try again.",
+            _logger
         );
-
-        if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
-        {
-            return new DeleteProgramSucceeded();
-        }
-
-        return new DeleteProgramFailed(await ReadErrorAsync(response, _logger, cancellationToken));
-    }
 
     private static ProgramSummary ToSummary(ProgramDto dto) =>
         new(ProgramId.Parse(dto.Id), dto.Name);
