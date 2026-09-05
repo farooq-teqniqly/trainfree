@@ -19,8 +19,9 @@ bodies use this surrogate key as `id`.
 ### Requirement: List programs
 The system SHALL provide `GET /api/programs`, returning all programs in creation
 order. When two or more programs share the same `created_at` timestamp, the system
-SHALL break the tie by `id` ascending, so the order is deterministic across repeated
-calls.
+SHALL break the tie by the `programs` table's internal auto-incrementing row key
+(not the external `id` surrogate returned in API responses) ascending, so the order
+is deterministic across repeated calls and matches insertion order.
 
 #### Scenario: No programs exist
 - **WHEN** a client calls `GET /api/programs` and the `programs` table is empty

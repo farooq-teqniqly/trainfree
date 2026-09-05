@@ -24,7 +24,9 @@ surrogate key as `id`.
 
 The system SHALL provide `GET /api/phases`, returning all phases in creation order.
 When two or more phases share the same `created_at` timestamp, the system SHALL break
-the tie by `id` ascending, so the order is deterministic across repeated calls.
+the tie by the `phases` table's internal auto-incrementing row key (not the external
+`id` surrogate returned in API responses) ascending, so the order is deterministic
+across repeated calls and matches insertion order.
 
 #### Scenario: No phases exist
 
