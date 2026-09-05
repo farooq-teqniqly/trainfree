@@ -10,6 +10,42 @@ namespace Trainfree.ArchitectureTests;
 
 public sealed class ArchitectureBoundariesTests
 {
+    // ArchUnitNET inspects IL type dependencies, so a ProjectReference nobody's code
+    // actually uses yet (the exact moment the spec's "adds a project reference" scenario
+    // describes) would compile clean and pass the rule below undetected. This check reads
+    // the csproj files directly to close that gap.
+    [Theory]
+    [InlineData("Trainfree.Domain")]
+    [InlineData("Trainfree.Versioning")]
+    [InlineData("Trainfree.ApiClients")]
+    public void SharedLibraryProject_HasNoProjectReferenceToAdmin(string projectName)
+    {
+        // Arrange
+        var csprojPath = Path.Combine(FindRepoRoot(), "src", projectName, $"{projectName}.csproj");
+        var content = File.ReadAllText(csprojPath);
+
+        // Act / Assert
+        Assert.DoesNotContain("Trainfree.Admin.csproj", content, StringComparison.Ordinal);
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (
+            directory is not null
+            && !File.Exists(Path.Combine(directory.FullName, "Trainfree.slnx"))
+        )
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName
+            ?? throw new InvalidOperationException(
+                "Trainfree.slnx not found in any ancestor of the test output directory."
+            );
+    }
+
     // Trainfree.Admin exposes no public type for a shared library to reach through
     // InternalsVisibleTo -- loading it by assembly name keeps this test from needing one.
     private static readonly Architecture _architecture = new ArchLoader()
