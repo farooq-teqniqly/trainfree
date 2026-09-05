@@ -1,10 +1,12 @@
+# shared-api-client-base Specification
+
 ## Purpose
 
 Give every Blazor `*ApiClient` (in `Trainfree.Admin` today, `Trainfree.Workout` once
 slice 8 exists) one shared, tested implementation of Worker error-response reading,
 instead of each app duplicating it.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Shared error-reading behavior
 A single implementation SHALL read a failed `HttpResponseMessage` from the Worker API
@@ -77,16 +79,3 @@ project's no-cross-app-dependency rule.
   added indirection isn't justified by three (soon four) call sites. Revisit if a fifth or
   later client makes the accumulated per-verb boilerplate large enough to outweigh that
   cost.
-
-## Requirement coverage
-
-Anchor: issue #51 (Extract shared HTTP error-handling from the *ApiClient classes)
-
-| # | Anchor requirement | Covered by |
-|---|--------------------|-----------|
-| 1 | `JsonOptions` and `ReadErrorAsync` (and its `ErrorDto`) exist in exactly one place, used by `ProgramsApiClient`, `SessionsApiClient`, and `CategoriesApiClient` | Req: Shared error-reading behavior (client is `PhasesApiClient` -- renamed from `CategoriesApiClient` by #60 after this issue was filed) |
-| 2 | Each client's own `ILogger<T>` category is preserved in the shared error-reading path | Req: Per-client log category preserved |
-| 3 | All existing `*ApiClientTests` keep passing unmodified in behavior, even if test setup changes | Not covered by a spec requirement -- this is a test-suite constraint, tracked as a task in tasks.md rather than an observable behavior contract |
-| 4 | SonarCloud's duplicated-lines-density finding on these files clears | Not covered by a spec requirement -- external tooling outcome, tracked as a task in tasks.md |
-| 5 (expanded scope, agreed in conversation, not in original issue text) | Shared base must not create a dependency from the future `Trainfree.Workout` app onto `Trainfree.Admin` | Req: Shared code lives outside both apps |
-| 6 (expanded scope, agreed in conversation) | Boundary is automatically enforced, not just documented | Covered by capability `architecture-boundaries` in this same change |
