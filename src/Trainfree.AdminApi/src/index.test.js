@@ -257,6 +257,25 @@ describe("GET /api/programs with multiple rows", () => {
 
         expect(programs.map((p) => p.name)).toEqual(["Workout A", "Workout B", "Workout C"]);
     });
+
+    it("breaks a created_at tie using insertion order", async () => {
+        const tiedTimestamp = new Date().toISOString();
+        await env.DB.prepare(
+            "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+            .bind("PRG-ZZZZZZ", "Inserted First", tiedTimestamp, tiedTimestamp)
+            .run();
+        await env.DB.prepare(
+            "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+            .bind("PRG-AAAAAA", "Inserted Second", tiedTimestamp, tiedTimestamp)
+            .run();
+
+        const response = await SELF.fetch("http://worker/api/programs");
+        const programs = await response.json();
+
+        expect(programs.map((p) => p.name)).toEqual(["Inserted First", "Inserted Second"]);
+    });
 });
 
 describe("GET /api/programs/:programId/sessions", () => {
@@ -573,6 +592,25 @@ describe("GET /api/phases", () => {
         const phases = await response.json();
 
         expect(phases.map((p) => p.name)).toEqual(["Warm Up", "Cool Down"]);
+    });
+
+    it("breaks a created_at tie using insertion order", async () => {
+        const tiedTimestamp = new Date().toISOString();
+        await env.DB.prepare(
+            "INSERT INTO phases (phase_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+            .bind("PHS-ZZZZZZ", "Inserted First", tiedTimestamp, tiedTimestamp)
+            .run();
+        await env.DB.prepare(
+            "INSERT INTO phases (phase_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+            .bind("PHS-AAAAAA", "Inserted Second", tiedTimestamp, tiedTimestamp)
+            .run();
+
+        const response = await SELF.fetch("http://worker/api/phases");
+        const phases = await response.json();
+
+        expect(phases.map((p) => p.name)).toEqual(["Inserted First", "Inserted Second"]);
     });
 });
 

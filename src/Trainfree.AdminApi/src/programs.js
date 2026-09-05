@@ -10,7 +10,7 @@ const MAX_ID_GENERATION_ATTEMPTS = 5;
 
 export async function listPrograms(db) {
     const { results } = await db
-        .prepare(`SELECT ${SELECT_COLUMNS} FROM programs ORDER BY created_at ASC`)
+        .prepare(`SELECT ${SELECT_COLUMNS} FROM programs ORDER BY created_at ASC, programs.id ASC`)
         .all();
     return results;
 }

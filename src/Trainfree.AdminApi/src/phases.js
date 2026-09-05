@@ -10,7 +10,7 @@ const MAX_ID_GENERATION_ATTEMPTS = 5;
 
 export async function listPhases(db) {
     const { results } = await db
-        .prepare(`SELECT ${SELECT_COLUMNS} FROM phases ORDER BY created_at ASC`)
+        .prepare(`SELECT ${SELECT_COLUMNS} FROM phases ORDER BY created_at ASC, phases.id ASC`)
         .all();
     return results;
 }
