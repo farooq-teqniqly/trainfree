@@ -58,9 +58,11 @@ double-braced PROJECT_NAME token when the baseline copy is synced.
   (e.g. a mocked call keyed to an exact argument value that a change elsewhere no
   longer supplies), otherwise caught only by CI after a full review-loop round trip.
   Exception: a push whose commits touch nothing under `src/`, `tests/`, `.githooks/`,
-  or a `.csproj`/`.props`/`.targets`/`.sln`/`.slnx` file (docs, OpenSpec artifacts,
-  README, etc.) skips the test run and prints why instead of paying the full suite's
-  cost for a diff that cannot break a test.
+  a `.csproj`/`.props`/`.targets`/`.sln`/`.slnx` file, or the root `global.json`/
+  `nuget.config` (docs, OpenSpec artifacts, README, etc.) skips the test run and prints
+  why instead of paying the full suite's cost for a diff that cannot break a test --
+  `global.json`/`nuget.config` are treated as code for this check since they drive SDK
+  selection and package restore for `dotnet test`, not because they live under `src/`.
 - `nuget.config`: single source (`nuget.org`) with package source mapping -- do not add a
   second feed without a matching `packageSourceMapping` entry.
 - **Never build or restore with `-p:NuGetAudit=false`** to get past an `NU1902`/`NU1903`
