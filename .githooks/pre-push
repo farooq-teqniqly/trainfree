@@ -6,7 +6,41 @@
 # value that a signature change no longer satisfies); the failure then surfaces only
 # in CI, after a full review-loop round trip. See issue-linking rationale in
 # CLAUDE-baseline.md's "git hooks" bullet.
+#
+# Exception: when every commit being pushed touches only non-code files (docs,
+# OpenSpec artifacts, README, gitignored scratch files), the diff cannot break a test
+# -- skip the suite and say why instead of paying its full cost for zero safety gain.
 set -e
+
+zero_sha=0000000000000000000000000000000000000000
+# The canonical empty-tree object id -- diffing against it treats every commit on a
+# brand-new ref (remote_sha all zeros) as "changed", without needing a real merge-base.
+empty_tree=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+
+# Anything outside this pattern is docs/non-code and cannot affect a test result.
+code_pattern='^(src/|tests/|\.githooks/)|\.(csproj|props|targets|sln|slnx)$'
+
+all_changed=""
+# shellcheck disable=SC2034 # local_ref/remote_ref are part of the stdin record format but unused here
+while read -r local_ref local_sha remote_ref remote_sha; do
+	[ "$local_sha" = "$zero_sha" ] && continue
+	if [ "$remote_sha" = "$zero_sha" ]; then
+		base=$empty_tree
+	else
+		base=$remote_sha
+	fi
+	changed=$(git diff --name-only "$base" "$local_sha")
+	all_changed="$all_changed
+$changed"
+done
+
+touched_code=$(printf '%s\n' "$all_changed" | grep -E "$code_pattern") || true
+any_change=$(printf '%s\n' "$all_changed" | sed '/^$/d')
+
+if [ -z "$touched_code" ] && [ -n "$any_change" ]; then
+	printf 'docs-only push, skipping tests\n'
+	exit 0
+fi
 
 command -v dotnet >/dev/null 2>&1 || {
 	printf 'dotnet SDK not found on PATH; cannot run the pre-push test suite.\n' >&2
