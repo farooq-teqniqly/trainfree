@@ -1,7 +1,9 @@
 @namespace Trainfree.Versioning
+@implements IDisposable
 @inject IVersionCheck VersionCheck
 @inject VersionStamp Running
 @inject NavigationManager Navigation
+@inject ILogger<VersionIndicator> Logger
 
 @if (_stale is not null)
 {
@@ -14,17 +16,47 @@
 <span class="version-stamp">@Running.Display</span>
 
 @code {
+    private readonly CancellationTokenSource _cts = new();
     private RunningStaleVersion? _stale;
+    private bool _disposed;
 
     protected override async Task OnInitializedAsync()
     {
-        // VersionUnknown is deliberately indistinguishable from up-to-date in the UI:
-        // being offline or having an expired Access session is not a staleness signal.
-        if (await VersionCheck.CheckAsync() is RunningStaleVersion stale)
+        try
         {
-            _stale = stale;
+            var outcome = await VersionCheck.CheckAsync(_cts.Token);
+
+            // Cancellation is cooperative -- CheckAsync can still complete successfully
+            // after Dispose() requested it, so re-check _disposed rather than trusting
+            // that the await not throwing means the component is still live.
+            // VersionUnknown is deliberately indistinguishable from up-to-date in the UI:
+            // being offline or having an expired Access session is not a staleness signal.
+            if (!_disposed && outcome is RunningStaleVersion stale)
+            {
+                _stale = stale;
+            }
+        }
+        // Disposal cancels _cts while the check is in flight, so CheckAsync's own
+        // filter lets this propagate instead of degrading to VersionUnknown. Swallow it
+        // here rather than letting the component's lifecycle task end Faulted for a
+        // teardown that already happened.
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+            LogDisposedWhileCheckInFlight(Logger);
         }
     }
 
     private void Reload() => Navigation.Refresh(forceReload: true);
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _cts.Cancel();
+        _cts.Dispose();
+    }
 }
