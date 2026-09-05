@@ -17,7 +17,10 @@ bodies use this surrogate key as `id`.
   alphabet `ABCDEFGHJKMNPQRSTVWXYZ23456789`
 
 ### Requirement: List programs
-The system SHALL provide `GET /api/programs`, returning all programs in creation order.
+The system SHALL provide `GET /api/programs`, returning all programs in creation
+order. When two or more programs share the same `created_at` timestamp, the system
+SHALL break the tie by `id` ascending, so the order is deterministic across repeated
+calls.
 
 #### Scenario: No programs exist
 - **WHEN** a client calls `GET /api/programs` and the `programs` table is empty
@@ -27,6 +30,12 @@ The system SHALL provide `GET /api/programs`, returning all programs in creation
 - **WHEN** a client calls `GET /api/programs` and programs exist
 - **THEN** the Worker responds `200` with a JSON array of programs ordered by
   `created_at` ascending
+
+#### Scenario: Two programs share the same created_at
+- **WHEN** a client calls `GET /api/programs` and two programs have an identical
+  `created_at` value
+- **THEN** the Worker responds `200` with those two programs ordered by `id`
+  ascending relative to each other, and this order is the same on every call
 
 ### Requirement: Program name length
 A program's `name` SHALL be between 4 and 100 characters (inclusive) after trimming
