@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: deploy-workers
@@ -124,3 +124,13 @@ jobs:
           EXPECTED_VERSION: ${{ steps.stamp.outputs.version }}
           EXPECTED_COMMIT: ${{ steps.stamp.outputs.commit }}
         run: bash .github/scripts/verify-deployed-version.sh
+
+      # Runs only for an actual tag push (not the workflow_dispatch/main-branch path,
+      # which has no vX.Y.Z ref to release) and only once the deploy it describes is
+      # confirmed live -- a Release should never claim a stamp that didn't ship.
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        timeout-minutes: 5
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
