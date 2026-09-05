@@ -102,10 +102,14 @@ double-braced PROJECT_NAME token when the baseline copy is synced.
 - Use **source-generated logging** (`[LoggerMessage]`) for all `ILogger` calls -- never
   `LogInformation(...)` directly (CA1873). Split large partial classes by concern:
   `Foo.cs` for logic, `Foo.Logging.cs` for `[LoggerMessage]` declarations.
-- **A new `[LoggerMessage]`'s `EventId` must not collide with an existing one in the same
-  assembly** -- a collision makes log filtering by EventId ambiguous. No analyzer catches
-  this (`Nullable`/CA rules don't cover it); before assigning one, grep the assembly's
-  `*.Logging.cs` files for `EventId = ` and pick an unused value.
+- **A new, explicitly-assigned `[LoggerMessage]` `EventId` must not collide with an
+  existing explicit one in the same assembly** -- a collision makes log filtering by
+  EventId ambiguous. No analyzer catches this (`Nullable`/CA rules don't cover it);
+  before assigning one, grep the assembly's `*.Logging.cs` files for `EventId = ` and
+  pick an unused value. This check only sees values written in source -- an assembly
+  where `[LoggerMessage]` methods omit `EventId` entirely relies on the
+  compiler-generated per-type default instead, which this grep cannot detect; such an
+  assembly is out of scope for this rule until it starts assigning `EventId` explicitly.
 - Every `catch` block that suppresses or re-routes an exception (does not re-throw) must
   emit at least one log entry at `Warning` or above -- a silent catch hides failure paths.
 - Value objects: use `sealed record` (or `readonly record struct`) only for pure data
