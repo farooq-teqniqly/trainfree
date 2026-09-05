@@ -19,8 +19,8 @@ internal interface ISessionsApiClient
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="CreateSessionSucceeded"/> on success, or a <see cref="CreateSessionFailed"/>
-    /// carrying the server's error message when the server rejects the request (e.g. a
-    /// duplicate name within the program).
+    /// carrying an error message when the server rejects the request (e.g. a duplicate name
+    /// within the program) or a transport/parse exception is caught.
     /// </returns>
     Task<CreateSessionOutcome> CreateSessionAsync(
         ProgramId programId,
@@ -35,7 +35,8 @@ internal interface ISessionsApiClient
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="RenameSessionSucceeded"/> on success, or a <see cref="RenameSessionFailed"/>
-    /// carrying the server's error message when the server rejects the request.
+    /// carrying an error message when the server rejects the request or a transport/parse
+    /// exception is caught.
     /// </returns>
     Task<RenameSessionOutcome> RenameSessionAsync(
         ProgramId programId,
@@ -50,8 +51,8 @@ internal interface ISessionsApiClient
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="DeleteSessionSucceeded"/> when the session is deleted or was already
-    /// gone, or a <see cref="DeleteSessionFailed"/> carrying the server's error message for
-    /// any other non-success response.
+    /// gone, or a <see cref="DeleteSessionFailed"/> carrying an error message for any other
+    /// non-success response or a transport/parse exception caught during the request.
     /// </returns>
     Task<DeleteSessionOutcome> DeleteSessionAsync(
         ProgramId programId,

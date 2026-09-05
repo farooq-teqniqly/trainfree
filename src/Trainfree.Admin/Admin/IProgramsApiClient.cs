@@ -16,8 +16,8 @@ internal interface IProgramsApiClient
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="CreateProgramSucceeded"/> on success, or a <see cref="CreateProgramFailed"/>
-    /// carrying the server's error message when the server rejects the request (e.g. a
-    /// duplicate name).
+    /// carrying an error message when the server rejects the request (e.g. a duplicate name)
+    /// or a transport/parse exception is caught.
     /// </returns>
     Task<CreateProgramOutcome> CreateProgramAsync(
         string name,
@@ -30,7 +30,8 @@ internal interface IProgramsApiClient
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="RenameProgramSucceeded"/> on success, or a <see cref="RenameProgramFailed"/>
-    /// carrying the server's error message when the server rejects the request.
+    /// carrying an error message when the server rejects the request or a transport/parse
+    /// exception is caught.
     /// </returns>
     Task<RenameProgramOutcome> RenameProgramAsync(
         ProgramId id,
@@ -43,8 +44,8 @@ internal interface IProgramsApiClient
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="DeleteProgramSucceeded"/> when the program is deleted or was already
-    /// gone, or a <see cref="DeleteProgramFailed"/> carrying the server's error message for
-    /// any other non-success response.
+    /// gone, or a <see cref="DeleteProgramFailed"/> carrying an error message for any other
+    /// non-success response or a transport/parse exception caught during the request.
     /// </returns>
     Task<DeleteProgramOutcome> DeleteProgramAsync(
         ProgramId id,
