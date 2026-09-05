@@ -47,3 +47,12 @@ Respect these deliberate baseline conventions and do not flag them as defects:
   test exemption is scoped to XML documentation, not to guarding). Do not
   flag a test theory/fact method for missing a guard on the value it is
   deliberately passing invalid.
+- A `sealed partial class` for a Razor component's code-behind file does not
+  conflict with the compiler-generated (unsealed) partial from the `.razor`
+  file. C# allows one partial declaration to add `sealed` without the others
+  repeating it; a conflict only arises between contradictory modifiers (e.g.
+  `sealed` vs `abstract`). Verified against a passing `dotnet build
+  --no-incremental` and this repo's own green CI `build` job (PR #73, Qodo
+  thread `PRRT_kwDOTsuKxs6fgNip`, raised twice, disputed once). Do not flag a
+  `sealed partial class` code-behind file as a conflict on that basis alone --
+  a conflict between genuinely contradictory modifiers is still worth flagging.
