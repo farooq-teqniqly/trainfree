@@ -13,7 +13,10 @@ public sealed class ArchitectureBoundariesTests
     // ArchUnitNET inspects IL type dependencies, so a ProjectReference nobody's code
     // actually uses yet (the exact moment the spec's "adds a project reference" scenario
     // describes) would compile clean and pass the rule below undetected. This check reads
-    // the csproj files directly to close that gap.
+    // the csproj files directly to close that gap. It matches the bare project name
+    // rather than "Trainfree.Admin.csproj" specifically, so a hand-written assembly
+    // <Reference>/<HintPath> pointing at Admin's DLL is caught too, not just a
+    // ProjectReference to its csproj.
     [Theory]
     [InlineData("Trainfree.Domain")]
     [InlineData("Trainfree.Versioning")]
@@ -25,7 +28,7 @@ public sealed class ArchitectureBoundariesTests
         var content = File.ReadAllText(csprojPath);
 
         // Act / Assert
-        Assert.DoesNotContain("Trainfree.Admin.csproj", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("Trainfree.Admin", content, StringComparison.Ordinal);
     }
 
     private static string FindRepoRoot()
