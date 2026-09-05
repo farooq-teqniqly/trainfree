@@ -18,10 +18,16 @@ zero_sha=0000000000000000000000000000000000000000
 empty_tree=4b825dc642cb6eb9a060e54bf8d69288fbee4904
 
 # Anything outside this pattern is docs/non-code and cannot affect a test result.
-# global.json/nuget.config are root-level, not under src/tests/, but they drive SDK
-# selection and package restore for `dotnet test` -- a change there can break the run
-# in a way tests would catch, so they're code for this check even though they're config.
-code_pattern='^(src/|tests/|\.githooks/)|\.(csproj|props|targets|sln|slnx)$|^(global\.json|nuget\.config)$'
+# global.json/nuget.config/.editorconfig are root-level, not under src/tests/, but they
+# drive SDK selection, package restore, and analyzer/warning-as-error severities for
+# `dotnet test` -- a change there can break the run in a way tests would catch, so
+# they're code for this check even though they're config.
+code_pattern='^(src/|tests/|\.githooks/)|\.(csproj|props|targets|sln|slnx)$|^(global\.json|nuget\.config|\.editorconfig)$'
+
+# Git passes the destination remote's name as $1 to pre-push -- use it rather than
+# hardcoding "origin", so a push to a differently-named or second remote resolves its
+# own default branch instead of silently reusing origin's.
+push_remote=${1:-origin}
 
 all_changed=""
 force_full_run=0
@@ -31,9 +37,9 @@ while read -r local_ref local_sha remote_ref remote_sha; do
 	if [ "$remote_sha" = "$zero_sha" ]; then
 		# New ref: diffing against the empty tree makes an ordinary docs-only branch
 		# (based on existing history) look like it changed every tracked file. Prefer
-		# the merge-base with the remote's default branch when we can resolve one, and
-		# only fall back to the empty tree when there's truly no shared history.
-		default_remote_ref=$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null) || true
+		# the merge-base with the pushed-to remote's default branch when we can resolve
+		# one, and only fall back to the empty tree when there's truly no shared history.
+		default_remote_ref=$(git symbolic-ref -q --short "refs/remotes/$push_remote/HEAD" 2>/dev/null) || true
 		base=""
 		if [ -n "$default_remote_ref" ] && git rev-parse -q --verify "$default_remote_ref" >/dev/null 2>&1; then
 			base=$(git merge-base "$default_remote_ref" "$local_sha" 2>/dev/null) || true
