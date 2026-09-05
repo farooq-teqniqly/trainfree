@@ -35,8 +35,9 @@ is deterministic across repeated calls and matches insertion order.
 #### Scenario: Two programs share the same created_at
 - **WHEN** a client calls `GET /api/programs` and two programs have an identical
   `created_at` value
-- **THEN** the Worker responds `200` with those two programs ordered by `id`
-  ascending relative to each other, and this order is the same on every call
+- **THEN** the Worker responds `200` with those two programs ordered by the
+  `programs` table's internal row key (not the external `id` surrogate) ascending
+  relative to each other, and this order is the same on every call
 
 ### Requirement: Program name length
 A program's `name` SHALL be between 4 and 100 characters (inclusive) after trimming

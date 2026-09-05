@@ -43,8 +43,9 @@ across repeated calls and matches insertion order.
 
 - **WHEN** a client calls `GET /api/phases` and two phases have an identical
   `created_at` value
-- **THEN** the Worker responds `200` with those two phases ordered by `id` ascending
-  relative to each other, and this order is the same on every call
+- **THEN** the Worker responds `200` with those two phases ordered by the `phases`
+  table's internal row key (not the external `id` surrogate) ascending relative to
+  each other, and this order is the same on every call
 
 ### Requirement: Phase name length
 
