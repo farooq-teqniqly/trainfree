@@ -122,6 +122,22 @@ public sealed class VersionIndicatorTests : BunitContext
         Assert.Null(exception);
     }
 
+    [Fact]
+    public void OnInitialized_CheckCompletesSuccessfullyAfterDisposal_DoesNotShowTheUpdateBanner()
+    {
+        // Arrange
+        var pendingCheck = new TaskCompletionSource<VersionCheckOutcome>();
+        _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(pendingCheck.Task);
+        var cut = Render<VersionIndicator>();
+
+        // Act
+        cut.Instance.Dispose();
+        pendingCheck.SetResult(new RunningStaleVersion(new VersionStamp("v0.0.4", "1234abc")));
+
+        // Assert
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".version-update")));
+    }
+
     private sealed class RecordingLogger<T> : ILogger<T>
     {
         public List<LogLevel> LoggedLevels { get; } = [];

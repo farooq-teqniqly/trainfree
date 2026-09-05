@@ -24,9 +24,14 @@
     {
         try
         {
+            var outcome = await VersionCheck.CheckAsync(_cts.Token);
+
+            // Cancellation is cooperative -- CheckAsync can still complete successfully
+            // after Dispose() requested it, so re-check _disposed rather than trusting
+            // that the await not throwing means the component is still live.
             // VersionUnknown is deliberately indistinguishable from up-to-date in the UI:
             // being offline or having an expired Access session is not a staleness signal.
-            if (await VersionCheck.CheckAsync(_cts.Token) is RunningStaleVersion stale)
+            if (!_disposed && outcome is RunningStaleVersion stale)
             {
                 _stale = stale;
             }
