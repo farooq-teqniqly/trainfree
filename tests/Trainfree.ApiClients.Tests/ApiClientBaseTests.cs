@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
 namespace Trainfree.ApiClients.Tests;
@@ -97,6 +98,157 @@ public sealed class ApiClientBaseTests : IDisposable
         Assert.Equal(typeof(ApiClientBaseTests).FullName, entry.Category);
     }
 
+    [Theory]
+    [MemberData(nameof(GuardedExceptions))]
+    public async Task ExecuteAsync_OperationThrowsGuardedException_ReturnsOnFailureOutcome(
+        Exception exception
+    )
+    {
+        // Arrange
+        var logger = _loggerFactory.CreateLogger<ApiClientBaseTests>();
+
+        // Act
+        var outcome = await TestApiClient.ExecuteAsync<string>(
+            () => throw exception,
+            error => $"failed:{error}",
+            "Could not save changes. Try again.",
+            logger
+        );
+
+        // Assert
+        Assert.Equal("failed:Could not save changes. Try again.", outcome);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_OperationSucceeds_ReturnsOperationResultWithoutLogging()
+    {
+        // Arrange
+        var logger = _loggerFactory.CreateLogger<ApiClientBaseTests>();
+
+        // Act
+        var outcome = await TestApiClient.ExecuteAsync(
+            () => Task.FromResult("ok"),
+            error => $"failed:{error}",
+            "Could not save changes. Try again.",
+            logger
+        );
+
+        // Assert
+        Assert.Equal("ok", outcome);
+        Assert.Empty(_provider.Entries);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_OperationThrowsGuardedException_LogsUnderCallingClientsCategory()
+    {
+        // Arrange
+        var logger = _loggerFactory.CreateLogger<ApiClientBaseTests>();
+
+        // Act
+        await TestApiClient.ExecuteAsync<string>(
+            () => throw new HttpRequestException("boom"),
+            error => $"failed:{error}",
+            "Could not save changes. Try again.",
+            logger
+        );
+
+        // Assert
+        var entry = Assert.Single(_provider.Entries);
+        Assert.Equal(typeof(ApiClientBaseTests).FullName, entry.Category);
+        Assert.Equal(LogLevel.Warning, entry.Level);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_OperationIsNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var logger = _loggerFactory.CreateLogger<ApiClientBaseTests>();
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            TestApiClient.ExecuteAsync<string>(
+                null!,
+                error => error,
+                "Could not save changes. Try again.",
+                logger
+            )
+        );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_OnFailureIsNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var logger = _loggerFactory.CreateLogger<ApiClientBaseTests>();
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            TestApiClient.ExecuteAsync<string>(
+                () => Task.FromResult("ok"),
+                null!,
+                "Could not save changes. Try again.",
+                logger
+            )
+        );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_FailureMessageIsNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var logger = _loggerFactory.CreateLogger<ApiClientBaseTests>();
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            TestApiClient.ExecuteAsync(() => Task.FromResult("ok"), error => error, null!, logger)
+        );
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task ExecuteAsync_FailureMessageIsEmptyOrWhiteSpace_ThrowsArgumentException(
+        string failureMessage
+    )
+    {
+        // Arrange
+        var logger = _loggerFactory.CreateLogger<ApiClientBaseTests>();
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            TestApiClient.ExecuteAsync(
+                () => Task.FromResult("ok"),
+                error => error,
+                failureMessage,
+                logger
+            )
+        );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_LoggerIsNull_ThrowsArgumentNullException()
+    {
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            TestApiClient.ExecuteAsync(
+                () => Task.FromResult("ok"),
+                error => error,
+                "Could not save changes. Try again.",
+                null!
+            )
+        );
+    }
+
+    public static TheoryData<Exception> GuardedExceptions() =>
+        new()
+        {
+            new HttpRequestException("transport failure"),
+            new JsonException("malformed body"),
+            new InvalidOperationException("stream already consumed"),
+            new NotSupportedException("unsupported content"),
+            new OperationCanceledException("canceled"),
+        };
+
     private static HttpResponseMessage CreateUnreadableResponse(string scenario) =>
         scenario switch
         {
@@ -126,6 +278,13 @@ public sealed class ApiClientBaseTests : IDisposable
             ILogger logger,
             CancellationToken cancellationToken
         ) => ApiClientBase.ReadErrorAsync(response, logger, cancellationToken);
+
+        public static new Task<TOutcome> ExecuteAsync<TOutcome>(
+            Func<Task<TOutcome>> operation,
+            Func<string, TOutcome> onFailure,
+            string failureMessage,
+            ILogger logger
+        ) => ApiClientBase.ExecuteAsync(operation, onFailure, failureMessage, logger);
     }
 
     private sealed class CapturingLoggerProvider : ILoggerProvider

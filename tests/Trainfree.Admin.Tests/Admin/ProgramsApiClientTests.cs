@@ -363,13 +363,66 @@ public sealed class ProgramsApiClientTests : IDisposable
         );
     }
 
+    [Fact]
+    public async Task CreateProgramAsync_HttpClientThrows_ReturnsCreateProgramFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextException = new HttpRequestException("transport failure");
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
+
+        // Act
+        var outcome = await client.CreateProgramAsync("New Program", CancellationToken.None);
+
+        // Assert
+        Assert.IsType<CreateProgramFailed>(outcome);
+    }
+
+    [Fact]
+    public async Task RenameProgramAsync_HttpClientThrows_ReturnsRenameProgramFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextException = new HttpRequestException("transport failure");
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
+
+        // Act
+        var outcome = await client.RenameProgramAsync(
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Renamed",
+            CancellationToken.None
+        );
+
+        // Assert
+        Assert.IsType<RenameProgramFailed>(outcome);
+    }
+
+    [Fact]
+    public async Task DeleteProgramAsync_HttpClientThrows_ReturnsDeleteProgramFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextException = new HttpRequestException("transport failure");
+        var client = new ProgramsApiClient(_httpClient, NullLogger<ProgramsApiClient>.Instance);
+
+        // Act
+        var outcome = await client.DeleteProgramAsync(
+            ProgramId.Parse("PRG-AAAAAA"),
+            CancellationToken.None
+        );
+
+        // Assert
+        Assert.IsType<DeleteProgramFailed>(outcome);
+    }
+
     private sealed class TestHttpMessageHandler : HttpMessageHandler
     {
         public HttpResponseMessage? NextResponse { get; set; }
+        public Exception? NextException { get; set; }
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
-        ) => Task.FromResult(NextResponse ?? new HttpResponseMessage(HttpStatusCode.OK));
+        ) =>
+            NextException is not null
+                ? Task.FromException<HttpResponseMessage>(NextException)
+                : Task.FromResult(NextResponse ?? new HttpResponseMessage(HttpStatusCode.OK));
     }
 }

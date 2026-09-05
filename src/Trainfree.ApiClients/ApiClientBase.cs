@@ -80,5 +80,60 @@ public abstract partial class ApiClientBase
         }
     }
 
+    /// <summary>
+    /// Runs a mutation operation, catching transport and parse exceptions and converting
+    /// them into the operation's own <c>Failed</c> outcome instead of letting them
+    /// propagate out of the calling Blazor event handler.
+    /// </summary>
+    /// <typeparam name="TOutcome">The operation's outcome type.</typeparam>
+    /// <param name="operation">The request/outcome-mapping body to run.</param>
+    /// <param name="onFailure">Builds the operation's <c>Failed</c> outcome from a message.</param>
+    /// <param name="failureMessage">The caller-facing message passed to <paramref name="onFailure"/> on a guarded exception.</param>
+    /// <param name="logger">The calling client's own logger, so the guarded exception is logged under that client's category.</param>
+    /// <returns>
+    /// The result of <paramref name="operation"/>, or the outcome produced by
+    /// <paramref name="onFailure"/> when a guarded exception is caught.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="operation"/>, <paramref name="onFailure"/>, or
+    /// <paramref name="logger"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="failureMessage"/> is empty or whitespace.
+    /// </exception>
+    protected static async Task<TOutcome> ExecuteAsync<TOutcome>(
+        Func<Task<TOutcome>> operation,
+        Func<string, TOutcome> onFailure,
+        string failureMessage,
+        ILogger logger
+    )
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(onFailure);
+        ArgumentException.ThrowIfNullOrWhiteSpace(failureMessage);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        try
+        {
+            return await operation();
+        }
+        // Mirrors the exception set OnInitializedAsync already catches around the initial
+        // load: a transport failure, a redirected Cloudflare Access login page arriving as
+        // malformed JSON, or a canceled request must degrade to the Failed outcome instead
+        // of propagating out of the calling event handler.
+        catch (Exception ex)
+            when (ex
+                    is HttpRequestException
+                        or JsonException
+                        or InvalidOperationException
+                        or NotSupportedException
+                        or OperationCanceledException
+            )
+        {
+            LogMutationExceptionCaught(logger, ex);
+            return onFailure(failureMessage);
+        }
+    }
+
     private sealed record ErrorDto(string Error);
 }

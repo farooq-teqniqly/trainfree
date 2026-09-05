@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Trainfree.Admin.Admin;
 using Trainfree.Domain.Ids;
@@ -378,13 +379,72 @@ public sealed class SessionsApiClientTests : IDisposable
         );
     }
 
+    [Fact]
+    public async Task CreateSessionAsync_HttpClientThrowsJsonException_ReturnsCreateSessionFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextException = new JsonException("malformed body");
+        var client = new SessionsApiClient(_httpClient, NullLogger<SessionsApiClient>.Instance);
+
+        // Act
+        var outcome = await client.CreateSessionAsync(
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body",
+            CancellationToken.None
+        );
+
+        // Assert
+        Assert.IsType<CreateSessionFailed>(outcome);
+    }
+
+    [Fact]
+    public async Task RenameSessionAsync_HttpClientThrowsJsonException_ReturnsRenameSessionFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextException = new JsonException("malformed body");
+        var client = new SessionsApiClient(_httpClient, NullLogger<SessionsApiClient>.Instance);
+
+        // Act
+        var outcome = await client.RenameSessionAsync(
+            ProgramId.Parse("PRG-AAAAAA"),
+            SessionId.Parse("SNN-AAAAAA"),
+            "Renamed Session",
+            CancellationToken.None
+        );
+
+        // Assert
+        Assert.IsType<RenameSessionFailed>(outcome);
+    }
+
+    [Fact]
+    public async Task DeleteSessionAsync_HttpClientThrowsJsonException_ReturnsDeleteSessionFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextException = new JsonException("malformed body");
+        var client = new SessionsApiClient(_httpClient, NullLogger<SessionsApiClient>.Instance);
+
+        // Act
+        var outcome = await client.DeleteSessionAsync(
+            ProgramId.Parse("PRG-AAAAAA"),
+            SessionId.Parse("SNN-AAAAAA"),
+            CancellationToken.None
+        );
+
+        // Assert
+        Assert.IsType<DeleteSessionFailed>(outcome);
+    }
+
     private sealed class TestHttpMessageHandler : HttpMessageHandler
     {
         public HttpResponseMessage? NextResponse { get; set; }
+        public Exception? NextException { get; set; }
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
-        ) => Task.FromResult(NextResponse ?? new HttpResponseMessage(HttpStatusCode.OK));
+        ) =>
+            NextException is not null
+                ? Task.FromException<HttpResponseMessage>(NextException)
+                : Task.FromResult(NextResponse ?? new HttpResponseMessage(HttpStatusCode.OK));
     }
 }
