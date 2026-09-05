@@ -314,6 +314,10 @@ describe("GET /api/programs/:programId/sessions", () => {
         ]);
     });
 
+    // RED-phase note: see the identical caveat on the programs/phases tiebreak tests
+    // in this file -- sessions.id is also an AUTOINCREMENT rowid alias, so this can't
+    // be proven RED locally either. This test predates PR #72 (#43); the caveat
+    // applies unchanged.
     it("breaks a created_at tie using insertion order", async () => {
         const program = await (await createProgram("Workout A")).json();
         const tiedTimestamp = new Date().toISOString();
