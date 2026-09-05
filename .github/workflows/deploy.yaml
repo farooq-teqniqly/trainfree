@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: deploy-workers
@@ -125,12 +125,29 @@ jobs:
           EXPECTED_COMMIT: ${{ steps.stamp.outputs.commit }}
         run: bash .github/scripts/verify-deployed-version.sh
 
-      # Runs only for an actual tag push (not the workflow_dispatch/main-branch path,
-      # which has no vX.Y.Z ref to release) and only once the deploy it describes is
-      # confirmed live -- a Release should never claim a stamp that didn't ship.
+  # A separate job so only this step's GITHUB_TOKEN carries contents: write --
+  # the deploy job's NuGet restore and wrangler-action steps (third-party
+  # supply-chain surfaces) stay on contents: read.
+  create-release:
+    needs: deploy
+    runs-on: ubuntu-latest
+    # Runs only for an actual tag push (not the workflow_dispatch/main-branch path,
+    # which has no vX.Y.Z ref to release) and only once deploy confirms the ref is
+    # tag-shaped and the deploy it describes is confirmed live -- a Release should
+    # never claim a stamp that didn't ship. Note: the ref shape check also passes
+    # for a workflow_dispatch run manually pointed at an existing tag ref, which is
+    # why the release command below tolerates an already-existing release.
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        timeout-minutes: 5
+
       - name: Create GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
         timeout-minutes: 5
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+        run: |
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes \
+            || gh release edit "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME"
