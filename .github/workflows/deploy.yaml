@@ -146,14 +146,21 @@ jobs:
       # to edit on any failure" -- the latter would mask a genuine create failure
       # (auth, API outage) as success. This only exists as a backstop for a
       # deleted-and-recreated tag; the event_name/ref gate above already rules out
-      # workflow_dispatch reruns.
+      # workflow_dispatch reruns. The lookup itself distinguishes "no release for
+      # this tag" (gh's own "release not found" message) from any other lookup
+      # failure (network, auth) -- treating every nonzero exit as "not found" would
+      # attempt a duplicate create against a release that actually exists but was
+      # merely unreachable, and mask the real error.
       - name: Create GitHub release
         timeout-minutes: 5
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+          if lookup=$(gh release view "$GITHUB_REF_NAME" 2>&1); then
             echo "Release $GITHUB_REF_NAME already exists; nothing to do."
-          else
+          elif echo "$lookup" | grep -qi "release not found"; then
             gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          else
+            echo "::error::Could not determine whether a release exists for $GITHUB_REF_NAME: $lookup"
+            exit 1
           fi
