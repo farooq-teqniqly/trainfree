@@ -258,6 +258,14 @@ describe("GET /api/programs with multiple rows", () => {
         expect(programs.map((p) => p.name)).toEqual(["Workout A", "Workout B", "Workout C"]);
     });
 
+    // RED-phase note: `programs.id` is an AUTOINCREMENT rowid alias, so internal id
+    // order is always identical to insertion order -- a local SQLite/Miniflare rerun
+    // with the `programs.id ASC` tiebreak removed still passes this test, because the
+    // engine's scan-then-sort happens to preserve insertion order regardless. This was
+    // manually verified (see PR #72 review, issue #53): reverting the ORDER BY clause
+    // does not fail this test locally. The assertion still documents and pins the
+    // contractual behavior (SQL gives no ordering guarantee on ties without an
+    // explicit tiebreak column), it just can't be proven RED against this engine.
     it("breaks a created_at tie using insertion order", async () => {
         const tiedTimestamp = new Date().toISOString();
         await env.DB.prepare(
@@ -594,6 +602,8 @@ describe("GET /api/phases", () => {
         expect(phases.map((p) => p.name)).toEqual(["Warm Up", "Cool Down"]);
     });
 
+    // RED-phase note: see the identical caveat on the programs test above -- `phases.id`
+    // is also an AUTOINCREMENT rowid alias, so this can't be proven RED locally either.
     it("breaks a created_at tie using insertion order", async () => {
         const tiedTimestamp = new Date().toISOString();
         await env.DB.prepare(
