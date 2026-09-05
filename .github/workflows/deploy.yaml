@@ -131,23 +131,29 @@ jobs:
   create-release:
     needs: deploy
     runs-on: ubuntu-latest
-    # Runs only for an actual tag push (not the workflow_dispatch/main-branch path,
-    # which has no vX.Y.Z ref to release) and only once deploy confirms the ref is
-    # tag-shaped and the deploy it describes is confirmed live -- a Release should
-    # never claim a stamp that didn't ship. Note: the ref shape check also passes
-    # for a workflow_dispatch run manually pointed at an existing tag ref, which is
-    # why the release command below tolerates an already-existing release.
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Runs only for an actual tag push, not workflow_dispatch (even one manually
+    # pointed at a tag ref) or the main-branch path, and only once deploy confirms
+    # the deploy it describes is confirmed live -- a Release should never claim a
+    # stamp that didn't ship, and a manual redeploy should never mint a duplicate.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
         timeout-minutes: 5
 
+      # Checks for an existing release first rather than trying "create, fall back
+      # to edit on any failure" -- the latter would mask a genuine create failure
+      # (auth, API outage) as success. This only exists as a backstop for a
+      # deleted-and-recreated tag; the event_name/ref gate above already rules out
+      # workflow_dispatch reruns.
       - name: Create GitHub release
         timeout-minutes: 5
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes \
-            || gh release edit "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists; nothing to do."
+          else
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          fi
