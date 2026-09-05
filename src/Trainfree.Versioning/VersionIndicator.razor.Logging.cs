@@ -5,7 +5,7 @@ namespace Trainfree.Versioning;
 public sealed partial class VersionIndicator
 {
     [LoggerMessage(
-        EventId = 1,
+        EventId = 3,
         Level = LogLevel.Warning,
         Message = "Version check was in flight when the component was disposed; the request was canceled."
     )]
