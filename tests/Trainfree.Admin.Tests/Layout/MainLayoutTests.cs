@@ -1,4 +1,4 @@
-using Bunit;
+﻿using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -51,7 +51,7 @@ public sealed class MainLayoutTests : BunitContext
     {
         // Arrange
         _versionCheck
-            .CheckAsync(CancellationToken.None)
+            .CheckAsync(Arg.Any<CancellationToken>())
             .Returns<VersionCheckOutcome>(_ =>
                 throw new InvalidTimeZoneException("arbitrary check failure")
             );
@@ -69,7 +69,7 @@ public sealed class MainLayoutTests : BunitContext
     public void Render_PageThrows_ShowsThePageErrorAndKeepsTheRestOfTheLayout()
     {
         // Arrange
-        _versionCheck.CheckAsync(CancellationToken.None).Returns(new VersionUnknown());
+        _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new VersionUnknown());
 
         // Act
         var cut = Render<MainLayout>(p => p.Add(x => x.Body, FailingPage));
@@ -84,7 +84,7 @@ public sealed class MainLayoutTests : BunitContext
     public void Render_PageWriteFails_ShowsThePageErrorInsteadOfBlankingTheApp()
     {
         // Arrange
-        _versionCheck.CheckAsync(CancellationToken.None).Returns(new VersionUnknown());
+        _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new VersionUnknown());
         _programs.GetProgramsAsync(CancellationToken.None).Returns([]);
         _programs
             .CreateProgramAsync("New Program", CancellationToken.None)
@@ -103,7 +103,7 @@ public sealed class MainLayoutTests : BunitContext
     public void Render_NavigatingAfterAPageFailure_ClearsThePageError()
     {
         // Arrange
-        _versionCheck.CheckAsync(CancellationToken.None).Returns(new VersionUnknown());
+        _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new VersionUnknown());
         var cut = Render<MainLayout>(p => p.Add(x => x.Body, FailingPage));
 
         // Act
@@ -119,7 +119,7 @@ public sealed class MainLayoutTests : BunitContext
     {
         // Arrange
         _versionCheck
-            .CheckAsync(CancellationToken.None)
+            .CheckAsync(Arg.Any<CancellationToken>())
             .Returns<VersionCheckOutcome>(
                 _ => throw new InvalidTimeZoneException("arbitrary check failure"),
                 _ => new RunningLatestVersion()
@@ -137,7 +137,7 @@ public sealed class MainLayoutTests : BunitContext
     public void Render_PageAndVersionCheckBothSucceed_ShowsNeitherErrorUi()
     {
         // Arrange
-        _versionCheck.CheckAsync(CancellationToken.None).Returns(new RunningLatestVersion());
+        _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new RunningLatestVersion());
 
         // Act
         var cut = Render<MainLayout>(p => p.Add(x => x.Body, WorkingPage));
@@ -152,7 +152,7 @@ public sealed class MainLayoutTests : BunitContext
     public void Render_Always_ShowsTheTrainfreeAdminBrand()
     {
         // Arrange
-        _versionCheck.CheckAsync(CancellationToken.None).Returns(new RunningLatestVersion());
+        _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new RunningLatestVersion());
 
         // Act
         var cut = Render<MainLayout>(p => p.Add(x => x.Body, WorkingPage));
@@ -167,7 +167,7 @@ public sealed class MainLayoutTests : BunitContext
     public void Render_HomePage_ShowsTheVersionIndicatorExactlyOnce()
     {
         // Arrange
-        _versionCheck.CheckAsync(CancellationToken.None).Returns(new RunningLatestVersion());
+        _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new RunningLatestVersion());
 
         // Act
         var cut = Render<MainLayout>(p => p.Add(x => x.Body, HomePage));
@@ -180,7 +180,7 @@ public sealed class MainLayoutTests : BunitContext
     public void Render_ClickingTheNavToggler_ExpandsTheCollapsedSidebar()
     {
         // Arrange
-        _versionCheck.CheckAsync(CancellationToken.None).Returns(new RunningLatestVersion());
+        _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new RunningLatestVersion());
         var cut = Render<MainLayout>(p => p.Add(x => x.Body, WorkingPage));
         Assert.Contains("collapse", cut.Find("nav.sidebar").ClassList);
         Assert.Equal("false", cut.Find(".navbar-toggler").GetAttribute("aria-expanded"));
