@@ -18,7 +18,7 @@ public sealed class VersionIndicatorTests : BunitContext
     public void OnInitialized_RunningLatestVersion_ShowsTheBuildStampWithoutAnUpdateBanner()
     {
         // Arrange
-        _versionCheck.CheckAsync(CancellationToken.None).Returns(new RunningLatestVersion());
+        _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new RunningLatestVersion());
 
         // Act
         var cut = Render<VersionIndicator>();
@@ -33,7 +33,7 @@ public sealed class VersionIndicatorTests : BunitContext
     {
         // Arrange
         _versionCheck
-            .CheckAsync(CancellationToken.None)
+            .CheckAsync(Arg.Any<CancellationToken>())
             .Returns(new RunningStaleVersion(new VersionStamp("v0.0.4", "1234abc")));
 
         // Act
@@ -49,7 +49,7 @@ public sealed class VersionIndicatorTests : BunitContext
     public void OnInitialized_VersionUnknown_ShowsTheBuildStampWithoutAnUpdateBanner()
     {
         // Arrange
-        _versionCheck.CheckAsync(CancellationToken.None).Returns(new VersionUnknown());
+        _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new VersionUnknown());
 
         // Act
         var cut = Render<VersionIndicator>();
@@ -57,5 +57,27 @@ public sealed class VersionIndicatorTests : BunitContext
         // Assert
         Assert.Contains("v0.0.3 (e4f5g6h)", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll(".version-update"));
+    }
+
+    [Fact]
+    public async Task Dispose_CheckStillInFlight_CancelsTheTokenPassedToCheckAsync()
+    {
+        // Arrange
+        var pendingCheck = new TaskCompletionSource<VersionCheckOutcome>();
+        var capturedToken = CancellationToken.None;
+        _versionCheck
+            .CheckAsync(Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                capturedToken = callInfo.Arg<CancellationToken>();
+                return pendingCheck.Task;
+            });
+        Render<VersionIndicator>();
+
+        // Act
+        await DisposeComponentsAsync();
+
+        // Assert
+        Assert.True(capturedToken.IsCancellationRequested);
     }
 }

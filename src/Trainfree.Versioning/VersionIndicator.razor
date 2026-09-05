@@ -1,4 +1,5 @@
 @namespace Trainfree.Versioning
+@implements IDisposable
 @inject IVersionCheck VersionCheck
 @inject VersionStamp Running
 @inject NavigationManager Navigation
@@ -14,17 +15,24 @@
 <span class="version-stamp">@Running.Display</span>
 
 @code {
+    private readonly CancellationTokenSource _cts = new();
     private RunningStaleVersion? _stale;
 
     protected override async Task OnInitializedAsync()
     {
         // VersionUnknown is deliberately indistinguishable from up-to-date in the UI:
         // being offline or having an expired Access session is not a staleness signal.
-        if (await VersionCheck.CheckAsync() is RunningStaleVersion stale)
+        if (await VersionCheck.CheckAsync(_cts.Token) is RunningStaleVersion stale)
         {
             _stale = stale;
         }
     }
 
     private void Reload() => Navigation.Refresh(forceReload: true);
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
 }
