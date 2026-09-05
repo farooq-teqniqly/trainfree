@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="TngTech.ArchUnitNET" />
+    <PackageReference Include="TngTech.ArchUnitNET.xUnitV3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Trainfree.Admin\Trainfree.Admin.csproj" />
+    <ProjectReference Include="..\..\src\Trainfree.ApiClients\Trainfree.ApiClients.csproj" />
+    <ProjectReference Include="..\..\src\Trainfree.Domain\Trainfree.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Trainfree.Versioning\Trainfree.Versioning.csproj" />
+  </ItemGroup>
+</Project>

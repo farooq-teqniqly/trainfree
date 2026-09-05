@@ -1,11 +1,14 @@
 <Solution>
     <Folder Name="/src/">
+        <Project Path="src/Trainfree.ApiClients/Trainfree.ApiClients.csproj" />
         <Project Path="src/Trainfree.Domain/Trainfree.Domain.csproj" />
         <Project Path="src/Trainfree.Versioning/Trainfree.Versioning.csproj" />
         <Project Path="src/Trainfree.Admin/Trainfree.Admin.csproj" />
     </Folder>
     <Folder Name="/tests/">
         <Project Path="tests/Trainfree.Admin.Tests/Trainfree.Admin.Tests.csproj" />
+        <Project Path="tests/Trainfree.ApiClients.Tests/Trainfree.ApiClients.Tests.csproj" />
+        <Project Path="tests/Trainfree.ArchitectureTests/Trainfree.ArchitectureTests.csproj" />
         <Project Path="tests/Trainfree.Domain.Tests/Trainfree.Domain.Tests.csproj" />
         <Project Path="tests/Trainfree.Versioning.Tests/Trainfree.Versioning.Tests.csproj" />
     </Folder>

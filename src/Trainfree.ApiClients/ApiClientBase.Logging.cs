@@ -1,6 +1,8 @@
-namespace Trainfree.Admin.Admin;
+using Microsoft.Extensions.Logging;
 
-internal sealed partial class SessionsApiClient
+namespace Trainfree.ApiClients;
+
+public abstract partial class ApiClientBase
 {
     [LoggerMessage(
         Level = LogLevel.Warning,
