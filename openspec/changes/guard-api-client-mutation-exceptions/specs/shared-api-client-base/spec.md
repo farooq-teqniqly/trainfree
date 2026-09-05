@@ -91,5 +91,5 @@ exceptions)
 | # | Anchor requirement | Covered by |
 |---|--------------------|-----------|
 | 1 | A thrown transport/parse exception from `CreateXAsync`/`RenameXAsync`/`DeleteXAsync` results in the existing `XFailed`-outcome UI path, not an unhandled exception | Req: Mutation methods surface transport/parse failures as outcomes |
-| 2 | Covers all three current clients (Programs, Sessions, Phases/Categories) and whatever future ones land | Req: Guard is implemented once, shared by every client |
+| 2 | Covers all three current clients (Programs, Sessions, Categories) and whatever future ones land | Req: Guard is implemented once, shared by every client -- "Categories" is `PhasesApiClient` today (`CategoriesApiClient` was renamed in #60, before this change), not a scope change made here |
 | 3 | A test exists per client proving a thrown exception from the underlying `HttpClient` call surfaces as a `Failed` outcome rather than propagating | Not covered in spec -- test-coverage obligation belongs in tasks.md, not a spec requirement |
