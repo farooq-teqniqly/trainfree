@@ -71,7 +71,9 @@ git config core.hooksPath .githooks
 ```
 
 `pre-commit` formats staged C# with CSharpier and lints staged workflow and shell files.
-`commit-msg` enforces Conventional Commits.
+`commit-msg` enforces Conventional Commits. `pre-push` runs the full solution test suite
+(`dotnet test Trainfree.slnx --configuration Release`) so a fix scoped to one project
+can't silently break a test elsewhere; bypass with `git push --no-verify` if it misbehaves.
 
 ## Local development
 
