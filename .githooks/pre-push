@@ -6,7 +6,67 @@
 # value that a signature change no longer satisfies); the failure then surfaces only
 # in CI, after a full review-loop round trip. See issue-linking rationale in
 # CLAUDE-baseline.md's "git hooks" bullet.
+#
+# Exception: when every commit being pushed touches only non-code files (docs,
+# OpenSpec artifacts, README, gitignored scratch files), the diff cannot break a test
+# -- skip the suite and say why instead of paying its full cost for zero safety gain.
 set -e
+
+zero_sha=0000000000000000000000000000000000000000
+# The canonical empty-tree object id -- diffing against it treats every commit on a
+# brand-new ref (remote_sha all zeros) as "changed", without needing a real merge-base.
+empty_tree=4b825dc642cb6eb9a060e54bf8d69288fbee4904
+
+# Anything outside this pattern is docs/non-code and cannot affect a test result.
+# global.json/nuget.config/.editorconfig are root-level, not under src/tests/, but they
+# drive SDK selection, package restore, and analyzer/warning-as-error severities for
+# `dotnet test` -- a change there can break the run in a way tests would catch, so
+# they're code for this check even though they're config.
+code_pattern='^(src/|tests/|\.githooks/)|\.(csproj|props|targets|sln|slnx)$|^(global\.json|nuget\.config|\.editorconfig)$'
+
+# Git passes the destination remote's name as $1 to pre-push -- use it rather than
+# hardcoding "origin", so a push to a differently-named or second remote resolves its
+# own default branch instead of silently reusing origin's.
+push_remote=${1:-origin}
+
+all_changed=""
+force_full_run=0
+# shellcheck disable=SC2034 # local_ref/remote_ref are part of the stdin record format but unused here
+while read -r local_ref local_sha remote_ref remote_sha; do
+	[ "$local_sha" = "$zero_sha" ] && continue
+	if [ "$remote_sha" = "$zero_sha" ]; then
+		# New ref: diffing against the empty tree makes an ordinary docs-only branch
+		# (based on existing history) look like it changed every tracked file. Prefer
+		# the merge-base with the pushed-to remote's default branch when we can resolve
+		# one, and only fall back to the empty tree when there's truly no shared history.
+		default_remote_ref=$(git symbolic-ref -q --short "refs/remotes/$push_remote/HEAD" 2>/dev/null) || true
+		base=""
+		if [ -n "$default_remote_ref" ] && git rev-parse -q --verify "$default_remote_ref" >/dev/null 2>&1; then
+			base=$(git merge-base "$default_remote_ref" "$local_sha" 2>/dev/null) || true
+		fi
+		[ -z "$base" ] && base=$empty_tree
+	elif git cat-file -e "$remote_sha" 2>/dev/null; then
+		base=$remote_sha
+	else
+		# remote_sha isn't an object we have locally (e.g. a shallow clone) -- we can't
+		# safely diff, so fail open and run the full suite rather than risk a false skip.
+		force_full_run=1
+		continue
+	fi
+	# --no-renames: a rename collapses to its destination path only, which would hide a
+	# source file moved out of src/ (e.g. into docs/) from the code_pattern check below.
+	changed=$(git diff --no-renames --name-only "$base" "$local_sha")
+	all_changed="$all_changed
+$changed"
+done
+
+touched_code=$(printf '%s\n' "$all_changed" | grep -E "$code_pattern") || true
+any_change=$(printf '%s\n' "$all_changed" | sed '/^$/d')
+
+if [ "$force_full_run" = "0" ] && [ -z "$touched_code" ] && [ -n "$any_change" ]; then
+	printf 'docs-only push, skipping tests\n'
+	exit 0
+fi
 
 command -v dotnet >/dev/null 2>&1 || {
 	printf 'dotnet SDK not found on PATH; cannot run the pre-push test suite.\n' >&2

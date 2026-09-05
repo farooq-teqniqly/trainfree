@@ -57,6 +57,14 @@ double-braced PROJECT_NAME token when the baseline copy is synced.
   project's tests -- a fix scoped to one project can silently break a test elsewhere
   (e.g. a mocked call keyed to an exact argument value that a change elsewhere no
   longer supplies), otherwise caught only by CI after a full review-loop round trip.
+  Exception: a push whose commits touch nothing under `src/`, `tests/`, `.githooks/`,
+  a `.csproj`/`.props`/`.targets`/`.sln`/`.slnx` file, or the root `global.json`/
+  `nuget.config`/`.editorconfig` (docs, OpenSpec artifacts, README, etc.) skips the test
+  run and prints why instead of paying the full suite's cost for a diff that cannot
+  break a test -- `global.json`/`nuget.config`/`.editorconfig` are treated as code for
+  this check since they drive SDK selection, package restore, and (with this repo's
+  `TreatWarningsAsErrors=true`) analyzer severities for `dotnet test`, not because they
+  live under `src/`.
 - `nuget.config`: single source (`nuget.org`) with package source mapping -- do not add a
   second feed without a matching `packageSourceMapping` entry.
 - **Never build or restore with `-p:NuGetAudit=false`** to get past an `NU1902`/`NU1903`
