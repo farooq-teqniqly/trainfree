@@ -1,6 +1,7 @@
 # Qodo Merge / PR-Agent repository configuration.
 # Repository-level custom instructions for the reviewer. See
 # https://qodo-merge-docs.qodo.ai for the full option set.
+# Mirrors .github/copilot-instructions.md -- keep the two in sync.
 #
 # The block below covers baseline conventions that bot reviewers reliably
 # misread as defects. Add project-specific exemptions underneath it, each with
@@ -54,6 +55,7 @@ Respect these deliberate baseline conventions and do not flag them as defects:
   repeating it; a conflict only arises between contradictory modifiers (e.g.
   `sealed` vs `abstract`). Verified against a passing `dotnet build
   --no-incremental` and this repo's own green CI `build` job (PR #73, Qodo
-  thread `PRRT_kwDOTsuKxs6fgNip`, raised and disputed twice). Do not flag a
-  `sealed partial class` code-behind file as a build-breaking conflict.
+  thread `PRRT_kwDOTsuKxs6fgNip`, raised twice, disputed once). Do not flag a
+  `sealed partial class` code-behind file as a conflict on that basis alone --
+  a conflict between genuinely contradictory modifiers is still worth flagging.
 """
