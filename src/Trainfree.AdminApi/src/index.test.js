@@ -1,5 +1,5 @@
 import { env, SELF } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 async function createProgram(name) {
     return SELF.fetch("http://worker/api/programs", {
@@ -283,6 +283,30 @@ describe("GET /api/programs with multiple rows", () => {
         const programs = await response.json();
 
         expect(programs.map((p) => p.name)).toEqual(["Inserted First", "Inserted Second"]);
+    });
+});
+
+describe("listPrograms SQL", () => {
+    it("qualifies the id tiebreaker to the programs table", async () => {
+        const { listPrograms } = await import("./programs.js");
+        const prepareSpy = vi.spyOn(env.DB, "prepare");
+
+        await listPrograms(env.DB);
+
+        expect(prepareSpy.mock.calls[0][0]).toMatch(/order by created_at asc, programs\.id asc/i);
+        prepareSpy.mockRestore();
+    });
+});
+
+describe("listPhases SQL", () => {
+    it("qualifies the id tiebreaker to the phases table", async () => {
+        const { listPhases } = await import("./phases.js");
+        const prepareSpy = vi.spyOn(env.DB, "prepare");
+
+        await listPhases(env.DB);
+
+        expect(prepareSpy.mock.calls[0][0]).toMatch(/order by created_at asc, phases\.id asc/i);
+        prepareSpy.mockRestore();
     });
 });
 
