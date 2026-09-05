@@ -56,3 +56,11 @@ Respect these deliberate baseline conventions and do not flag them as defects:
   thread `PRRT_kwDOTsuKxs6fgNip`, raised twice, disputed once). Do not flag a
   `sealed partial class` code-behind file as a conflict on that basis alone --
   a conflict between genuinely contradictory modifiers is still worth flagging.
+
+Additionally, actively check for this on every PR (no repo tooling enforces it):
+
+- A new `[LoggerMessage]` declaration's `EventId` must not collide with any
+  existing `EventId` in the same assembly. Grep the assembly's `*.Logging.cs`
+  files for `EventId = ` and confirm the new value is unused before approving.
+  A collision makes log filtering by EventId ambiguous (issue #76, caught late
+  in PR #73 pass 6 after costing an extra fix-and-push cycle).
