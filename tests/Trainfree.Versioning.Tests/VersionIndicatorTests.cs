@@ -107,6 +107,21 @@ public sealed class VersionIndicatorTests : BunitContext
         Assert.Contains(LogLevel.Warning, _logger.LoggedLevels);
     }
 
+    [Fact]
+    public void Dispose_CalledTwice_DoesNotThrow()
+    {
+        // Arrange
+        _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new RunningLatestVersion());
+        var cut = Render<VersionIndicator>();
+
+        // Act
+        cut.Instance.Dispose();
+        var exception = Record.Exception(cut.Instance.Dispose);
+
+        // Assert
+        Assert.Null(exception);
+    }
+
     private sealed class RecordingLogger<T> : ILogger<T>
     {
         public List<LogLevel> LoggedLevels { get; } = [];
