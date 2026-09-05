@@ -13,4 +13,4 @@ command -v dotnet >/dev/null 2>&1 || {
 	exit 1
 }
 
-dotnet test Trainfree.slnx
+dotnet test Trainfree.slnx --configuration Release
