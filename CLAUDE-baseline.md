@@ -21,6 +21,11 @@ double-braced PROJECT_NAME token when the baseline copy is synced.
 - Never use em dashes or smart quotes inside PowerShell 5.1 string literals -- 5.1 reads
   UTF-8-without-BOM as Windows-1252, so they corrupt and break parsing. This is a hard
   rule, not a style preference.
+- Never write a file with PowerShell 5.1's `-Encoding utf8` (`Set-Content`/`Out-File`) if
+  the .NET toolchain (csharpier, Roslyn) reads that file -- 5.1's `utf8` encoding always
+  emits a byte-order mark, which the toolchain then has to tolerate and a reviewer (bot or
+  human) will flag. Use `-Encoding utf8NoBOM` instead for source files, config, and any
+  other file the toolchain reads.
 - In any parameterized PowerShell script, `param()` must be the **very first statement** --
   a comment-based help block may precede it, but no executable statement may.
 
