@@ -291,10 +291,15 @@ describe("listPrograms SQL", () => {
         const { listPrograms } = await import("./programs.js");
         const prepareSpy = vi.spyOn(env.DB, "prepare");
 
-        await listPrograms(env.DB);
+        try {
+            await listPrograms(env.DB);
 
-        expect(prepareSpy.mock.calls[0][0]).toMatch(/order by created_at asc, programs\.id asc/i);
-        prepareSpy.mockRestore();
+            expect(prepareSpy.mock.calls[0][0]).toMatch(
+                /order by created_at asc, programs\.id asc/i,
+            );
+        } finally {
+            prepareSpy.mockRestore();
+        }
     });
 });
 
@@ -303,10 +308,15 @@ describe("listPhases SQL", () => {
         const { listPhases } = await import("./phases.js");
         const prepareSpy = vi.spyOn(env.DB, "prepare");
 
-        await listPhases(env.DB);
+        try {
+            await listPhases(env.DB);
 
-        expect(prepareSpy.mock.calls[0][0]).toMatch(/order by created_at asc, phases\.id asc/i);
-        prepareSpy.mockRestore();
+            expect(prepareSpy.mock.calls[0][0]).toMatch(
+                /order by created_at asc, phases\.id asc/i,
+            );
+        } finally {
+            prepareSpy.mockRestore();
+        }
     });
 });
 
