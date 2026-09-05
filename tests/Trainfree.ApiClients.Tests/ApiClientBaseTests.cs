@@ -99,9 +99,9 @@ public sealed class ApiClientBaseTests : IDisposable
     }
 
     [Theory]
-    [MemberData(nameof(GuardedExceptions))]
+    [MemberData(nameof(GuardedExceptionKeys))]
     public async Task ExecuteAsync_OperationThrowsGuardedException_ReturnsOnFailureOutcome(
-        Exception exception
+        string exceptionKey
     )
     {
         // Arrange
@@ -109,7 +109,7 @@ public sealed class ApiClientBaseTests : IDisposable
 
         // Act
         var outcome = await TestApiClient.ExecuteAsync<string>(
-            () => throw exception,
+            () => throw CreateGuardedException(exceptionKey),
             error => $"failed:{error}",
             "Could not save changes. Try again.",
             logger
@@ -239,14 +239,25 @@ public sealed class ApiClientBaseTests : IDisposable
         );
     }
 
-    public static TheoryData<Exception> GuardedExceptions() =>
+    public static TheoryData<string> GuardedExceptionKeys() =>
         new()
         {
-            new HttpRequestException("transport failure"),
-            new JsonException("malformed body"),
-            new InvalidOperationException("stream already consumed"),
-            new NotSupportedException("unsupported content"),
-            new OperationCanceledException("canceled"),
+            "HttpRequestException",
+            "JsonException",
+            "InvalidOperationException",
+            "NotSupportedException",
+            "OperationCanceledException",
+        };
+
+    private static Exception CreateGuardedException(string key) =>
+        key switch
+        {
+            "HttpRequestException" => new HttpRequestException("transport failure"),
+            "JsonException" => new JsonException("malformed body"),
+            "InvalidOperationException" => new InvalidOperationException("stream already consumed"),
+            "NotSupportedException" => new NotSupportedException("unsupported content"),
+            "OperationCanceledException" => new OperationCanceledException("canceled"),
+            _ => throw new ArgumentOutOfRangeException(nameof(key)),
         };
 
     private static HttpResponseMessage CreateUnreadableResponse(string scenario) =>
