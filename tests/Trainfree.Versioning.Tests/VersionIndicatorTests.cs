@@ -1,5 +1,6 @@
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace Trainfree.Versioning.Tests;
@@ -7,11 +8,13 @@ namespace Trainfree.Versioning.Tests;
 public sealed class VersionIndicatorTests : BunitContext
 {
     private readonly IVersionCheck _versionCheck = Substitute.For<IVersionCheck>();
+    private readonly RecordingLogger<VersionIndicator> _logger = new();
 
     public VersionIndicatorTests()
     {
         Services.AddSingleton(_versionCheck);
         Services.AddSingleton(new VersionStamp("v0.0.3", "e4f5g6h"));
+        Services.AddSingleton<ILogger<VersionIndicator>>(_logger);
     }
 
     [Fact]
@@ -79,5 +82,46 @@ public sealed class VersionIndicatorTests : BunitContext
 
         // Assert
         Assert.True(capturedToken.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task Dispose_CheckThrowsOperationCanceledAfterDisposal_LogsAtWarningInsteadOfThrowing()
+    {
+        // Arrange
+        var pendingCheck = new TaskCompletionSource<VersionCheckOutcome>();
+        _versionCheck
+            .CheckAsync(Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                var token = callInfo.Arg<CancellationToken>();
+                token.Register(() => pendingCheck.TrySetCanceled(token));
+                return pendingCheck.Task;
+            });
+        Render<VersionIndicator>();
+
+        // Act
+        var exception = await Record.ExceptionAsync(DisposeComponentsAsync);
+
+        // Assert
+        Assert.Null(exception);
+        Assert.Contains(LogLevel.Warning, _logger.LoggedLevels);
+    }
+
+    private sealed class RecordingLogger<T> : ILogger<T>
+    {
+        public List<LogLevel> LoggedLevels { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter
+        ) => LoggedLevels.Add(logLevel);
     }
 }

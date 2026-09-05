@@ -3,6 +3,7 @@
 @inject IVersionCheck VersionCheck
 @inject VersionStamp Running
 @inject NavigationManager Navigation
+@inject ILogger<VersionIndicator> Logger
 
 @if (_stale is not null)
 {
@@ -20,11 +21,22 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // VersionUnknown is deliberately indistinguishable from up-to-date in the UI:
-        // being offline or having an expired Access session is not a staleness signal.
-        if (await VersionCheck.CheckAsync(_cts.Token) is RunningStaleVersion stale)
+        try
         {
-            _stale = stale;
+            // VersionUnknown is deliberately indistinguishable from up-to-date in the UI:
+            // being offline or having an expired Access session is not a staleness signal.
+            if (await VersionCheck.CheckAsync(_cts.Token) is RunningStaleVersion stale)
+            {
+                _stale = stale;
+            }
+        }
+        // Disposal cancels _cts while the check is in flight, so CheckAsync's own
+        // filter lets this propagate instead of degrading to VersionUnknown. Swallow it
+        // here rather than letting the component's lifecycle task end Faulted for a
+        // teardown that already happened.
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+            LogDisposedWhileCheckInFlight(Logger);
         }
     }
 
