@@ -6,7 +6,7 @@ using Trainfree.Domain.Ids;
 namespace Trainfree.Admin.Admin;
 
 /// <inheritdoc cref="ISessionsApiClient"/>
-internal sealed partial class SessionsApiClient : ApiClientBase, ISessionsApiClient
+internal sealed class SessionsApiClient : ApiClientBase, ISessionsApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<SessionsApiClient> _logger;
