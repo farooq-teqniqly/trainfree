@@ -105,6 +105,7 @@ public sealed class ApiClientBaseTests : IDisposable
     )
     {
         // Arrange
+        ArgumentException.ThrowIfNullOrWhiteSpace(exceptionKey);
         var logger = _loggerFactory.CreateLogger<ApiClientBaseTests>();
 
         // Act
