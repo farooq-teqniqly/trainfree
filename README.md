@@ -167,10 +167,11 @@ npm run db:migrate:local
 
 ## OpenSpec changes
 
-Spec-driven changes live under `openspec/`. Most changes use the stock `spec-driven`
-schema (`openspec new change <name>`), but this repo also has a project-local
-`trainfree-lean` schema (issue #68) that drops `proposal.md`/`design.md` in favor of a
-leaner `specs/` + `tasks.md` pair -- see `openspec/schemas/trainfree-lean/schema.yaml`.
+Spec-driven changes live under `openspec/`. `openspec/config.yaml`'s default schema is
+the project-local `trainfree-lean` schema (issue #68), which drops `proposal.md`/
+`design.md` in favor of a leaner `specs/` + `tasks.md` pair -- see
+`openspec/schemas/trainfree-lean/schema.yaml`. `openspec new change <name>` uses this
+default; pass `--schema spec-driven` for the stock schema instead.
 
 ### Create a new change on `trainfree-lean`
 
