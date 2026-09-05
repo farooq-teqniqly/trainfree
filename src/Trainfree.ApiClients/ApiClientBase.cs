@@ -31,12 +31,19 @@ public abstract partial class ApiClientBase
     /// The parsed error message, or a generic <c>"Request failed with status {code}."</c>
     /// fallback when the body is not JSON or cannot be parsed.
     /// </returns>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="response"/> or <paramref name="logger"/> is
+    /// <see langword="null"/>.
+    /// </exception>
     protected static async Task<string> ReadErrorAsync(
         HttpResponseMessage response,
         ILogger logger,
         CancellationToken cancellationToken
     )
     {
+        ArgumentNullException.ThrowIfNull(response);
+        ArgumentNullException.ThrowIfNull(logger);
+
         var fallback = $"Request failed with status {(int)response.StatusCode}.";
 
         // Only the Worker's own errors are JSON. A failure that never reached it -- most

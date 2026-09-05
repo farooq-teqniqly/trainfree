@@ -19,6 +19,30 @@ public sealed class ApiClientBaseTests : IDisposable
     }
 
     [Fact]
+    public async Task ReadErrorAsync_ResponseIsNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var logger = _loggerFactory.CreateLogger<ApiClientBaseTests>();
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            TestApiClient.ReadErrorAsync(null!, logger, CancellationToken.None)
+        );
+    }
+
+    [Fact]
+    public async Task ReadErrorAsync_LoggerIsNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var response = new HttpResponseMessage(HttpStatusCode.BadRequest);
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            TestApiClient.ReadErrorAsync(response, null!, CancellationToken.None)
+        );
+    }
+
+    [Fact]
     public async Task ReadErrorAsync_JsonErrorBody_ReturnsMessage()
     {
         // Arrange
