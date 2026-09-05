@@ -24,6 +24,7 @@ public sealed class ArchitectureBoundariesTests
     public void SharedLibraryProject_HasNoProjectReferenceToAdmin(string projectName)
     {
         // Arrange
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectName);
         var csprojPath = Path.Combine(FindRepoRoot(), "src", projectName, $"{projectName}.csproj");
         var content = File.ReadAllText(csprojPath);
 
