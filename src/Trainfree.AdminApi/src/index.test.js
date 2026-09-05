@@ -257,6 +257,49 @@ describe("GET /api/programs with multiple rows", () => {
 
         expect(programs.map((p) => p.name)).toEqual(["Workout A", "Workout B", "Workout C"]);
     });
+
+    // RED-phase note: `programs.id` is an AUTOINCREMENT rowid alias, so internal id
+    // order is always identical to insertion order -- a local SQLite/Miniflare rerun
+    // with the `programs.id ASC` tiebreak removed still passes this test, because the
+    // engine's scan-then-sort happens to preserve insertion order regardless. This was
+    // manually verified (see PR #72 review, issue #53): reverting the ORDER BY clause
+    // does not fail this test locally. The assertion still documents and pins the
+    // contractual behavior (SQL gives no ordering guarantee on ties without an
+    // explicit tiebreak column), it just can't be proven RED against this engine.
+    it("breaks a created_at tie using insertion order", async () => {
+        const tiedTimestamp = new Date().toISOString();
+        await env.DB.prepare(
+            "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+            .bind("PRG-ZZZZZZ", "Inserted First", tiedTimestamp, tiedTimestamp)
+            .run();
+        await env.DB.prepare(
+            "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+            .bind("PRG-AAAAAA", "Inserted Second", tiedTimestamp, tiedTimestamp)
+            .run();
+
+        const response = await SELF.fetch("http://worker/api/programs");
+        const programs = await response.json();
+
+        expect(programs.map((p) => p.name)).toEqual(["Inserted First", "Inserted Second"]);
+    });
+});
+
+describe("listPrograms SQL", () => {
+    it("qualifies the id tiebreaker to the programs table", async () => {
+        const { LIST_PROGRAMS_QUERY } = await import("./programs.js");
+
+        expect(LIST_PROGRAMS_QUERY).toMatch(/order by created_at asc, programs\.id asc/i);
+    });
+});
+
+describe("listPhases SQL", () => {
+    it("qualifies the id tiebreaker to the phases table", async () => {
+        const { LIST_PHASES_QUERY } = await import("./phases.js");
+
+        expect(LIST_PHASES_QUERY).toMatch(/order by created_at asc, phases\.id asc/i);
+    });
 });
 
 describe("GET /api/programs/:programId/sessions", () => {
@@ -287,6 +330,10 @@ describe("GET /api/programs/:programId/sessions", () => {
         ]);
     });
 
+    // RED-phase note: see the identical caveat on the programs/phases tiebreak tests
+    // in this file -- sessions.id is also an AUTOINCREMENT rowid alias, so this can't
+    // be proven RED locally either. This test predates PR #72 (#43); the caveat
+    // applies unchanged.
     it("breaks a created_at tie using insertion order", async () => {
         const program = await (await createProgram("Workout A")).json();
         const tiedTimestamp = new Date().toISOString();
@@ -573,6 +620,27 @@ describe("GET /api/phases", () => {
         const phases = await response.json();
 
         expect(phases.map((p) => p.name)).toEqual(["Warm Up", "Cool Down"]);
+    });
+
+    // RED-phase note: see the identical caveat on the programs test above -- `phases.id`
+    // is also an AUTOINCREMENT rowid alias, so this can't be proven RED locally either.
+    it("breaks a created_at tie using insertion order", async () => {
+        const tiedTimestamp = new Date().toISOString();
+        await env.DB.prepare(
+            "INSERT INTO phases (phase_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+            .bind("PHS-ZZZZZZ", "Inserted First", tiedTimestamp, tiedTimestamp)
+            .run();
+        await env.DB.prepare(
+            "INSERT INTO phases (phase_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+            .bind("PHS-AAAAAA", "Inserted Second", tiedTimestamp, tiedTimestamp)
+            .run();
+
+        const response = await SELF.fetch("http://worker/api/phases");
+        const phases = await response.json();
+
+        expect(phases.map((p) => p.name)).toEqual(["Inserted First", "Inserted Second"]);
     });
 });
 

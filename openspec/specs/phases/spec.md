@@ -23,6 +23,10 @@ surrogate key as `id`.
 ### Requirement: List phases
 
 The system SHALL provide `GET /api/phases`, returning all phases in creation order.
+When two or more phases share the same `created_at` timestamp, the system SHALL break
+the tie by the `phases` table's internal auto-incrementing row key (not the external
+`id` surrogate returned in API responses) ascending, so the order is deterministic
+across repeated calls and matches insertion order.
 
 #### Scenario: No phases exist
 
@@ -34,6 +38,14 @@ The system SHALL provide `GET /api/phases`, returning all phases in creation ord
 - **WHEN** a client calls `GET /api/phases` and phases exist
 - **THEN** the Worker responds `200` with a JSON array of phases ordered by `created_at`
   ascending
+
+#### Scenario: Two phases share the same created_at
+
+- **WHEN** a client calls `GET /api/phases` and two phases have an identical
+  `created_at` value
+- **THEN** the Worker responds `200` with those two phases ordered by the `phases`
+  table's internal row key (not the external `id` surrogate) ascending relative to
+  each other, and this order is the same on every call
 
 ### Requirement: Phase name length
 

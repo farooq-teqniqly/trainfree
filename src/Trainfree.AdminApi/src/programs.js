@@ -8,10 +8,12 @@ const SELECT_COLUMNS =
 // unlikely; this bound only guards against pathological bad luck, not a real retry loop.
 const MAX_ID_GENERATION_ATTEMPTS = 5;
 
+// Exported so tests can assert on the literal tiebreak clause without mocking the D1
+// binding (CLAUDE-baseline.md forbids mocking Worker/D1 test dependencies).
+export const LIST_PROGRAMS_QUERY = `SELECT ${SELECT_COLUMNS} FROM programs ORDER BY created_at ASC, programs.id ASC`;
+
 export async function listPrograms(db) {
-    const { results } = await db
-        .prepare(`SELECT ${SELECT_COLUMNS} FROM programs ORDER BY created_at ASC`)
-        .all();
+    const { results } = await db.prepare(LIST_PROGRAMS_QUERY).all();
     return results;
 }
 
