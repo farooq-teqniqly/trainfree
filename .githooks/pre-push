@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# Pre-push hook: run the full solution test suite before every push, not just the
+# tests for the project touched by the local change. A fix scoped to one project can
+# silently break a test elsewhere (e.g. an NSubstitute stub keyed to an exact argument
+# value that a signature change no longer satisfies); the failure then surfaces only
+# in CI, after a full review-loop round trip. See issue-linking rationale in
+# CLAUDE-baseline.md's "git hooks" bullet.
+set -e
+
+command -v dotnet >/dev/null 2>&1 || {
+	printf 'dotnet SDK not found on PATH; cannot run the pre-push test suite.\n' >&2
+	exit 1
+}
+
+dotnet test Trainfree.slnx --configuration Release
