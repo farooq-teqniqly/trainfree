@@ -120,7 +120,8 @@ public abstract partial class ApiClientBase
         // Mirrors the exception set OnInitializedAsync already catches around the initial
         // load: a transport failure, a redirected Cloudflare Access login page arriving as
         // malformed JSON, or a canceled request must degrade to the Failed outcome instead
-        // of propagating out of the calling event handler.
+        // of propagating out of the calling event handler. FormatException covers a
+        // successful response whose id doesn't match its domain type's expected shape.
         catch (Exception ex)
             when (ex
                     is HttpRequestException
@@ -128,6 +129,7 @@ public abstract partial class ApiClientBase
                         or InvalidOperationException
                         or NotSupportedException
                         or OperationCanceledException
+                        or FormatException
             )
         {
             LogMutationExceptionCaught(logger, ex);

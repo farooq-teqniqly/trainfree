@@ -137,6 +137,27 @@ public sealed class ExercisesApiClientTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateExerciseAsync_ServerReturnsMalformedId_ReturnsCreateExerciseFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.Created)
+        {
+            Content = new StringContent(
+                """{"id":"not-a-valid-id","name":"New Exercise","createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"}""",
+                Encoding.UTF8,
+                "application/json"
+            ),
+        };
+        var client = new ExercisesApiClient(_httpClient, NullLogger<ExercisesApiClient>.Instance);
+
+        // Act
+        var outcome = await client.CreateExerciseAsync("New Exercise", CancellationToken.None);
+
+        // Assert
+        Assert.IsType<CreateExerciseFailed>(outcome);
+    }
+
+    [Fact]
     public async Task RenameExerciseAsync_ServerReturns200_ReturnsRenameExerciseSucceeded()
     {
         // Arrange
@@ -220,6 +241,31 @@ public sealed class ExercisesApiClientTests : IDisposable
         _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent("null", Encoding.UTF8, "application/json"),
+        };
+        var client = new ExercisesApiClient(_httpClient, NullLogger<ExercisesApiClient>.Instance);
+
+        // Act
+        var outcome = await client.RenameExerciseAsync(
+            ExerciseId.Parse("EXR-AAAAAA"),
+            "Renamed",
+            CancellationToken.None
+        );
+
+        // Assert
+        Assert.IsType<RenameExerciseFailed>(outcome);
+    }
+
+    [Fact]
+    public async Task RenameExerciseAsync_ServerReturnsMalformedId_ReturnsRenameExerciseFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """{"id":"not-a-valid-id","name":"Renamed","createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"}""",
+                Encoding.UTF8,
+                "application/json"
+            ),
         };
         var client = new ExercisesApiClient(_httpClient, NullLogger<ExercisesApiClient>.Instance);
 
