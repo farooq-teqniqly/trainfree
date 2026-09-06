@@ -198,7 +198,7 @@ async function handleExercisesCollection(request, db) {
     }
 
     if (request.method === "POST") {
-        const body = await request.json().catch(() => ({}));
+        const body = (await request.json().catch(() => null)) ?? {};
         const validation = validateExerciseName(body.name);
         if (!validation.valid) {
             return jsonResponse({ error: validation.error }, 400);
@@ -218,7 +218,7 @@ async function handleExercisesCollection(request, db) {
 
 async function handleExerciseResource(request, db, id) {
     if (request.method === "PATCH") {
-        const body = await request.json().catch(() => ({}));
+        const body = (await request.json().catch(() => null)) ?? {};
         const validation = validateExerciseName(body.name);
         if (!validation.valid) {
             return jsonResponse({ error: validation.error }, 400);

@@ -872,6 +872,16 @@ describe("POST /api/exercises", () => {
         expect(response.status).toBe(400);
     });
 
+    it("rejects a literal JSON null body instead of throwing", async () => {
+        const response = await SELF.fetch("http://worker/api/exercises", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: "null",
+        });
+
+        expect(response.status).toBe(400);
+    });
+
     it("rejects a name that already exists, case-insensitively, and creates no row", async () => {
         await createExercise("Bodyweight Squat");
 
@@ -924,6 +934,18 @@ describe("PATCH /api/exercises/:id", () => {
 
         const list = await (await SELF.fetch("http://worker/api/exercises")).json();
         expect(list[0].name).toBe("Bodyweight Squat");
+    });
+
+    it("rejects a literal JSON null body instead of throwing", async () => {
+        const created = await (await createExercise("Bodyweight Squat")).json();
+
+        const response = await SELF.fetch(`http://worker/api/exercises/${created.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: "null",
+        });
+
+        expect(response.status).toBe(400);
     });
 
     it("rejects renaming to another exercise's name, case-insensitively, and makes no change", async () => {
