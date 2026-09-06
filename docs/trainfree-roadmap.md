@@ -65,27 +65,41 @@ shipped and deployed together. TDD applies within each slice on both stacks.
    and a `Phases` tile added to the `Home` page. **Done**; renamed from `Category` to
    `Phase` by
    `rename-category-to-phase` before slice 7 introduced any references to it.
-6. **`add-exercise-library-crud`** -- Admin CRUD for a canonical `Exercise` entity (name,
-   type: Reps or Timed) per `docs/design/admin-mockups/Exercises.dc.html` and
-   `ExercisesEmpty.dc.html`. D1 migration: `exercises` table. Worker:
-   `GET/POST/PATCH/DELETE /api/exercises` (delete blocked while any program references the
-   exercise, per the design's disabled-delete state). Blazor: new `Exercises` page, landing
-   the sidebar nav in its final order (`Home` / `Phases` / `Exercises` / `Programs`) and
-   completing the `Home` page's three tiles. Image upload is deferred to slice 13; the page
-   shows the upload affordance but it's inert until then.
+6. **`add-exercise-library-crud`** -- Admin CRUD for a canonical `Exercise` entity (name
+   only) per `docs/design/admin-mockups/Exercises.dc.html` and `ExercisesEmpty.dc.html`.
+   No `type` (Reps/Timed) field here -- the same exercise can be prescribed either way
+   depending on the program (e.g. sit-ups as 3x12 in one program, max reps in 30 seconds
+   in another), so `type` is a fact about a program's use of an exercise, not about the
+   exercise itself; it lands on slice 7's `ProgramExercise` instead. D1 migration:
+   `exercises` table. Worker: `GET/POST/PATCH/DELETE /api/exercises`. Delete is
+   unconditional in this slice -- the `ProgramExercise` join that would make an exercise
+   "used" doesn't exist until slice 7, so the mockup's disabled-delete/"Used in" state
+   isn't real yet; slice 7 adds both the join and the guard together. Blazor: new
+   `Exercises` page, landing the sidebar nav in its final order (`Home` / `Phases` /
+   `Exercises` / `Programs`) and completing the `Home` page's three tiles. Image upload
+   is deferred to slice 13; this slice's page omits the upload affordance entirely rather
+   than showing an inert one (the mockup still shows it, matching slice 13's eventual
+   state).
 7. **`add-program-categories-exercises-crud`** -- Extends admin CRUD with a per-session
    `SessionPhase` join (referencing a `Phase` from slice 5's library) and a
-   per-program `ProgramExercise` join (reps, weight in lbs as a bare number, sets,
-   restSeconds, side, note) referencing an `Exercise` from slice 6's library, completing the
-   full spreadsheet per `docs/design/admin-mockups/Main.dc.html`. A phase or exercise
-   row's name is picked from its library via a searchable dropdown (each with a "New
-   phase..." / "New exercise..." shortcut into slices 5/6's create flow) instead of typed
-   as free text -- the per-row `Image` column from the original mockup 11 is gone, since the
-   image now lives once on the canonical `Exercise`. D1 migrations: `session_phases`,
-   `program_exercises` tables. Worker: nested routes. Blazor: full inline-editable
-   spreadsheet admin UI, collapsible rows, phase- and exercise-picker controls. This is
-   the last purely-admin slice -- `Trainfree.Admin` is feature-complete for v0.1 after this,
-   and slice 8 begins the workout app.
+   per-program `ProgramExercise` join referencing an `Exercise` from slice 6's library,
+   completing the full spreadsheet per `docs/design/admin-mockups/Main.dc.html`. This is
+   where `type` (Reps or Timed) actually lives, since it's a fact about how a program
+   prescribes an exercise, not about the exercise itself: a `RepsProgramExercise` (reps,
+   weight in lbs as a bare number, sets, restSeconds, side, note) and a
+   `TimedProgramExercise` (durationSeconds in place of reps, same remaining fields) are
+   distinct types per the DDD "no enum for state that carries different data" rule,
+   rather than one `ProgramExercise` with a `Type` enum and nullable reps/duration
+   columns side by side. This slice also adds the `Exercise` delete guard deferred from
+   slice 6, now that `ProgramExercise` gives "used by a program" a real meaning. A phase
+   or exercise row's name is picked from its library via a searchable dropdown (each with
+   a "New phase..." / "New exercise..." shortcut into slices 5/6's create flow) instead of
+   typed as free text -- the per-row `Image` column from the original mockup 11 is gone,
+   since the image now lives once on the canonical `Exercise`. D1 migrations:
+   `session_phases`, `program_exercises` tables. Worker: nested routes. Blazor: full
+   inline-editable spreadsheet admin UI, collapsible rows, phase- and exercise-picker
+   controls. This is the last purely-admin slice -- `Trainfree.Admin` is feature-complete
+   for v0.1 after this, and slice 8 begins the workout app.
 8. **`add-program-session-select`** -- Client-facing screens 1-2 (Program Select, Session
    Select), built in `Trainfree.Workout`. Read-only against the real API built in slices
    1, 3, 5, 6, 7. No workout execution yet.
