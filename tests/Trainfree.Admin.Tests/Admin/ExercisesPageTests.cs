@@ -33,6 +33,24 @@ public sealed class ExercisesPageTests : BunitContext
     }
 
     [Fact]
+    public void OnInitialized_ServerReturnsMalformedExerciseId_ShowsTheLoadErrorInsteadOfFailing()
+    {
+        // Arrange
+        _apiClient
+            .GetExercisesAsync(CancellationToken.None)
+            .Returns<IReadOnlyList<ExerciseSummary>>(_ =>
+                throw new FormatException("Exercise id 'bad-id' is not in the expected format.")
+            );
+
+        // Act
+        var cut = Render<Exercises>();
+
+        // Assert
+        Assert.NotNull(cut.Find("[data-testid=load-exercises-error]"));
+        Assert.Empty(cut.FindAll("tbody tr"));
+    }
+
+    [Fact]
     public void OnInitialized_NoExercises_ShowsEmptyState()
     {
         // Arrange

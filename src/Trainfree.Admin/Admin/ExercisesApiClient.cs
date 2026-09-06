@@ -61,7 +61,10 @@ internal sealed class ExercisesApiClient : ApiClientBase, IExercisesApiClient
                     JsonOptions,
                     cancellationToken
                 );
-                return new CreateExerciseSucceeded(ToSummary(dto!));
+
+                return dto is null
+                    ? new CreateExerciseFailed("Server returned an empty response.")
+                    : new CreateExerciseSucceeded(ToSummary(dto));
             },
             error => new CreateExerciseFailed(error),
             "Could not create exercise. Try again.",
@@ -100,7 +103,10 @@ internal sealed class ExercisesApiClient : ApiClientBase, IExercisesApiClient
                     JsonOptions,
                     cancellationToken
                 );
-                return new RenameExerciseSucceeded(ToSummary(dto!));
+
+                return dto is null
+                    ? new RenameExerciseFailed("Server returned an empty response.")
+                    : new RenameExerciseSucceeded(ToSummary(dto));
             },
             error => new RenameExerciseFailed(error),
             "Could not rename exercise. Try again.",

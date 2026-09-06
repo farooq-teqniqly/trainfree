@@ -53,7 +53,7 @@
         </div>
         <h2 class="h5">No exercises yet</h2>
         <p class="page-sub mx-auto">
-            Your exercise library holds the canonical name and image for every move --
+            Your exercise library holds the canonical name for every move --
             things like "Bodyweight Squat" or "Skater Jump". Add your first one, then
             pick it from any program instead of typing it out.
         </p>
@@ -152,6 +152,8 @@ else
         // before the session is established with its own HTML login page, which arrives as a
         // JsonException and escaped, blanking the page instead of showing the load error.
         // The charset and content-type cases come with it; a timeout arrives as a cancellation.
+        // FormatException covers a successful response whose exercise id doesn't match the
+        // generator's shape (a hand-edited row, a future migration bug).
         catch (Exception ex)
             when (ex
                     is HttpRequestException
@@ -159,6 +161,7 @@ else
                         or InvalidOperationException
                         or NotSupportedException
                         or OperationCanceledException
+                        or FormatException
             )
         {
             _loadError = "Could not load exercises. Try refreshing the page.";

@@ -120,6 +120,23 @@ public sealed class ExercisesApiClientTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateExerciseAsync_ServerReturnsNullBody_ReturnsCreateExerciseFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.Created)
+        {
+            Content = new StringContent("null", Encoding.UTF8, "application/json"),
+        };
+        var client = new ExercisesApiClient(_httpClient, NullLogger<ExercisesApiClient>.Instance);
+
+        // Act
+        var outcome = await client.CreateExerciseAsync("New Exercise", CancellationToken.None);
+
+        // Assert
+        Assert.IsType<CreateExerciseFailed>(outcome);
+    }
+
+    [Fact]
     public async Task RenameExerciseAsync_ServerReturns200_ReturnsRenameExerciseSucceeded()
     {
         // Arrange
@@ -182,6 +199,27 @@ public sealed class ExercisesApiClientTests : IDisposable
                 Encoding.UTF8,
                 "application/json"
             ),
+        };
+        var client = new ExercisesApiClient(_httpClient, NullLogger<ExercisesApiClient>.Instance);
+
+        // Act
+        var outcome = await client.RenameExerciseAsync(
+            ExerciseId.Parse("EXR-AAAAAA"),
+            "Renamed",
+            CancellationToken.None
+        );
+
+        // Assert
+        Assert.IsType<RenameExerciseFailed>(outcome);
+    }
+
+    [Fact]
+    public async Task RenameExerciseAsync_ServerReturnsNullBody_ReturnsRenameExerciseFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("null", Encoding.UTF8, "application/json"),
         };
         var client = new ExercisesApiClient(_httpClient, NullLogger<ExercisesApiClient>.Instance);
 
