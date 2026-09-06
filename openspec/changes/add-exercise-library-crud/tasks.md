@@ -112,7 +112,7 @@
       -- all green.
 - [x] 9.2 Run `dotnet build` for the solution -- clean, no new warnings; run
       `dotnet test Trainfree.slnx --configuration Release` -- all green.
-- [ ] 9.3 Manually run the app locally (`wrangler dev` on 9999 + Blazor dev
+- [x] 9.3 Manually run the app locally (`wrangler dev` on 9999 + Blazor dev
       server, after applying the new migrations to the local D1 with
       `npm run db:migrate:local`) and exercise the Exercises page end to end:
       empty state renders with the `Add Exercise` CTA; add creates and
