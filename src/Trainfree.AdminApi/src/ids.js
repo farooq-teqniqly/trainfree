@@ -3,6 +3,7 @@ const ALPHABET = "ABCDEFGHJKMNPQRSTVWXYZ23456789";
 const PROGRAM_PREFIX = "PRG-";
 const SESSION_PREFIX = "SNN-";
 const PHASE_PREFIX = "PHS-";
+const EXERCISE_PREFIX = "EXR-";
 
 export function generateId(prefix) {
     const randomBytes = new Uint8Array(BODY_LENGTH);
@@ -60,4 +61,12 @@ export function generatePhaseId() {
 
 export function isValidPhaseId(value) {
     return isValidId(value, PHASE_PREFIX);
+}
+
+export function generateExerciseId() {
+    return generateId(EXERCISE_PREFIX);
+}
+
+export function isValidExerciseId(value) {
+    return isValidId(value, EXERCISE_PREFIX);
 }

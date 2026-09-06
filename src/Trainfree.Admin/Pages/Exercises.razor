@@ -1,0 +1,244 @@
+@page "/exercises"
+@using System.Text.Json
+@using Microsoft.Extensions.Logging
+@using Trainfree.Admin.Admin
+@using Trainfree.Domain.Ids
+@inject IExercisesApiClient Api
+@inject ILogger<Exercises> Logger
+
+<PageTitle>Exercises - Trainfree Admin</PageTitle>
+
+<div class="page-header d-flex align-items-end justify-content-between flex-wrap gap-3">
+    <div>
+        <h1>Exercises</h1>
+        <p class="page-sub mb-0">
+            The canonical exercise library -- names like "Bodyweight Squat" or "Skater
+            Jump" live here once, and program exercises pick from this list instead of
+            typing free text.
+        </p>
+    </div>
+    @if (_rows.Count > 0)
+    {
+        <button
+            class="btn btn-dark"
+            data-testid="add-exercise"
+            @onclick="AddExerciseAsync"
+        >
+            <i class="bi bi-plus-circle" aria-hidden="true"></i>
+            Add Exercise
+        </button>
+    }
+</div>
+
+@if (_addExerciseError is not null)
+{
+    <div class="text-danger small mb-2" data-testid="add-exercise-error">@_addExerciseError</div>
+}
+
+@if (_deleteError is not null)
+{
+    <div class="text-danger small mb-2" data-testid="delete-exercise-error">@_deleteError</div>
+}
+
+@if (_loadError is not null)
+{
+    <div class="text-danger small mb-2" data-testid="load-exercises-error">@_loadError</div>
+}
+
+@if (_rows.Count == 0)
+{
+    <div class="text-center py-5" data-testid="exercises-empty">
+        <div class="tile-icon mx-auto mb-3" aria-hidden="true">
+            <i class="bi bi-lightning-fill"></i>
+        </div>
+        <h2 class="h5">No exercises yet</h2>
+        <p class="page-sub mx-auto">
+            Your exercise library holds the canonical name and image for every move --
+            things like "Bodyweight Squat" or "Skater Jump". Add your first one, then
+            pick it from any program instead of typing it out.
+        </p>
+        <button class="btn btn-dark" data-testid="add-exercise-empty" @onclick="AddExerciseAsync">
+            <i class="bi bi-plus-circle" aria-hidden="true"></i>
+            Add Exercise
+        </button>
+    </div>
+}
+else
+{
+    <div class="sheet-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _rows)
+                {
+                    <tr class="row-depth-0">
+                        <td>
+                            <div class="name-cell">
+                                <input
+                                    class="cell-input"
+                                    data-testid="name-input-@row.Id"
+                                    value="@row.Name"
+                                    autofocus="@(row.Id == _editingId)"
+                                    @oninput="e => row.Name = (string)e.Value!" />
+                                <div class="name-actions">
+                                    @if (row.IsDirty)
+                                    {
+                                        <button
+                                            class="btn btn-sm btn-icon btn-outline-dark"
+                                            data-testid="save-@row.Id"
+                                            title="Save"
+                                            @onclick="() => RenameAsync(row)"
+                                        >
+                                            <i class="bi bi-floppy" aria-hidden="true"></i>
+                                            <span class="visually-hidden">Save</span>
+                                        </button>
+                                        <button
+                                            class="btn btn-sm btn-icon btn-outline-secondary"
+                                            data-testid="revert-@row.Id"
+                                            title="Revert"
+                                            @onclick="() => Revert(row)"
+                                        >
+                                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                                            <span class="visually-hidden">Revert</span>
+                                        </button>
+                                    }
+                                    <button
+                                        class="btn btn-sm btn-icon btn-outline-danger"
+                                        data-testid="delete-@row.Id"
+                                        title="Delete"
+                                        @onclick="() => DeleteAsync(row)"
+                                    >
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                        <span class="visually-hidden">Delete</span>
+                                    </button>
+                                </div>
+                            </div>
+                            @if (row.Error is not null)
+                            {
+                                <div class="text-danger small" data-testid="name-error-@row.Id">
+                                    @row.Error
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private readonly List<ExerciseRow> _rows = [];
+    private ExerciseId? _editingId;
+    private string? _addExerciseError;
+    private string? _deleteError;
+    private string? _loadError;
+
+    private const int MinNameLength = 4;
+    private const int MaxNameLength = 100;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var exercises = await Api.GetExercisesAsync();
+            _rows.AddRange(exercises.Select(e => new ExerciseRow(e.Id, e.Name)));
+        }
+        // HttpRequestException alone was not enough: Cloudflare Access answers a request made
+        // before the session is established with its own HTML login page, which arrives as a
+        // JsonException and escaped, blanking the page instead of showing the load error.
+        // The charset and content-type cases come with it; a timeout arrives as a cancellation.
+        catch (Exception ex)
+            when (ex
+                    is HttpRequestException
+                        or JsonException
+                        or InvalidOperationException
+                        or NotSupportedException
+                        or OperationCanceledException
+            )
+        {
+            _loadError = "Could not load exercises. Try refreshing the page.";
+            LogLoadExercisesFailed(Logger, ex);
+        }
+    }
+
+    private async Task AddExerciseAsync()
+    {
+        var outcome = await Api.CreateExerciseAsync("New Exercise");
+        switch (outcome)
+        {
+            case CreateExerciseSucceeded succeeded:
+                _rows.Add(new ExerciseRow(succeeded.Exercise.Id, succeeded.Exercise.Name));
+                _editingId = succeeded.Exercise.Id;
+                _addExerciseError = null;
+                break;
+            case CreateExerciseFailed failed:
+                _addExerciseError = failed.Error;
+                break;
+        }
+    }
+
+    private async Task RenameAsync(ExerciseRow row)
+    {
+        var trimmedLength = row.Name.Trim().Length;
+        if (trimmedLength is < MinNameLength or > MaxNameLength)
+        {
+            row.Error = $"Name must be between {MinNameLength} and {MaxNameLength} characters.";
+            return;
+        }
+
+        var outcome = await Api.RenameExerciseAsync(row.Id, row.Name);
+        switch (outcome)
+        {
+            case RenameExerciseSucceeded succeeded:
+                row.Name = succeeded.Exercise.Name;
+                row.SavedName = succeeded.Exercise.Name;
+                row.Error = null;
+                break;
+            case RenameExerciseFailed failed:
+                row.Error = failed.Error;
+                break;
+        }
+    }
+
+    private static void Revert(ExerciseRow row)
+    {
+        row.Name = row.SavedName;
+        row.Error = null;
+    }
+
+    private async Task DeleteAsync(ExerciseRow row)
+    {
+        var outcome = await Api.DeleteExerciseAsync(row.Id);
+        switch (outcome)
+        {
+            case DeleteExerciseSucceeded:
+                _rows.Remove(row);
+                _deleteError = null;
+                break;
+            case DeleteExerciseFailed failed:
+                _deleteError = failed.Error;
+                break;
+        }
+    }
+
+    private sealed class ExerciseRow
+    {
+        public ExerciseRow(ExerciseId id, string name)
+        {
+            Id = id;
+            Name = name;
+            SavedName = name;
+        }
+
+        public ExerciseId Id { get; }
+        public string Name { get; set; }
+        public string SavedName { get; set; }
+        public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
+        public string? Error { get; set; }
+    }
+}

@@ -1,25 +1,25 @@
 ## 1. D1 schema
 
-- [ ] 1.1 Add migration `0010_create_exercises.sql` creating `exercises`
+- [x] 1.1 Add migration `0010_create_exercises.sql` creating `exercises`
       (`id`, `exercise_id`, `name`, `created_at`, `updated_at`), mirroring
       `phases`' column shape from `0006_create_phases.sql`. No `type` column.
-- [ ] 1.2 Add migration `0011_add_exercises_name_unique_index.sql` creating a
+- [x] 1.2 Add migration `0011_add_exercises_name_unique_index.sql` creating a
       case-insensitive unique index on `exercises.name`, mirroring
       `0007_add_phases_name_unique_index.sql`.
 
 ## 2. Worker: exercise id and validation
 
-- [ ] 2.1 Add `EXERCISE_PREFIX = "EXR-"` and `generateExerciseId`/
+- [x] 2.1 Add `EXERCISE_PREFIX = "EXR-"` and `generateExerciseId`/
       `isValidExerciseId` to `ids.js`, following `generatePhaseId`/
       `isValidPhaseId`.
-- [ ] 2.2 Add a test in `ids.test.js` for the new id generator/validator pair.
-- [ ] 2.3 Add `validateExerciseName` to `validation.js` (delegates to
+- [x] 2.2 Add a test in `ids.test.js` for the new id generator/validator pair.
+- [x] 2.3 Add `validateExerciseName` to `validation.js` (delegates to
       `validateName`, same as `validatePhaseName`).
-- [ ] 2.4 Add a test in `validation.test.js` for `validateExerciseName`.
+- [x] 2.4 Add a test in `validation.test.js` for `validateExerciseName`.
 
 ## 3. Worker: exercises module (red-green-refactor)
 
-- [ ] 3.1 Write failing tests in `index.test.js` for the full
+- [x] 3.1 Write failing tests in `index.test.js` for the full
       `GET/POST/PATCH/DELETE /api/exercises` route flow, covering the
       scenarios in `specs/exercises/spec.md` (empty list, creation order,
       created_at-tie tiebreak, duplicate name on create/rename
@@ -28,86 +28,89 @@
       delete) -- matching how `phases`/`programs` are exercised only through
       `index.test.js`'s `SELF.fetch` integration tests, with no standalone
       `exercises.test.js`.
-- [ ] 3.2 Implement `src/Trainfree.AdminApi/src/exercises.js`
+- [x] 3.2 Implement `src/Trainfree.AdminApi/src/exercises.js`
       (`listExercises`, `createExercise`, `renameExercise`,
       `deleteExercise`), mirroring `phases.js` exactly -- no parent-scoping,
       no usage guard on delete, same `LIST_EXERCISES_QUERY`-exported
       creation-order tiebreak pattern.
-- [ ] 3.3 Confirm all tests from 3.1 pass.
+- [x] 3.3 Confirm all tests from 3.1 pass.
 
 ## 4. Worker: routes
 
-- [ ] 4.1 Add `handleExercisesCollection` (GET/POST) and
+- [x] 4.1 Add `handleExercisesCollection` (GET/POST) and
       `handleExerciseResource` (PATCH/DELETE) to `index.js`, mirroring
       `handlePhasesCollection`/`handlePhaseResource`.
-- [ ] 4.2 Wire `/api/exercises` and `/api/exercises/:id` into the router's
+- [x] 4.2 Wire `/api/exercises` and `/api/exercises/:id` into the router's
       path-segment dispatch (`routeExercises`, alongside `routePhases`).
-- [ ] 4.3 Add route-level tests to `index.test.js` covering CORS/OPTIONS
+- [x] 4.3 Add route-level tests to `index.test.js` covering CORS/OPTIONS
       handling for `/api/exercises`, matching the existing `/api/phases`
       coverage.
 
 ## 5. Domain: ExerciseId
 
-- [ ] 5.1 Add `ExerciseId.cs` to `Trainfree.Domain/Ids/`, mirroring
+- [x] 5.1 Add `ExerciseId.cs` to `Trainfree.Domain/Ids/`, mirroring
       `PhaseId.cs` (`EXR-` prefix, `Parse`/`TryParse` against
       `DomainId.IsValid`).
-- [ ] 5.2 Add `ExerciseIdTests.cs` to `Trainfree.Domain.Tests/Ids/`,
+- [x] 5.2 Add `ExerciseIdTests.cs` to `Trainfree.Domain.Tests/Ids/`,
       mirroring `PhaseIdTests.cs`.
 
 ## 6. Admin client: API client and outcome types
 
-- [ ] 6.1 Add `ExerciseSummary.cs` (id, name), mirroring `PhaseSummary.cs`.
-- [ ] 6.2 Add `CreateExerciseOutcome.cs`, `RenameExerciseOutcome.cs`,
+- [x] 6.1 Add `ExerciseSummary.cs` (id, name), mirroring `PhaseSummary.cs`.
+- [x] 6.2 Add `CreateExerciseOutcome.cs`, `RenameExerciseOutcome.cs`,
       `DeleteExerciseOutcome.cs` (success/failure discriminated types),
       mirroring the `*PhaseOutcome.cs` files.
-- [ ] 6.3 Add `IExercisesApiClient.cs` and `ExercisesApiClient.cs` +
-      `ExercisesApiClient.Logging.cs`, mirroring `IPhasesApiClient.cs`/
-      `PhasesApiClient.cs` -- extends `ApiClientBase`, uses `ExecuteAsync`/
-      `ReadErrorAsync` for the create/rename/delete calls, list call is a
-      plain `GetFromJsonAsync`.
-- [ ] 6.4 Register `IExercisesApiClient` in `Program.cs` DI, alongside
+- [x] 6.3 Add `IExercisesApiClient.cs` and `ExercisesApiClient.cs`, mirroring
+      `IPhasesApiClient.cs`/`PhasesApiClient.cs` -- extends `ApiClientBase`,
+      uses `ExecuteAsync`/`ReadErrorAsync` for the create/rename/delete
+      calls, list call is a plain `GetFromJsonAsync`. No separate
+      `ExercisesApiClient.Logging.cs`: `PhasesApiClient.cs` has no
+      `[LoggerMessage]` declarations of its own (logging happens in
+      `ApiClientBase`), so there is nothing to mirror into a Logging
+      partial.
+- [x] 6.4 Register `IExercisesApiClient` in `Program.cs` DI, alongside
       `IPhasesApiClient`.
-- [ ] 6.5 Add `ExercisesApiClientTests.cs` to `tests/Trainfree.Admin.Tests/Admin/`,
+- [x] 6.5 Add `ExercisesApiClientTests.cs` to `tests/Trainfree.Admin.Tests/Admin/`,
       mirroring `PhasesApiClientTests.cs`.
 
 ## 7. Admin client: Exercises page
 
-- [ ] 7.1 Add `Exercises.razor` at `/exercises`: loads via
+- [x] 7.1 Add `Exercises.razor` at `/exercises`: loads via
       `GET /api/exercises` on init, renders an empty-state view (matching
       `ExercisesEmpty.dc.html`'s copy) when the list is empty, and a flat
       row-per-exercise table (name column + row actions only -- no image,
       no type, no "Used in" column) otherwise, following `Phases.razor`'s
       working/saved-value dirty-row pattern (`ExerciseRow` inner class:
       `Id`, `Name`, `SavedName`, `IsDirty`, `Error`).
-- [ ] 7.2 Wire `Add Exercise`, per-row `Save`/`Revert`, and per-row `Delete`
+- [x] 7.2 Wire `Add Exercise`, per-row `Save`/`Revert`, and per-row `Delete`
       to the client-side length-bound check (4-100 chars) then the API
       client, surfacing `400`/`409` outcomes as a row-level error message
       without throwing.
-- [ ] 7.3 Surface a page-level load-failed message on `GET /api/exercises`
+- [x] 7.3 Surface a page-level load-failed message on `GET /api/exercises`
       failure, matching `Phases.razor`'s `OnInitializedAsync` catch pattern.
-- [ ] 7.4 Add `Exercises.razor.Logging.cs` for the load-failure
+- [x] 7.4 Add `Exercises.razor.Logging.cs` for the load-failure
       `[LoggerMessage]`, mirroring `Phases.razor.Logging.cs`.
-- [ ] 7.5 Add `ExercisesPageTests.cs` to `tests/Trainfree.Admin.Tests/Admin/`,
+- [x] 7.5 Add `ExercisesPageTests.cs` to `tests/Trainfree.Admin.Tests/Admin/`,
       mirroring `PhasesPageTests.cs`.
 
 ## 8. Admin shell wiring
 
-- [ ] 8.1 Add an `Exercises` `NavLink` to `NavMenu.razor` between `Phases`
+- [x] 8.1 Add an `Exercises` `NavLink` to `NavMenu.razor` between `Phases`
       and `Programs`, landing the sidebar in its final order (`Home` /
       `Phases` / `Exercises` / `Programs`).
-- [ ] 8.2 Turn `Home.razor`'s disabled `Exercises` tile (`tile-disabled`,
+- [x] 8.2 Turn `Home.razor`'s disabled `Exercises` tile (`tile-disabled`,
       `data-testid="home-tile-exercises"`) into a live `NavLink` to
       `/exercises`, mirroring the `Phases`/`Programs` tiles, and update its
       blurb text to drop "type" now that `Exercise` carries no type field
       (currently: "name, type and image, managed once...").
-- [ ] 8.3 Update `NavMenuTests.cs` and `HomeTests.cs` for the new nav link
+- [x] 8.3 Update `NavMenuTests.cs` and `HomeTests.cs` for the new nav link
       and the now-live `Home` tile.
 
 ## 9. Verification
 
-- [ ] 9.1 Run the Worker's vitest suite (`npm test` in `Trainfree.AdminApi`)
+- [x] 9.1 Run the Worker's vitest suite (`npm test` in `Trainfree.AdminApi`)
       -- all green.
-- [ ] 9.2 Run `dotnet build` for the solution -- clean, no new warnings; run
+- [x] 9.2 Run `dotnet build` for the solution -- clean, no new warnings; run
       `dotnet test Trainfree.slnx --configuration Release` -- all green.
 - [ ] 9.3 Manually run the app locally (`wrangler dev` on 9999 + Blazor dev
       server, after applying the new migrations to the local D1 with
