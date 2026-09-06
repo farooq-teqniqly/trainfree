@@ -183,8 +183,7 @@
       color: var(--text);
     }
     .sheet col.c-image { width: 64px; }
-    .sheet col.c-name { width: 34%; }
-    .sheet col.c-type { width: 12%; }
+    .sheet col.c-name { width: 46%; }
     .sheet col.c-used { width: 16%; }
     .sheet col.c-actions { width: 120px; }
 
@@ -219,30 +218,6 @@
       background: #fff;
       box-shadow: 0 0 0 3px rgba(37,140,251,.15);
     }
-    .dirty-banner {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      font-size: 0.7rem;
-      color: #b8860b;
-      background: #fff8e6;
-      border: 1px solid #f2dfa0;
-      border-radius: 999px;
-      padding: 0.1rem 0.5rem;
-      flex-shrink: 0;
-    }
-
-    .badge-type {
-      display: inline-block;
-      font-size: 0.7rem;
-      font-weight: 600;
-      padding: 0.12rem 0.45rem;
-      border-radius: 999px;
-      background: #eef1f4;
-      color: #495057;
-    }
-    .badge-type.timed { background: #eaf3ff; color: #0b5ed7; }
-
     .used-count {
       font-size: 0.8125rem;
       color: var(--text);
@@ -365,13 +340,12 @@
     <div class="sheet-wrap">
       <table class="sheet">
         <colgroup>
-          <col class="c-image"><col class="c-name"><col class="c-type"><col class="c-used"><col class="c-actions">
+          <col class="c-image"><col class="c-name"><col class="c-used"><col class="c-actions">
         </colgroup>
         <thead>
           <tr>
             <th></th>
             <th>Name</th>
-            <th>Type</th>
             <th>Used in</th>
             <th>Actions</th>
           </tr>
@@ -383,11 +357,9 @@
             <td>
               <input class="cell-input editing" value="Bodyweight Squat">
             </td>
-            <td><span class="badge-type">Reps</span></td>
             <td><span class="used-count">1 program</span></td>
             <td>
               <div class="row-actions">
-                <span class="dirty-banner">Unsaved</span>
                 <span class="icon-btn save" title="Save">
                   <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 3h8l2 2v8H3V3z"/><path d="M5 3v3h5V3M5 13v-4h6v4"/></svg>
                 </span>
@@ -405,7 +377,6 @@
               </span>
             </td>
             <td><span class="name-text">Skater Jump</span></td>
-            <td><span class="badge-type timed">Timed</span></td>
             <td><span class="used-count">1 program</span></td>
             <td>
               <div class="row-actions">
@@ -422,7 +393,6 @@
           <tr>
             <td><span class="thumb-cell"></span></td>
             <td><span class="name-text">Dumbbell Goblet Squat</span></td>
-            <td><span class="badge-type">Reps</span></td>
             <td><span class="used-count">1 program</span></td>
             <td>
               <div class="row-actions">
@@ -443,7 +413,6 @@
               </span>
             </td>
             <td><span class="name-text">Dumbbell Sumo Deadlift</span></td>
-            <td><span class="badge-type">Reps</span></td>
             <td><span class="used-count">1 program</span></td>
             <td>
               <div class="row-actions">
@@ -460,7 +429,6 @@
           <tr>
             <td><span class="thumb-cell"></span></td>
             <td><span class="name-text">Jump Squat</span></td>
-            <td><span class="badge-type timed">Timed</span></td>
             <td><span class="used-count unused">Not used yet</span></td>
             <td>
               <div class="row-actions">
@@ -475,7 +443,7 @@
           </tr>
 
           <tr class="row-add">
-            <td colspan="5">
+            <td colspan="4">
               <span class="btn btn-ghost btn-xs" style="font-size: 0.8125rem; padding: 0.28rem 0.55rem;">
                 <span class="icon">
                   <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v6M5 8h6" stroke-linecap="round"/></svg>
