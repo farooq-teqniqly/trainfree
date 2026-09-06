@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+    generateExerciseId,
     generateId,
     generatePhaseId,
     generateProgramId,
     generateSessionId,
+    isValidExerciseId,
     isValidId,
     isValidPhaseId,
     isValidProgramId,
@@ -171,5 +173,46 @@ describe("isValidPhaseId", () => {
         ["PHS7K2QXM"],
     ])("rejects an ill-formed id %s", (value) => {
         expect(isValidPhaseId(value)).toBe(false);
+    });
+});
+
+describe("generateExerciseId", () => {
+    it("produces an EXR- prefixed id with a 6-character Crockford base32 body", () => {
+        const id = generateExerciseId();
+
+        expect(id).toMatch(/^EXR-[ABCDEFGHJKMNPQRSTVWXYZ23456789]{6}$/);
+    });
+
+    it("produces effectively unique ids across calls", () => {
+        const ids = new Set(Array.from({ length: 50 }, () => generateExerciseId()));
+
+        expect(ids.size).toBe(50);
+    });
+});
+
+describe("isValidExerciseId", () => {
+    it.each([["EXR-7K2QXM"], ["EXR-234567"], ["EXR-ABCDEF"]])(
+        "accepts a well-formed id %s",
+        (value) => {
+            expect(isValidExerciseId(value)).toBe(true);
+        },
+    );
+
+    it.each([
+        [null],
+        [undefined],
+        [""],
+        ["EXR-7K2QX"],
+        ["EXR-7K2QXMM"],
+        ["EXR-7K2Q0M"],
+        ["EXR-7K2Q1M"],
+        ["EXR-7K2QOM"],
+        ["EXR-7K2QIM"],
+        ["EXR-7K2QLM"],
+        ["exr-7K2QXM"],
+        ["PRG-7K2QXM"],
+        ["EXR7K2QXM"],
+    ])("rejects an ill-formed id %s", (value) => {
+        expect(isValidExerciseId(value)).toBe(false);
     });
 });

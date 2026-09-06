@@ -30,14 +30,14 @@ public sealed class HomeTests : BunitContext
     }
 
     [Fact]
-    public void Render_Always_ExercisesTileRendersWithoutALink()
+    public void Render_Always_ExercisesTileLinksToExercisesRoute()
     {
         // Act
         var cut = Render<Home>();
 
         // Assert
         var tile = cut.Find("[data-testid='home-tile-exercises']");
-        Assert.NotEqual("a", tile.TagName, StringComparer.OrdinalIgnoreCase);
-        Assert.Contains("Exercises", tile.TextContent, StringComparison.Ordinal);
+        Assert.Equal("a", tile.TagName, ignoreCase: true);
+        Assert.Equal("exercises", tile.GetAttribute("href"));
     }
 }

@@ -25,6 +25,14 @@ async function createPhase(name) {
     });
 }
 
+async function createExercise(name) {
+    return SELF.fetch("http://worker/api/exercises", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+    });
+}
+
 describe("CORS", () => {
     it("responds to an OPTIONS preflight from the dev origin with allow headers and no body", async () => {
         const response = await SELF.fetch("http://worker/api/programs", {
@@ -299,6 +307,16 @@ describe("listPhases SQL", () => {
         const { LIST_PHASES_QUERY } = await import("./phases.js");
 
         expect(LIST_PHASES_QUERY).toMatch(/order by created_at asc, phases\.id asc/i);
+    });
+});
+
+describe("listExercises SQL", () => {
+    it("qualifies the id tiebreaker to the exercises table", async () => {
+        const { LIST_EXERCISES_QUERY } = await import("./exercises.js");
+
+        expect(LIST_EXERCISES_QUERY).toMatch(
+            /order by created_at asc, exercises\.id asc/i,
+        );
     });
 });
 
@@ -775,6 +793,206 @@ describe("DELETE /api/phases/:id", () => {
 
     it("returns 404 for an unknown id", async () => {
         const response = await SELF.fetch("http://worker/api/phases/PHS-ZZZZZZ", {
+            method: "DELETE",
+        });
+
+        expect(response.status).toBe(404);
+    });
+});
+
+describe("GET /api/exercises", () => {
+    it("returns an empty array when no exercises exist", async () => {
+        const response = await SELF.fetch("http://worker/api/exercises");
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual([]);
+    });
+
+    it("returns exercises in creation order", async () => {
+        await createExercise("Bodyweight Squat");
+        await createExercise("Skater Jump");
+
+        const response = await SELF.fetch("http://worker/api/exercises");
+        const exercises = await response.json();
+
+        expect(exercises.map((e) => e.name)).toEqual(["Bodyweight Squat", "Skater Jump"]);
+    });
+
+    // RED-phase note: see the identical caveat on the phases test above -- `exercises.id`
+    // is also an AUTOINCREMENT rowid alias, so this can't be proven RED locally either.
+    it("breaks a created_at tie using insertion order", async () => {
+        const tiedTimestamp = new Date().toISOString();
+        await env.DB.prepare(
+            "INSERT INTO exercises (exercise_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+            .bind("EXR-ZZZZZZ", "Inserted First", tiedTimestamp, tiedTimestamp)
+            .run();
+        await env.DB.prepare(
+            "INSERT INTO exercises (exercise_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+            .bind("EXR-AAAAAA", "Inserted Second", tiedTimestamp, tiedTimestamp)
+            .run();
+
+        const response = await SELF.fetch("http://worker/api/exercises");
+        const exercises = await response.json();
+
+        expect(exercises.map((e) => e.name)).toEqual(["Inserted First", "Inserted Second"]);
+    });
+});
+
+describe("POST /api/exercises", () => {
+    it("creates an exercise with a generated id and timestamps", async () => {
+        const response = await createExercise("Bodyweight Squat");
+        const exercise = await response.json();
+
+        expect(response.status).toBe(201);
+        expect(exercise.id).toMatch(/^EXR-[ABCDEFGHJKMNPQRSTVWXYZ23456789]{6}$/);
+        expect(exercise.name).toBe("Bodyweight Squat");
+        expect(exercise.createdAt).toBeTypeOf("string");
+        expect(exercise.updatedAt).toBeTypeOf("string");
+    });
+
+    it("rejects a name that fails the length bound and creates no row", async () => {
+        const response = await createExercise("Ab");
+
+        expect(response.status).toBe(400);
+        expect((await response.json()).error).toBeTypeOf("string");
+
+        const list = await (await SELF.fetch("http://worker/api/exercises")).json();
+        expect(list).toHaveLength(0);
+    });
+
+    it("rejects a missing name", async () => {
+        const response = await SELF.fetch("http://worker/api/exercises", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({}),
+        });
+
+        expect(response.status).toBe(400);
+    });
+
+    it("rejects a literal JSON null body instead of throwing", async () => {
+        const response = await SELF.fetch("http://worker/api/exercises", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: "null",
+        });
+
+        expect(response.status).toBe(400);
+    });
+
+    it("rejects a name that already exists, case-insensitively, and creates no row", async () => {
+        await createExercise("Bodyweight Squat");
+
+        const response = await createExercise("bodyweight squat");
+
+        expect(response.status).toBe(409);
+        expect((await response.json()).error).toBeTypeOf("string");
+
+        const list = await (await SELF.fetch("http://worker/api/exercises")).json();
+        expect(list).toHaveLength(1);
+    });
+});
+
+describe("PATCH /api/exercises/:id", () => {
+    it("renames an existing exercise", async () => {
+        const created = await (await createExercise("Bodyweight Squat")).json();
+
+        const response = await SELF.fetch(`http://worker/api/exercises/${created.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "Skater Jump" }),
+        });
+        const exercise = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(exercise.name).toBe("Skater Jump");
+        expect(exercise.id).toBe(created.id);
+    });
+
+    it("returns 404 for an unknown id", async () => {
+        const response = await SELF.fetch("http://worker/api/exercises/EXR-ZZZZZZ", {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "Skater Jump" }),
+        });
+
+        expect(response.status).toBe(404);
+    });
+
+    it("rejects a name that fails the length bound and makes no change", async () => {
+        const created = await (await createExercise("Bodyweight Squat")).json();
+
+        const response = await SELF.fetch(`http://worker/api/exercises/${created.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "Ab" }),
+        });
+
+        expect(response.status).toBe(400);
+
+        const list = await (await SELF.fetch("http://worker/api/exercises")).json();
+        expect(list[0].name).toBe("Bodyweight Squat");
+    });
+
+    it("rejects a literal JSON null body instead of throwing", async () => {
+        const created = await (await createExercise("Bodyweight Squat")).json();
+
+        const response = await SELF.fetch(`http://worker/api/exercises/${created.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: "null",
+        });
+
+        expect(response.status).toBe(400);
+    });
+
+    it("rejects renaming to another exercise's name, case-insensitively, and makes no change", async () => {
+        await createExercise("Bodyweight Squat");
+        const other = await (await createExercise("Skater Jump")).json();
+
+        const response = await SELF.fetch(`http://worker/api/exercises/${other.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "bodyweight squat" }),
+        });
+
+        expect(response.status).toBe(409);
+
+        const list = await (await SELF.fetch("http://worker/api/exercises")).json();
+        expect(list.map((e) => e.name)).toEqual(["Bodyweight Squat", "Skater Jump"]);
+    });
+
+    it("allows renaming an exercise to its own current name", async () => {
+        const created = await (await createExercise("Bodyweight Squat")).json();
+
+        const response = await SELF.fetch(`http://worker/api/exercises/${created.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "Bodyweight Squat" }),
+        });
+
+        expect(response.status).toBe(200);
+    });
+});
+
+describe("DELETE /api/exercises/:id", () => {
+    it("deletes an existing exercise", async () => {
+        const created = await (await createExercise("Bodyweight Squat")).json();
+
+        const response = await SELF.fetch(`http://worker/api/exercises/${created.id}`, {
+            method: "DELETE",
+        });
+
+        expect(response.status).toBe(204);
+
+        const list = await (await SELF.fetch("http://worker/api/exercises")).json();
+        expect(list).toHaveLength(0);
+    });
+
+    it("returns 404 for an unknown id", async () => {
+        const response = await SELF.fetch("http://worker/api/exercises/EXR-ZZZZZZ", {
             method: "DELETE",
         });
 

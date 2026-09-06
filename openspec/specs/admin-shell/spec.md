@@ -28,13 +28,13 @@ the admin app). The active page's link SHALL be visually distinguished.
 
 #### Scenario: Sidebar shows only implemented pages
 - **WHEN** any admin page loads
-- **THEN** the sidebar lists exactly `Home`, `Phases`, and `Programs` -- no `Admin`
-  link, no `Exercises` link (that ships when its page exists)
+- **THEN** the sidebar lists exactly `Home`, `Phases`, `Exercises`, and `Programs`,
+  in that order -- no `Admin` link
 
 #### Scenario: Active link is highlighted
 - **WHEN** the admin user is on the Programs page
-- **THEN** the sidebar's `Programs` link is styled as active and the `Home` and
-  `Phases` links are not
+- **THEN** the sidebar's `Programs` link is styled as active and the `Home`,
+  `Phases`, and `Exercises` links are not
 
 ### Requirement: Home landing page
 The admin app's root route (`/`) SHALL render a tile-grid landing page. Each tile
@@ -50,10 +50,9 @@ link.
 - **WHEN** the admin user clicks the `Phases` tile on the Home page
 - **THEN** the app navigates to `/phases`
 
-#### Scenario: Not-yet-built tiles render without a link
-- **WHEN** the Home page loads
-- **THEN** the `Exercises` tile renders with its name and description but is not
-  clickable/navigable to any route
+#### Scenario: Exercises tile links to the Exercises page
+- **WHEN** the admin user clicks the `Exercises` tile on the Home page
+- **THEN** the app navigates to `/exercises`
 
 ### Requirement: Mobile nav toggler exposes its expanded state to assistive tech
 The admin app's mobile nav toggler button SHALL expose its expanded/collapsed state

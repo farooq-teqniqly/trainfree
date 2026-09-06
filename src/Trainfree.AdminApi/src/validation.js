@@ -29,3 +29,7 @@ export function validateSessionName(name) {
 export function validatePhaseName(name) {
     return validateName(name);
 }
+
+export function validateExerciseName(name) {
+    return validateName(name);
+}

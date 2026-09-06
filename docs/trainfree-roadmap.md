@@ -65,8 +65,9 @@ shipped and deployed together. TDD applies within each slice on both stacks.
    and a `Phases` tile added to the `Home` page. **Done**; renamed from `Category` to
    `Phase` by
    `rename-category-to-phase` before slice 7 introduced any references to it.
-6. **`add-exercise-library-crud`** -- Admin CRUD for a canonical `Exercise` entity (name
-   only) per `docs/design/admin-mockups/Exercises.dc.html` and `ExercisesEmpty.dc.html`.
+6. **`add-exercise-library-crud`** -- **Done** (PR #87). Admin CRUD for a canonical
+   `Exercise` entity (name only) per `docs/design/admin-mockups/Exercises.dc.html` and
+   `ExercisesEmpty.dc.html`.
    No `type` (Reps/Timed) field here -- the same exercise can be prescribed either way
    depending on the program (e.g. sit-ups as 3x12 in one program, max reps in 30 seconds
    in another), so `type` is a fact about a program's use of an exercise, not about the

@@ -13,6 +13,13 @@ import {
     renamePhase,
 } from "./phases.js";
 import {
+    createExercise,
+    deleteExercise,
+    listExercises,
+    renameExercise,
+} from "./exercises.js";
+import {
+    validateExerciseName,
     validatePhaseName,
     validateProgramName,
     validateSessionName,
@@ -185,6 +192,62 @@ async function handlePhaseResource(request, db, id) {
     return new Response("Method not allowed", { status: 405 });
 }
 
+async function handleExercisesCollection(request, db) {
+    if (request.method === "GET") {
+        return jsonResponse(await listExercises(db));
+    }
+
+    if (request.method === "POST") {
+        const body = (await request.json().catch(() => null)) ?? {};
+        const validation = validateExerciseName(body.name);
+        if (!validation.valid) {
+            return jsonResponse({ error: validation.error }, 400);
+        }
+        try {
+            return jsonResponse(await createExercise(db, validation.name), 201);
+        } catch (err) {
+            if (err instanceof DuplicateNameError) {
+                return jsonResponse({ error: err.message }, 409);
+            }
+            throw err;
+        }
+    }
+
+    return new Response("Method not allowed", { status: 405 });
+}
+
+async function handleExerciseResource(request, db, id) {
+    if (request.method === "PATCH") {
+        const body = (await request.json().catch(() => null)) ?? {};
+        const validation = validateExerciseName(body.name);
+        if (!validation.valid) {
+            return jsonResponse({ error: validation.error }, 400);
+        }
+        try {
+            const exercise = await renameExercise(db, id, validation.name);
+            if (!exercise) {
+                return jsonResponse({ error: "exercise not found" }, 404);
+            }
+            return jsonResponse(exercise);
+        } catch (err) {
+            if (err instanceof DuplicateNameError) {
+                return jsonResponse({ error: err.message }, 409);
+            }
+            throw err;
+        }
+    }
+
+    if (request.method === "DELETE") {
+        const deleted = await deleteExercise(db, id);
+        if (!deleted) {
+            return jsonResponse({ error: "exercise not found" }, 404);
+        }
+        return new Response(null, { status: 204 });
+    }
+
+    return new Response("Method not allowed", { status: 405 });
+}
+
 async function handleSessionsCollection(request, db, programId) {
     if (!(await programExists(db, programId))) {
         return jsonResponse({ error: "program not found" }, 404);
@@ -269,6 +332,20 @@ async function routePhases(request, env, segments) {
     return withCors(response, request);
 }
 
+// /api/exercises (collection, length 2) or /api/exercises/:id (resource, length 3)
+// -- a flat resource, unlike programs/sessions below.
+async function routeExercises(request, env, segments) {
+    if (segments.length > 3) {
+        return notFoundOrAssets(request, env);
+    }
+
+    const id = segments[2];
+    const response = id
+        ? await handleExerciseResource(request, env.DB, id)
+        : await handleExercisesCollection(request, env.DB);
+    return withCors(response, request);
+}
+
 // /api/programs (collection, length 2), /api/programs/:id (resource, length 3),
 // /api/programs/:id/sessions (nested collection, length 4), or
 // /api/programs/:id/sessions/:sessionId (nested resource, length 5) -- anything else,
@@ -313,6 +390,10 @@ export default {
 
         if (segments[0] === "api" && segments[1] === "phases") {
             return routePhases(request, env, segments);
+        }
+
+        if (segments[0] === "api" && segments[1] === "exercises") {
+            return routeExercises(request, env, segments);
         }
 
         if (segments[0] === "api" && segments[1] === "programs") {
