@@ -312,7 +312,10 @@ public sealed class PhasesPageTests : BunitContext
         await cut.InvokeAsync(() => cut.Find("[data-testid='delete-PHS-AAAAAA']").Click());
 
         // Assert
-        Assert.Contains("Request failed with status 500.", cut.Markup, StringComparison.Ordinal);
+        Assert.Equal(
+            "Request failed with status 500.",
+            cut.Find("[data-testid='name-error-PHS-AAAAAA']").TextContent.Trim()
+        );
         Assert.Single(cut.FindAll("tbody tr"));
     }
 
