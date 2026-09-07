@@ -37,13 +37,19 @@ public sealed class MainLayoutTests : BunitContext
     private readonly IVersionCheck _versionCheck = Substitute.For<IVersionCheck>();
     private readonly IProgramsApiClient _programs = Substitute.For<IProgramsApiClient>();
     private readonly ISessionsApiClient _sessions = Substitute.For<ISessionsApiClient>();
+    private readonly IPhasesApiClient _phases = Substitute.For<IPhasesApiClient>();
+    private readonly ISessionPhasesApiClient _sessionPhases =
+        Substitute.For<ISessionPhasesApiClient>();
 
     public MainLayoutTests()
     {
         Services.AddSingleton(_versionCheck);
         Services.AddSingleton(_programs);
         Services.AddSingleton(_sessions);
+        Services.AddSingleton(_phases);
+        Services.AddSingleton(_sessionPhases);
         Services.AddSingleton(new VersionStamp("v0.0.3", "e4f5g6h"));
+        _phases.GetPhasesAsync(Arg.Any<CancellationToken>()).Returns([]);
     }
 
     [Fact]

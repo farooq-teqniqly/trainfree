@@ -5,6 +5,13 @@ export class DuplicateNameError extends Error {
     }
 }
 
+export class PhaseInUseError extends Error {
+    constructor(id) {
+        super(`Phase "${id}" is referenced by at least one session and cannot be deleted.`);
+        this.name = "PhaseInUseError";
+    }
+}
+
 // SQLite's UNIQUE-violation text names every column of the constraint that fired as
 // "<table>.<column>", e.g. "D1_ERROR: UNIQUE constraint failed: programs.name:
 // SQLITE_CONSTRAINT". A table can have more than one such column -- e.g. `programs`

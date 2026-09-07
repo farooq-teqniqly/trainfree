@@ -308,6 +308,34 @@ public sealed class PhasesApiClientTests : IDisposable
     }
 
     [Fact]
+    public async Task DeletePhaseAsync_ServerReturns409_ReturnsDeletePhaseFailedWithServerError()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.Conflict)
+        {
+            Content = new StringContent(
+                """{"error":"Phase \"PHS-AAAAAA\" is referenced by at least one session and cannot be deleted."}""",
+                Encoding.UTF8,
+                "application/json"
+            ),
+        };
+        var client = new PhasesApiClient(_httpClient, NullLogger<PhasesApiClient>.Instance);
+
+        // Act
+        var outcome = await client.DeletePhaseAsync(
+            PhaseId.Parse("PHS-AAAAAA"),
+            CancellationToken.None
+        );
+
+        // Assert
+        var failed = Assert.IsType<DeletePhaseFailed>(outcome);
+        Assert.Equal(
+            "Phase \"PHS-AAAAAA\" is referenced by at least one session and cannot be deleted.",
+            failed.Error
+        );
+    }
+
+    [Fact]
     public async Task CreatePhaseAsync_NameIsNull_ThrowsArgumentNullException()
     {
         // Arrange

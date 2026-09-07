@@ -10,8 +10,15 @@ import {
     createPhase,
     deletePhase,
     listPhases,
+    phaseExists,
     renamePhase,
 } from "./phases.js";
+import {
+    createSessionPhase,
+    deleteSessionPhase,
+    listSessionPhases,
+    sessionExists,
+} from "./session-phases.js";
 import {
     createExercise,
     deleteExercise,
@@ -24,7 +31,7 @@ import {
     validateProgramName,
     validateSessionName,
 } from "./validation.js";
-import { DuplicateNameError } from "./errors.js";
+import { DuplicateNameError, PhaseInUseError } from "./errors.js";
 import { versionStamp } from "./version.js";
 
 // The Worker and Blazor client are the same origin in production ([assets] + main share
@@ -182,11 +189,18 @@ async function handlePhaseResource(request, db, id) {
     }
 
     if (request.method === "DELETE") {
-        const deleted = await deletePhase(db, id);
-        if (!deleted) {
-            return jsonResponse({ error: "phase not found" }, 404);
+        try {
+            const deleted = await deletePhase(db, id);
+            if (!deleted) {
+                return jsonResponse({ error: "phase not found" }, 404);
+            }
+            return new Response(null, { status: 204 });
+        } catch (err) {
+            if (err instanceof PhaseInUseError) {
+                return jsonResponse({ error: err.message }, 409);
+            }
+            throw err;
         }
-        return new Response(null, { status: 204 });
     }
 
     return new Response("Method not allowed", { status: 405 });
@@ -308,6 +322,35 @@ async function handleSessionResource(request, db, programId, id) {
     return new Response("Method not allowed", { status: 405 });
 }
 
+async function handleSessionPhasesCollection(request, db, sessionId) {
+    if (request.method === "GET") {
+        return jsonResponse(await listSessionPhases(db, sessionId));
+    }
+
+    if (request.method === "POST") {
+        const body = await request.json().catch(() => ({}));
+        const phaseId = body.phaseId;
+        if (typeof phaseId !== "string" || !(await phaseExists(db, phaseId))) {
+            return jsonResponse({ error: "phaseId is required and must reference an existing phase" }, 400);
+        }
+        return jsonResponse(await createSessionPhase(db, sessionId, phaseId), 201);
+    }
+
+    return new Response("Method not allowed", { status: 405 });
+}
+
+async function handleSessionPhaseResource(request, db, sessionId, id) {
+    if (request.method === "DELETE") {
+        const deleted = await deleteSessionPhase(db, sessionId, id);
+        if (!deleted) {
+            return jsonResponse({ error: "session phase not found" }, 404);
+        }
+        return new Response(null, { status: 204 });
+    }
+
+    return new Response("Method not allowed", { status: 405 });
+}
+
 // Falls through to the assets binding first (the Blazor static output) rather than a
 // hardcoded 404, so a request the platform's own asset routing didn't already
 // intercept still gets a real response.
@@ -347,16 +390,36 @@ async function routeExercises(request, env, segments) {
 }
 
 // /api/programs (collection, length 2), /api/programs/:id (resource, length 3),
-// /api/programs/:id/sessions (nested collection, length 4), or
-// /api/programs/:id/sessions/:sessionId (nested resource, length 5) -- anything else,
-// including trailing segments past those, is not a route this function owns, so it
-// returns null and the caller falls through to notFoundOrAssets.
+// /api/programs/:id/sessions (nested collection, length 4),
+// /api/programs/:id/sessions/:sessionId (nested resource, length 5),
+// /api/programs/:id/sessions/:sessionId/phases (doubly-nested collection, length 6), or
+// /api/programs/:id/sessions/:sessionId/phases/:id (doubly-nested resource, length 7)
+// -- anything else, including trailing segments past those, is not a route this
+// function owns, so it returns null and the caller falls through to notFoundOrAssets.
 async function routePrograms(request, env, segments) {
     const isSessionsRoute =
         segments.length >= 4 && segments.length <= 5 && segments[3] === "sessions";
+    const isSessionPhasesRoute =
+        segments.length >= 6 &&
+        segments.length <= 7 &&
+        segments[3] === "sessions" &&
+        segments[5] === "phases";
 
-    if (segments.length > 3 && !isSessionsRoute) {
+    if (segments.length > 3 && !isSessionsRoute && !isSessionPhasesRoute) {
         return null;
+    }
+
+    if (isSessionPhasesRoute) {
+        const programId = segments[2];
+        const sessionId = segments[4];
+        if (!(await sessionExists(env.DB, programId, sessionId))) {
+            return withCors(jsonResponse({ error: "session not found" }, 404), request);
+        }
+        const id = segments[6];
+        const response = id
+            ? await handleSessionPhaseResource(request, env.DB, sessionId, id)
+            : await handleSessionPhasesCollection(request, env.DB, sessionId);
+        return withCors(response, request);
     }
 
     if (isSessionsRoute) {

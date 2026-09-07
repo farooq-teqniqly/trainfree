@@ -5,11 +5,13 @@ import {
     generatePhaseId,
     generateProgramId,
     generateSessionId,
+    generateSessionPhaseId,
     isValidExerciseId,
     isValidId,
     isValidPhaseId,
     isValidProgramId,
     isValidSessionId,
+    isValidSessionPhaseId,
 } from "./ids.js";
 
 describe("generateId", () => {
@@ -214,5 +216,46 @@ describe("isValidExerciseId", () => {
         ["EXR7K2QXM"],
     ])("rejects an ill-formed id %s", (value) => {
         expect(isValidExerciseId(value)).toBe(false);
+    });
+});
+
+describe("generateSessionPhaseId", () => {
+    it("produces a SPH- prefixed id with a 6-character Crockford base32 body", () => {
+        const id = generateSessionPhaseId();
+
+        expect(id).toMatch(/^SPH-[ABCDEFGHJKMNPQRSTVWXYZ23456789]{6}$/);
+    });
+
+    it("produces effectively unique ids across calls", () => {
+        const ids = new Set(Array.from({ length: 50 }, () => generateSessionPhaseId()));
+
+        expect(ids.size).toBe(50);
+    });
+});
+
+describe("isValidSessionPhaseId", () => {
+    it.each([["SPH-7K2QXM"], ["SPH-234567"], ["SPH-ABCDEF"]])(
+        "accepts a well-formed id %s",
+        (value) => {
+            expect(isValidSessionPhaseId(value)).toBe(true);
+        },
+    );
+
+    it.each([
+        [null],
+        [undefined],
+        [""],
+        ["SPH-7K2QX"],
+        ["SPH-7K2QXMM"],
+        ["SPH-7K2Q0M"],
+        ["SPH-7K2Q1M"],
+        ["SPH-7K2QOM"],
+        ["SPH-7K2QIM"],
+        ["SPH-7K2QLM"],
+        ["sph-7K2QXM"],
+        ["PRG-7K2QXM"],
+        ["SPH7K2QXM"],
+    ])("rejects an ill-formed id %s", (value) => {
+        expect(isValidSessionPhaseId(value)).toBe(false);
     });
 });

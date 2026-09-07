@@ -16,4 +16,17 @@ public partial class Programs
         ProgramId programId,
         Exception exception
     );
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to load the phase library.")]
+    private static partial void LogLoadPhaseLibraryFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to load phases for session {SessionId}."
+    )]
+    private static partial void LogLoadPhasesForSessionFailed(
+        ILogger logger,
+        SessionId sessionId,
+        Exception exception
+    );
 }

@@ -4,6 +4,7 @@ const PROGRAM_PREFIX = "PRG-";
 const SESSION_PREFIX = "SNN-";
 const PHASE_PREFIX = "PHS-";
 const EXERCISE_PREFIX = "EXR-";
+const SESSION_PHASE_PREFIX = "SPH-";
 
 export function generateId(prefix) {
     const randomBytes = new Uint8Array(BODY_LENGTH);
@@ -69,4 +70,12 @@ export function generateExerciseId() {
 
 export function isValidExerciseId(value) {
     return isValidId(value, EXERCISE_PREFIX);
+}
+
+export function generateSessionPhaseId() {
+    return generateId(SESSION_PHASE_PREFIX);
+}
+
+export function isValidSessionPhaseId(value) {
+    return isValidId(value, SESSION_PHASE_PREFIX);
 }
