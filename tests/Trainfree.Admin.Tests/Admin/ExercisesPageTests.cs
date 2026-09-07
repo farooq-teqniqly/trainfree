@@ -353,6 +353,32 @@ public sealed class ExercisesPageTests : BunitContext
     }
 
     [Fact]
+    public async Task DeleteExercise_ServerRejectsAsInUse_ShowsRejectionOnRowWithoutRemovingIt()
+    {
+        // Arrange
+        var exercise = new ExerciseSummary(ExerciseId.Parse("EXR-AAAAAA"), "Bodyweight Squat");
+        _apiClient.GetExercisesAsync(CancellationToken.None).Returns([exercise]);
+        _apiClient
+            .DeleteExerciseAsync(ExerciseId.Parse("EXR-AAAAAA"), CancellationToken.None)
+            .Returns(
+                new DeleteExerciseFailed(
+                    "Exercise \"EXR-AAAAAA\" is referenced by at least one program exercise and cannot be deleted."
+                )
+            );
+        var cut = Render<Exercises>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='delete-EXR-AAAAAA']").Click());
+
+        // Assert
+        Assert.Equal(
+            "Exercise \"EXR-AAAAAA\" is referenced by at least one program exercise and cannot be deleted.",
+            cut.Find("[data-testid='name-error-EXR-AAAAAA']").TextContent.Trim()
+        );
+        Assert.Single(cut.FindAll("tbody tr"));
+    }
+
+    [Fact]
     public void OnInitialized_LoadFails_ShowsErrorWithoutThrowing()
     {
         // Arrange

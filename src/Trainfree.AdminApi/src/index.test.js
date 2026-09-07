@@ -44,6 +44,19 @@ async function createSessionPhase(programId, sessionId, phaseId) {
     );
 }
 
+function programExercisesUrl(programId, sessionId, sessionPhaseId, id) {
+    const base = `http://worker/api/programs/${programId}/sessions/${sessionId}/phases/${sessionPhaseId}/exercises`;
+    return id ? `${base}/${id}` : base;
+}
+
+async function createProgramExercise(programId, sessionId, sessionPhaseId, body) {
+    return SELF.fetch(programExercisesUrl(programId, sessionId, sessionPhaseId), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+    });
+}
+
 describe("CORS", () => {
     it("responds to an OPTIONS preflight from the dev origin with allow headers and no body", async () => {
         const response = await SELF.fetch("http://worker/api/programs", {
@@ -1237,6 +1250,31 @@ describe("DELETE /api/exercises/:id", () => {
 
         expect(response.status).toBe(404);
     });
+
+    it("returns 409 and makes no change when the exercise is referenced by a program exercise", async () => {
+        const exercise = await (await createExercise("Bodyweight Squat")).json();
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+        await createProgramExercise(program.id, session.id, sessionPhase.id, {
+            exerciseId: exercise.id,
+            type: "Reps",
+            reps: 10,
+            sets: 3,
+            restSeconds: 60,
+        });
+
+        const response = await SELF.fetch(`http://worker/api/exercises/${exercise.id}`, {
+            method: "DELETE",
+        });
+
+        expect(response.status).toBe(409);
+        const list = await (await SELF.fetch("http://worker/api/exercises")).json();
+        expect(list).toHaveLength(1);
+    });
 });
 
 describe("DELETE /api/programs/:id cascades to sessions", () => {
@@ -1257,6 +1295,496 @@ describe("DELETE /api/programs/:id cascades to sessions", () => {
         // The program no longer exists, so its (now cascade-deleted) sessions are
         // unreachable via a 404 rather than an empty list -- this also proves the
         // rows were actually removed by D1's FK cascade, not just orphaned.
+        expect(listResponse.status).toBe(404);
+    });
+});
+
+describe("GET /api/programs/:programId/sessions/:sessionId/phases/:sessionPhaseId/exercises", () => {
+    it("returns an empty array when the session phase has no program exercises", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, sessionPhase.id),
+        );
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual([]);
+    });
+
+    it("returns the session phase's program exercises ordered by creation", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+        const exercise = await (await createExercise("Bodyweight Squat")).json();
+        await createProgramExercise(program.id, session.id, sessionPhase.id, {
+            exerciseId: exercise.id,
+            type: "Reps",
+            reps: 10,
+            sets: 3,
+            restSeconds: 60,
+        });
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, sessionPhase.id),
+        );
+        const programExercises = await response.json();
+
+        expect(programExercises).toHaveLength(1);
+        expect(programExercises[0].exerciseId).toBe(exercise.id);
+    });
+
+    it("returns 404 for a sessionPhaseId that does not exist under that session", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, "SPH-ZZZZZZ"),
+        );
+
+        expect(response.status).toBe(404);
+    });
+
+    it("returns 404 for an unknown sessionId", async () => {
+        const program = await (await createProgram("Workout A")).json();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, "SNN-ZZZZZZ", "SPH-ZZZZZZ"),
+        );
+
+        expect(response.status).toBe(404);
+    });
+});
+
+describe("POST /api/programs/:programId/sessions/:sessionId/phases/:sessionPhaseId/exercises", () => {
+    it("creates a Reps program exercise defaulting weight to 0 and side to Both", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+        const exercise = await (await createExercise("Bodyweight Squat")).json();
+
+        const response = await createProgramExercise(program.id, session.id, sessionPhase.id, {
+            exerciseId: exercise.id,
+            type: "Reps",
+            reps: 10,
+            sets: 3,
+            restSeconds: 60,
+        });
+
+        expect(response.status).toBe(201);
+        const created = await response.json();
+        expect(created.weight).toBe(0);
+        expect(created.side).toBe("Both");
+        expect(created).not.toHaveProperty("durationSeconds");
+    });
+
+    it("creates a Timed program exercise with no reps property", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+        const exercise = await (await createExercise("Bodyweight Squat")).json();
+
+        const response = await createProgramExercise(program.id, session.id, sessionPhase.id, {
+            exerciseId: exercise.id,
+            type: "Timed",
+            durationSeconds: 30,
+            sets: 3,
+            restSeconds: 60,
+        });
+
+        expect(response.status).toBe(201);
+        const created = await response.json();
+        expect(created).not.toHaveProperty("reps");
+    });
+
+    it("returns 404 for a sessionPhaseId that does not exist under that session", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const exercise = await (await createExercise("Bodyweight Squat")).json();
+
+        const response = await createProgramExercise(program.id, session.id, "SPH-ZZZZZZ", {
+            exerciseId: exercise.id,
+            type: "Reps",
+            reps: 10,
+            sets: 3,
+            restSeconds: 60,
+        });
+
+        expect(response.status).toBe(404);
+    });
+
+    it("returns 400 for a missing exerciseId", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+
+        const response = await createProgramExercise(program.id, session.id, sessionPhase.id, {
+            type: "Reps",
+            reps: 10,
+            sets: 3,
+            restSeconds: 60,
+        });
+
+        expect(response.status).toBe(400);
+    });
+
+    it("returns 400 for an exerciseId that matches no exercise", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+
+        const response = await createProgramExercise(program.id, session.id, sessionPhase.id, {
+            exerciseId: "EXR-ZZZZZZ",
+            type: "Reps",
+            reps: 10,
+            sets: 3,
+            restSeconds: 60,
+        });
+
+        expect(response.status).toBe(400);
+    });
+
+    it("returns 400 for a missing or invalid type", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+        const exercise = await (await createExercise("Bodyweight Squat")).json();
+
+        const response = await createProgramExercise(program.id, session.id, sessionPhase.id, {
+            exerciseId: exercise.id,
+            type: "Bogus",
+            reps: 10,
+            sets: 3,
+            restSeconds: 60,
+        });
+
+        expect(response.status).toBe(400);
+    });
+
+    it("returns 400 for a Reps body that also carries durationSeconds", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+        const exercise = await (await createExercise("Bodyweight Squat")).json();
+
+        const response = await createProgramExercise(program.id, session.id, sessionPhase.id, {
+            exerciseId: exercise.id,
+            type: "Reps",
+            reps: 10,
+            durationSeconds: 30,
+            sets: 3,
+            restSeconds: 60,
+        });
+
+        expect(response.status).toBe(400);
+    });
+
+    it("returns 400 for a negative weight", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+        const exercise = await (await createExercise("Bodyweight Squat")).json();
+
+        const response = await createProgramExercise(program.id, session.id, sessionPhase.id, {
+            exerciseId: exercise.id,
+            type: "Reps",
+            reps: 10,
+            sets: 3,
+            restSeconds: 60,
+            weight: -1,
+        });
+
+        expect(response.status).toBe(400);
+    });
+
+    it("returns 400 for a side that is not Both/Left/Right", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+        const exercise = await (await createExercise("Bodyweight Squat")).json();
+
+        const response = await createProgramExercise(program.id, session.id, sessionPhase.id, {
+            exerciseId: exercise.id,
+            type: "Reps",
+            reps: 10,
+            sets: 3,
+            restSeconds: 60,
+            side: "Up",
+        });
+
+        expect(response.status).toBe(400);
+    });
+
+    it("creates a second independent row when the same exerciseId is added twice", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+        const exercise = await (await createExercise("Bodyweight Squat")).json();
+        await createProgramExercise(program.id, session.id, sessionPhase.id, {
+            exerciseId: exercise.id,
+            type: "Reps",
+            reps: 10,
+            sets: 3,
+            restSeconds: 60,
+        });
+
+        const response = await createProgramExercise(program.id, session.id, sessionPhase.id, {
+            exerciseId: exercise.id,
+            type: "Reps",
+            reps: 8,
+            sets: 3,
+            restSeconds: 60,
+        });
+
+        expect(response.status).toBe(201);
+        const list = await (
+            await SELF.fetch(programExercisesUrl(program.id, session.id, sessionPhase.id))
+        ).json();
+        expect(list).toHaveLength(2);
+    });
+});
+
+describe("PATCH /api/programs/:programId/sessions/:sessionId/phases/:sessionPhaseId/exercises/:id", () => {
+    async function setUp() {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+        const exercise = await (await createExercise("Bodyweight Squat")).json();
+        const programExercise = await (
+            await createProgramExercise(program.id, session.id, sessionPhase.id, {
+                exerciseId: exercise.id,
+                type: "Reps",
+                reps: 10,
+                sets: 3,
+                restSeconds: 60,
+            })
+        ).json();
+        return { program, session, sessionPhase, exercise, programExercise };
+    }
+
+    it("updates the provided fields", async () => {
+        const { program, session, sessionPhase, programExercise } = await setUp();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, sessionPhase.id, programExercise.id),
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ reps: 12, weight: 45 }),
+            },
+        );
+
+        expect(response.status).toBe(200);
+        const updated = await response.json();
+        expect(updated.reps).toBe(12);
+        expect(updated.weight).toBe(45);
+    });
+
+    it("returns 404 for an id that does not exist under that session phase", async () => {
+        const { program, session, sessionPhase } = await setUp();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, sessionPhase.id, "PGX-ZZZZZZ"),
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ weight: 45 }),
+            },
+        );
+
+        expect(response.status).toBe(404);
+    });
+
+    it("returns 400 when the body carries exerciseId", async () => {
+        const { program, session, sessionPhase, programExercise, exercise } = await setUp();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, sessionPhase.id, programExercise.id),
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ exerciseId: exercise.id }),
+            },
+        );
+
+        expect(response.status).toBe(400);
+    });
+
+    it("returns 400 when the body carries type", async () => {
+        const { program, session, sessionPhase, programExercise } = await setUp();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, sessionPhase.id, programExercise.id),
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ type: "Timed" }),
+            },
+        );
+
+        expect(response.status).toBe(400);
+    });
+
+    it("returns 400 when a required numeric field is set to zero", async () => {
+        const { program, session, sessionPhase, programExercise } = await setUp();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, sessionPhase.id, programExercise.id),
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ reps: 0 }),
+            },
+        );
+
+        expect(response.status).toBe(400);
+    });
+
+    it("returns 400 when weight is set negative", async () => {
+        const { program, session, sessionPhase, programExercise } = await setUp();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, sessionPhase.id, programExercise.id),
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ weight: -1 }),
+            },
+        );
+
+        expect(response.status).toBe(400);
+    });
+
+    it("returns 400 when side is set to an invalid value", async () => {
+        const { program, session, sessionPhase, programExercise } = await setUp();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, sessionPhase.id, programExercise.id),
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ side: "Up" }),
+            },
+        );
+
+        expect(response.status).toBe(400);
+    });
+});
+
+describe("DELETE /api/programs/:programId/sessions/:sessionId/phases/:sessionPhaseId/exercises/:id", () => {
+    it("deletes an existing program exercise", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+        const exercise = await (await createExercise("Bodyweight Squat")).json();
+        const programExercise = await (
+            await createProgramExercise(program.id, session.id, sessionPhase.id, {
+                exerciseId: exercise.id,
+                type: "Reps",
+                reps: 10,
+                sets: 3,
+                restSeconds: 60,
+            })
+        ).json();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, sessionPhase.id, programExercise.id),
+            { method: "DELETE" },
+        );
+
+        expect(response.status).toBe(204);
+        const list = await (
+            await SELF.fetch(programExercisesUrl(program.id, session.id, sessionPhase.id))
+        ).json();
+        expect(list).toHaveLength(0);
+    });
+
+    it("returns 404 for an unknown id", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, sessionPhase.id, "PGX-ZZZZZZ"),
+            { method: "DELETE" },
+        );
+
+        expect(response.status).toBe(404);
+    });
+});
+
+describe("DELETE /api/programs/:programId/sessions/:sessionId/phases/:id cascades to program exercises", () => {
+    it("removes a deleted session phase's program exercises", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+        const exercise = await (await createExercise("Bodyweight Squat")).json();
+        await createProgramExercise(program.id, session.id, sessionPhase.id, {
+            exerciseId: exercise.id,
+            type: "Reps",
+            reps: 10,
+            sets: 3,
+            restSeconds: 60,
+        });
+
+        const deleteResponse = await SELF.fetch(
+            `http://worker/api/programs/${program.id}/sessions/${session.id}/phases/${sessionPhase.id}`,
+            { method: "DELETE" },
+        );
+        expect(deleteResponse.status).toBe(204);
+
+        const listResponse = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, sessionPhase.id),
+        );
+        // The session phase no longer exists, so its (now cascade-deleted) program
+        // exercises are unreachable via a 404 rather than an empty list -- this also
+        // proves the rows were actually removed by D1's FK cascade, not just orphaned.
         expect(listResponse.status).toBe(404);
     });
 });

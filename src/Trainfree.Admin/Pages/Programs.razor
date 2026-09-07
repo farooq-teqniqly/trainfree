@@ -3,10 +3,13 @@
 @using Microsoft.Extensions.Logging
 @using Trainfree.Admin.Admin
 @using Trainfree.Domain.Ids
+@using Trainfree.Domain.ProgramExercises
 @inject IProgramsApiClient Api
 @inject ISessionsApiClient SessionsApi
 @inject IPhasesApiClient PhasesApi
 @inject ISessionPhasesApiClient SessionPhasesApi
+@inject IExercisesApiClient ExercisesApi
+@inject IProgramExercisesApiClient ProgramExercisesApi
 @inject ILogger<Programs> Logger
 
 <PageTitle>Programs - Trainfree Admin</PageTitle>
@@ -51,6 +54,11 @@
 @if (_addPhaseError is not null)
 {
     <div class="text-danger small mb-2" data-testid="add-phase-error">@_addPhaseError</div>
+}
+
+@if (_addProgramExerciseError is not null)
+{
+    <div class="text-danger small mb-2" data-testid="add-exercise-error">@_addProgramExerciseError</div>
 }
 
 @if (_loadError is not null)
@@ -290,8 +298,31 @@
                                 <tr class="row-depth-2">
                                     <td>
                                         <div class="name-cell">
+                                            <button
+                                                class="btn btn-sm btn-icon chevron-btn"
+                                                data-testid="phase-chevron-@phase.Id"
+                                                title="@PhaseChevronTitle(phase)"
+                                                aria-expanded="@(HasToggleableExerciseContent(phase) && !_collapsedSessionPhaseIds.Contains(phase.Id) ? "true" : "false")"
+                                                disabled="@(!HasToggleableExerciseContent(phase))"
+                                                @onclick="() => ToggleCollapsedSessionPhase(phase)"
+                                            >
+                                                <i
+                                                    class="bi bi-chevron-down @(HasToggleableExerciseContent(phase) && _collapsedSessionPhaseIds.Contains(phase.Id) ? "chevron-collapsed" : "")"
+                                                    aria-hidden="true"
+                                                ></i>
+                                                <span class="visually-hidden">@PhaseChevronTitle(phase)</span>
+                                            </button>
                                             <span data-testid="phase-name-@phase.Id">@phase.DisplayName</span>
                                             <div class="name-actions">
+                                                <button
+                                                    class="btn btn-sm btn-icon btn-outline-dark"
+                                                    data-testid="add-exercise-@phase.Id"
+                                                    title="Add Exercise"
+                                                    @onclick="() => ShowAddExercisePicker(phase)"
+                                                >
+                                                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                                                    <span class="visually-hidden">Add Exercise</span>
+                                                </button>
                                                 <button
                                                     class="btn btn-sm btn-icon btn-outline-danger"
                                                     data-testid="phase-delete-@phase.Id"
@@ -312,8 +343,186 @@
                                                 @phase.Error
                                             </div>
                                         }
+                                        @if (_addingExerciseSessionPhaseId == phase.Id)
+                                        {
+                                            @if (_exerciseLibraryLoadError is not null)
+                                            {
+                                                <div
+                                                    class="text-danger small"
+                                                    data-testid="exercise-library-load-error-@phase.Id"
+                                                >
+                                                    @_exerciseLibraryLoadError
+                                                </div>
+                                            }
+                                            else if (_exerciseLibrary.Count == 0)
+                                            {
+                                                <div
+                                                    class="text-muted small"
+                                                    data-testid="empty-exercise-library-@phase.Id"
+                                                >
+                                                    No exercises yet -- create one on the
+                                                    <NavLink href="exercises">Exercises</NavLink> page first.
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+                                                    <select
+                                                        class="form-select form-select-sm w-auto"
+                                                        data-testid="exercise-picker-@phase.Id"
+                                                        @onchange="e => _addExerciseExerciseId = (string)e.Value!"
+                                                    >
+                                                        <option value="">-- Select an exercise --</option>
+                                                        @foreach (var exercise in _exerciseLibrary)
+                                                        {
+                                                            <option value="@exercise.Id">@exercise.Name</option>
+                                                        }
+                                                    </select>
+                                                    <select
+                                                        class="form-select form-select-sm w-auto"
+                                                        data-testid="exercise-type-@phase.Id"
+                                                        @onchange="e => _addExerciseType = (string)e.Value!"
+                                                    >
+                                                        <option value="Reps">Reps</option>
+                                                        <option value="Timed">Timed</option>
+                                                    </select>
+                                                    <input
+                                                        type="number"
+                                                        class="form-control form-control-sm w-auto"
+                                                        placeholder="@(_addExerciseType == "Timed" ? "Duration (s)" : "Reps")"
+                                                        data-testid="exercise-count-@phase.Id"
+                                                        @oninput="e => _addExerciseCount = ParseNullableInt(e.Value)" />
+                                                    <input
+                                                        type="number"
+                                                        class="form-control form-control-sm w-auto"
+                                                        placeholder="Sets"
+                                                        data-testid="exercise-sets-@phase.Id"
+                                                        @oninput="e => _addExerciseSets = ParseNullableInt(e.Value)" />
+                                                    <input
+                                                        type="number"
+                                                        class="form-control form-control-sm w-auto"
+                                                        placeholder="Rest (s)"
+                                                        data-testid="exercise-restseconds-@phase.Id"
+                                                        @oninput="e => _addExerciseRestSeconds = ParseNullableInt(e.Value)" />
+                                                    <button
+                                                        class="btn btn-sm btn-dark"
+                                                        data-testid="add-exercise-submit-@phase.Id"
+                                                        disabled="@(!CanSubmitAddExercise)"
+                                                        @onclick="() => AddProgramExerciseAsync(session, phase)"
+                                                    >
+                                                        Add
+                                                    </button>
+                                                </div>
+                                            }
+                                        }
                                     </td>
                                 </tr>
+                                @if (!_collapsedSessionPhaseIds.Contains(phase.Id))
+                                {
+                                    @if (phase.ProgramExercisesLoadError is not null)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div
+                                                    class="text-danger small"
+                                                    data-testid="program-exercises-load-error-@phase.Id"
+                                                >
+                                                    @phase.ProgramExercisesLoadError
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                    @foreach (var programExercise in phase.ProgramExercises)
+                                    {
+                                        <tr class="row-depth-3">
+                                            <td>
+                                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                                    <span data-testid="program-exercise-name-@programExercise.Id">
+                                                        @programExercise.ExerciseName
+                                                    </span>
+                                                    <span class="badge text-bg-secondary" data-testid="program-exercise-type-@programExercise.Id">
+                                                        @(programExercise.IsTimed ? "Timed" : "Reps")
+                                                    </span>
+                                                    <input
+                                                        type="number"
+                                                        class="cell-input w-auto"
+                                                        data-testid="program-exercise-count-@programExercise.Id"
+                                                        value="@programExercise.Count"
+                                                        @oninput="e => programExercise.Count = ParseInt(e.Value)" />
+                                                    <input
+                                                        type="text"
+                                                        class="cell-input w-auto"
+                                                        data-testid="program-exercise-weight-@programExercise.Id"
+                                                        value="@DashIfZero(programExercise.Weight)"
+                                                        @oninput="e => programExercise.Weight = ParseDecimal(e.Value)" />
+                                                    <input
+                                                        type="number"
+                                                        class="cell-input w-auto"
+                                                        data-testid="program-exercise-sets-@programExercise.Id"
+                                                        value="@programExercise.Sets"
+                                                        @oninput="e => programExercise.Sets = ParseInt(e.Value)" />
+                                                    <input
+                                                        type="number"
+                                                        class="cell-input w-auto"
+                                                        data-testid="program-exercise-rest-@programExercise.Id"
+                                                        value="@programExercise.RestSeconds"
+                                                        @oninput="e => programExercise.RestSeconds = ParseInt(e.Value)" />
+                                                    <select
+                                                        class="form-select form-select-sm w-auto"
+                                                        data-testid="program-exercise-side-@programExercise.Id"
+                                                        @onchange="e => programExercise.Side = Enum.Parse<ProgramExerciseSide>((string)e.Value!)"
+                                                    >
+                                                        @foreach (var side in Enum.GetValues<ProgramExerciseSide>())
+                                                        {
+                                                            <option value="@side" selected="@(side == programExercise.Side)">@side</option>
+                                                        }
+                                                    </select>
+                                                    <div class="name-actions">
+                                                        @if (programExercise.IsDirty)
+                                                        {
+                                                            <button
+                                                                class="btn btn-sm btn-icon btn-outline-dark"
+                                                                data-testid="program-exercise-save-@programExercise.Id"
+                                                                title="Save"
+                                                                @onclick="() => SaveProgramExerciseAsync(session, phase, programExercise)"
+                                                            >
+                                                                <i class="bi bi-floppy" aria-hidden="true"></i>
+                                                                <span class="visually-hidden">Save</span>
+                                                            </button>
+                                                            <button
+                                                                class="btn btn-sm btn-icon btn-outline-secondary"
+                                                                data-testid="program-exercise-revert-@programExercise.Id"
+                                                                title="Revert"
+                                                                @onclick="() => RevertProgramExercise(programExercise)"
+                                                            >
+                                                                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                                                                <span class="visually-hidden">Revert</span>
+                                                            </button>
+                                                        }
+                                                        <button
+                                                            class="btn btn-sm btn-icon btn-outline-danger"
+                                                            data-testid="program-exercise-delete-@programExercise.Id"
+                                                            title="Delete"
+                                                            @onclick="() => DeleteProgramExerciseAsync(session, phase, programExercise)"
+                                                        >
+                                                            <i class="bi bi-trash" aria-hidden="true"></i>
+                                                            <span class="visually-hidden">Delete</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                @if (programExercise.Error is not null)
+                                                {
+                                                    <div
+                                                        class="text-danger small"
+                                                        data-testid="program-exercise-error-@programExercise.Id"
+                                                    >
+                                                        @programExercise.Error
+                                                    </div>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                }
                             }
                         }
                     }
@@ -327,14 +536,24 @@
     private readonly List<ProgramRow> _rows = [];
     private readonly HashSet<ProgramId> _collapsedIds = [];
     private readonly HashSet<SessionId> _collapsedSessionIds = [];
+    private readonly HashSet<SessionPhaseId> _collapsedSessionPhaseIds = [];
     private readonly List<PhaseSummary> _phaseLibrary = [];
+    private readonly List<ExerciseSummary> _exerciseLibrary = [];
     private string? _phaseLibraryLoadError;
+    private string? _exerciseLibraryLoadError;
     private ProgramId? _editingId;
     private SessionId? _editingSessionId;
     private SessionId? _addingPhaseSessionId;
+    private SessionPhaseId? _addingExerciseSessionPhaseId;
+    private string _addExerciseExerciseId = "";
+    private string _addExerciseType = "Reps";
+    private int? _addExerciseCount;
+    private int? _addExerciseSets;
+    private int? _addExerciseRestSeconds;
     private string? _addProgramError;
     private string? _addSessionError;
     private string? _addPhaseError;
+    private string? _addProgramExerciseError;
     private string? _deleteError;
     private string? _deleteSessionError;
     private string? _loadError;
@@ -360,6 +579,23 @@
 
         try
         {
+            _exerciseLibrary.AddRange(await ExercisesApi.GetExercisesAsync());
+        }
+        catch (Exception ex)
+            when (ex
+                is HttpRequestException
+                    or JsonException
+                    or InvalidOperationException
+                    or NotSupportedException
+                    or OperationCanceledException
+            )
+        {
+            _exerciseLibraryLoadError = "Could not load exercises. Try refreshing the page.";
+            LogLoadExerciseLibraryFailed(Logger, ex);
+        }
+
+        try
+        {
             var programs = await Api.GetProgramsAsync();
             foreach (var program in programs)
             {
@@ -380,13 +616,47 @@
                                 program.Id,
                                 session.Id
                             );
-                            sessionRow.Phases.AddRange(
-                                sessionPhases.Select(sp => new SessionPhaseRow(
-                                    sp.Id,
-                                    sp.PhaseId,
-                                    ResolvePhaseName(sp.PhaseId)
-                                ))
-                            );
+                            foreach (var sessionPhase in sessionPhases)
+                            {
+                                var sessionPhaseRow = new SessionPhaseRow(
+                                    sessionPhase.Id,
+                                    sessionPhase.PhaseId,
+                                    ResolvePhaseName(sessionPhase.PhaseId)
+                                );
+                                sessionRow.Phases.Add(sessionPhaseRow);
+
+                                try
+                                {
+                                    var programExercises = await ProgramExercisesApi.GetProgramExercisesAsync(
+                                        program.Id,
+                                        session.Id,
+                                        sessionPhase.Id
+                                    );
+                                    sessionPhaseRow.ProgramExercises.AddRange(
+                                        programExercises.Select(pe => new ProgramExerciseRow(
+                                            pe,
+                                            ResolveExerciseName(pe.ExerciseId)
+                                        ))
+                                    );
+                                }
+                                catch (Exception ex)
+                                    when (ex
+                                        is HttpRequestException
+                                            or JsonException
+                                            or InvalidOperationException
+                                            or NotSupportedException
+                                            or OperationCanceledException
+                                    )
+                                {
+                                    sessionPhaseRow.ProgramExercisesLoadError =
+                                        "Could not load exercises. Try refreshing the page.";
+                                    LogLoadProgramExercisesForSessionPhaseFailed(
+                                        Logger,
+                                        sessionPhase.Id,
+                                        ex
+                                    );
+                                }
+                            }
                         }
                         catch (Exception ex)
                             when (ex
@@ -463,6 +733,192 @@
 
     private string ResolvePhaseName(PhaseId phaseId) =>
         _phaseLibrary.FirstOrDefault(p => p.Id == phaseId)?.Name ?? phaseId.Value;
+
+    private string ResolveExerciseName(ExerciseId exerciseId) =>
+        _exerciseLibrary.FirstOrDefault(e => e.Id == exerciseId)?.Name ?? exerciseId.Value;
+
+    private static bool HasToggleableExerciseContent(SessionPhaseRow phase) =>
+        phase.ProgramExercises.Count > 0 || phase.ProgramExercisesLoadError is not null;
+
+    private string PhaseChevronTitle(SessionPhaseRow phase)
+    {
+        if (!HasToggleableExerciseContent(phase))
+        {
+            return "No exercises";
+        }
+
+        return _collapsedSessionPhaseIds.Contains(phase.Id) ? "Expand" : "Collapse";
+    }
+
+    private void ToggleCollapsedSessionPhase(SessionPhaseRow phase)
+    {
+        if (!HasToggleableExerciseContent(phase))
+        {
+            return;
+        }
+
+        if (!_collapsedSessionPhaseIds.Add(phase.Id))
+        {
+            _collapsedSessionPhaseIds.Remove(phase.Id);
+        }
+    }
+
+    private void ShowAddExercisePicker(SessionPhaseRow phase)
+    {
+        _addingExerciseSessionPhaseId = phase.Id;
+        _addExerciseExerciseId = "";
+        _addExerciseType = "Reps";
+        _addExerciseCount = null;
+        _addExerciseSets = null;
+        _addExerciseRestSeconds = null;
+    }
+
+    private bool CanSubmitAddExercise =>
+        !string.IsNullOrEmpty(_addExerciseExerciseId)
+        && _addExerciseCount is > 0
+        && _addExerciseSets is > 0
+        && _addExerciseRestSeconds is > 0;
+
+    private static int? ParseNullableInt(object? value) =>
+        int.TryParse(value as string, out var parsed) ? parsed : null;
+
+    private static int ParseInt(object? value) => int.TryParse(value as string, out var parsed) ? parsed : 0;
+
+    private static decimal ParseDecimal(object? value) =>
+        decimal.TryParse(value as string, out var parsed) ? parsed : 0;
+
+    private static string DashIfZero(decimal value) =>
+        value == 0 ? "–" : value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private async Task AddProgramExerciseAsync(SessionRow session, SessionPhaseRow phase)
+    {
+        if (
+            !CanSubmitAddExercise
+            || !ExerciseId.TryParse(_addExerciseExerciseId, out var exerciseId)
+        )
+        {
+            return;
+        }
+
+        var outcome =
+            _addExerciseType == "Timed"
+                ? await ProgramExercisesApi.CreateTimedProgramExerciseAsync(
+                    session.ProgramId,
+                    session.Id,
+                    phase.Id,
+                    exerciseId,
+                    _addExerciseCount!.Value,
+                    _addExerciseSets!.Value,
+                    _addExerciseRestSeconds!.Value
+                )
+                : await ProgramExercisesApi.CreateRepsProgramExerciseAsync(
+                    session.ProgramId,
+                    session.Id,
+                    phase.Id,
+                    exerciseId,
+                    _addExerciseCount!.Value,
+                    _addExerciseSets!.Value,
+                    _addExerciseRestSeconds!.Value
+                );
+
+        switch (outcome)
+        {
+            case CreateProgramExerciseSucceeded succeeded:
+                phase.ProgramExercises.Add(
+                    new ProgramExerciseRow(
+                        succeeded.ProgramExercise,
+                        ResolveExerciseName(succeeded.ProgramExercise.ExerciseId)
+                    )
+                );
+                _addingExerciseSessionPhaseId = null;
+                _addProgramExerciseError = null;
+                _collapsedSessionPhaseIds.Remove(phase.Id);
+                break;
+            case CreateProgramExerciseFailed failed:
+                _addProgramExerciseError = failed.Error;
+                break;
+        }
+    }
+
+    private async Task SaveProgramExerciseAsync(
+        SessionRow session,
+        SessionPhaseRow phase,
+        ProgramExerciseRow row
+    )
+    {
+        if (row.Count <= 0 || row.Sets <= 0 || row.RestSeconds <= 0)
+        {
+            row.Error = "Reps/duration, sets, and rest must be positive.";
+            return;
+        }
+
+        var update = row.IsTimed
+            ? new ProgramExerciseUpdate(
+                DurationSeconds: row.Count,
+                Weight: row.Weight,
+                Sets: row.Sets,
+                RestSeconds: row.RestSeconds,
+                Side: row.Side
+            )
+            : new ProgramExerciseUpdate(
+                Reps: row.Count,
+                Weight: row.Weight,
+                Sets: row.Sets,
+                RestSeconds: row.RestSeconds,
+                Side: row.Side
+            );
+
+        var outcome = await ProgramExercisesApi.UpdateProgramExerciseAsync(
+            session.ProgramId,
+            session.Id,
+            phase.Id,
+            row.Id,
+            update
+        );
+        switch (outcome)
+        {
+            case UpdateProgramExerciseSucceeded succeeded:
+                row.ApplySaved(succeeded.ProgramExercise);
+                row.Error = null;
+                break;
+            case UpdateProgramExerciseFailed failed:
+                row.Error = failed.Error;
+                break;
+        }
+    }
+
+    private static void RevertProgramExercise(ProgramExerciseRow row)
+    {
+        row.Count = row.SavedCount;
+        row.Weight = row.SavedWeight;
+        row.Sets = row.SavedSets;
+        row.RestSeconds = row.SavedRestSeconds;
+        row.Side = row.SavedSide;
+        row.Error = null;
+    }
+
+    private async Task DeleteProgramExerciseAsync(
+        SessionRow session,
+        SessionPhaseRow phase,
+        ProgramExerciseRow row
+    )
+    {
+        var outcome = await ProgramExercisesApi.DeleteProgramExerciseAsync(
+            session.ProgramId,
+            session.Id,
+            phase.Id,
+            row.Id
+        );
+        switch (outcome)
+        {
+            case DeleteProgramExerciseSucceeded:
+                phase.ProgramExercises.Remove(row);
+                break;
+            case DeleteProgramExerciseFailed failed:
+                row.Error = failed.Error;
+                break;
+        }
+    }
 
     private static bool HasToggleablePhaseContent(SessionRow session) =>
         session.Phases.Count > 0 || session.PhasesLoadError is not null;
@@ -730,5 +1186,56 @@
         public PhaseId PhaseId { get; }
         public string DisplayName { get; }
         public string? Error { get; set; }
+        public string? ProgramExercisesLoadError { get; set; }
+        public List<ProgramExerciseRow> ProgramExercises { get; } = [];
+    }
+
+    private sealed class ProgramExerciseRow
+    {
+        public ProgramExerciseRow(IProgramExercise programExercise, string exerciseName)
+        {
+            Id = programExercise.Id;
+            ExerciseName = exerciseName;
+            IsTimed = programExercise is TimedProgramExercise;
+            ApplySaved(programExercise);
+        }
+
+        public ProgramExerciseId Id { get; }
+        public string ExerciseName { get; }
+        public bool IsTimed { get; }
+        public int Count { get; set; }
+        public int SavedCount { get; set; }
+        public decimal Weight { get; set; }
+        public decimal SavedWeight { get; set; }
+        public int Sets { get; set; }
+        public int SavedSets { get; set; }
+        public int RestSeconds { get; set; }
+        public int SavedRestSeconds { get; set; }
+        public ProgramExerciseSide Side { get; set; }
+        public ProgramExerciseSide SavedSide { get; set; }
+        public string? Error { get; set; }
+
+        public bool IsDirty =>
+            Count != SavedCount
+            || Weight != SavedWeight
+            || Sets != SavedSets
+            || RestSeconds != SavedRestSeconds
+            || Side != SavedSide;
+
+        public void ApplySaved(IProgramExercise programExercise)
+        {
+            Count = IsTimed
+                ? ((TimedProgramExercise)programExercise).DurationSeconds
+                : ((RepsProgramExercise)programExercise).Reps;
+            SavedCount = Count;
+            Weight = programExercise.Weight;
+            SavedWeight = Weight;
+            Sets = programExercise.Sets;
+            SavedSets = Sets;
+            RestSeconds = programExercise.RestSeconds;
+            SavedRestSeconds = RestSeconds;
+            Side = programExercise.Side;
+            SavedSide = Side;
+        }
     }
 }

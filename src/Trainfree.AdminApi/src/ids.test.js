@@ -3,12 +3,14 @@ import {
     generateExerciseId,
     generateId,
     generatePhaseId,
+    generateProgramExerciseId,
     generateProgramId,
     generateSessionId,
     generateSessionPhaseId,
     isValidExerciseId,
     isValidId,
     isValidPhaseId,
+    isValidProgramExerciseId,
     isValidProgramId,
     isValidSessionId,
     isValidSessionPhaseId,
@@ -257,5 +259,46 @@ describe("isValidSessionPhaseId", () => {
         ["SPH7K2QXM"],
     ])("rejects an ill-formed id %s", (value) => {
         expect(isValidSessionPhaseId(value)).toBe(false);
+    });
+});
+
+describe("generateProgramExerciseId", () => {
+    it("produces a PGX- prefixed id with a 6-character Crockford base32 body", () => {
+        const id = generateProgramExerciseId();
+
+        expect(id).toMatch(/^PGX-[ABCDEFGHJKMNPQRSTVWXYZ23456789]{6}$/);
+    });
+
+    it("produces effectively unique ids across calls", () => {
+        const ids = new Set(Array.from({ length: 50 }, () => generateProgramExerciseId()));
+
+        expect(ids.size).toBe(50);
+    });
+});
+
+describe("isValidProgramExerciseId", () => {
+    it.each([["PGX-7K2QXM"], ["PGX-234567"], ["PGX-ABCDEF"]])(
+        "accepts a well-formed id %s",
+        (value) => {
+            expect(isValidProgramExerciseId(value)).toBe(true);
+        },
+    );
+
+    it.each([
+        [null],
+        [undefined],
+        [""],
+        ["PGX-7K2QX"],
+        ["PGX-7K2QXMM"],
+        ["PGX-7K2Q0M"],
+        ["PGX-7K2Q1M"],
+        ["PGX-7K2QOM"],
+        ["PGX-7K2QIM"],
+        ["PGX-7K2QLM"],
+        ["pgx-7K2QXM"],
+        ["PRG-7K2QXM"],
+        ["PGX7K2QXM"],
+    ])("rejects an ill-formed id %s", (value) => {
+        expect(isValidProgramExerciseId(value)).toBe(false);
     });
 });

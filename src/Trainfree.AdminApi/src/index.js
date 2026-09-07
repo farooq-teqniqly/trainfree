@@ -22,16 +22,26 @@ import {
 import {
     createExercise,
     deleteExercise,
+    exerciseExists,
     listExercises,
     renameExercise,
 } from "./exercises.js";
 import {
+    createProgramExercise,
+    deleteProgramExercise,
+    listProgramExercises,
+    programExerciseSessionPhaseExists,
+    updateProgramExercise,
+} from "./program-exercises.js";
+import {
+    validateCreateProgramExercise,
     validateExerciseName,
     validatePhaseName,
     validateProgramName,
     validateSessionName,
+    validateUpdateProgramExercise,
 } from "./validation.js";
-import { DuplicateNameError, PhaseInUseError } from "./errors.js";
+import { DuplicateNameError, ExerciseInUseError, PhaseInUseError } from "./errors.js";
 import { versionStamp } from "./version.js";
 
 // The Worker and Blazor client are the same origin in production ([assets] + main share
@@ -252,11 +262,18 @@ async function handleExerciseResource(request, db, id) {
     }
 
     if (request.method === "DELETE") {
-        const deleted = await deleteExercise(db, id);
-        if (!deleted) {
-            return jsonResponse({ error: "exercise not found" }, 404);
+        try {
+            const deleted = await deleteExercise(db, id);
+            if (!deleted) {
+                return jsonResponse({ error: "exercise not found" }, 404);
+            }
+            return new Response(null, { status: 204 });
+        } catch (err) {
+            if (err instanceof ExerciseInUseError) {
+                return jsonResponse({ error: err.message }, 409);
+            }
+            throw err;
         }
-        return new Response(null, { status: 204 });
     }
 
     return new Response("Method not allowed", { status: 405 });
@@ -351,6 +368,62 @@ async function handleSessionPhaseResource(request, db, sessionId, id) {
     return new Response("Method not allowed", { status: 405 });
 }
 
+async function handleProgramExercisesCollection(request, db, sessionPhaseId) {
+    if (request.method === "GET") {
+        return jsonResponse(await listProgramExercises(db, sessionPhaseId));
+    }
+
+    if (request.method === "POST") {
+        const body = (await request.json().catch(() => null)) ?? {};
+        const validation = validateCreateProgramExercise(body);
+        if (!validation.valid) {
+            return jsonResponse({ error: validation.error }, 400);
+        }
+        if (!(await exerciseExists(db, validation.exerciseId))) {
+            return jsonResponse(
+                { error: "exerciseId is required and must reference an existing exercise" },
+                400,
+            );
+        }
+        return jsonResponse(
+            await createProgramExercise(db, sessionPhaseId, validation),
+            201,
+        );
+    }
+
+    return new Response("Method not allowed", { status: 405 });
+}
+
+async function handleProgramExerciseResource(request, db, sessionPhaseId, id) {
+    if (request.method === "PATCH") {
+        const body = (await request.json().catch(() => null)) ?? {};
+        const validation = validateUpdateProgramExercise(body);
+        if (!validation.valid) {
+            return jsonResponse({ error: validation.error }, 400);
+        }
+        const programExercise = await updateProgramExercise(
+            db,
+            sessionPhaseId,
+            id,
+            validation.updates,
+        );
+        if (!programExercise) {
+            return jsonResponse({ error: "program exercise not found" }, 404);
+        }
+        return jsonResponse(programExercise);
+    }
+
+    if (request.method === "DELETE") {
+        const deleted = await deleteProgramExercise(db, sessionPhaseId, id);
+        if (!deleted) {
+            return jsonResponse({ error: "program exercise not found" }, 404);
+        }
+        return new Response(null, { status: 204 });
+    }
+
+    return new Response("Method not allowed", { status: 405 });
+}
+
 // Falls through to the assets binding first (the Blazor static output) rather than a
 // hardcoded 404, so a request the platform's own asset routing didn't already
 // intercept still gets a real response.
@@ -402,6 +475,16 @@ function isSessionPhasesRoute(segments) {
     );
 }
 
+function isProgramExercisesRoute(segments) {
+    return (
+        segments.length >= 8 &&
+        segments.length <= 9 &&
+        segments[3] === "sessions" &&
+        segments[5] === "phases" &&
+        segments[7] === "exercises"
+    );
+}
+
 // /api/programs/:id/sessions/:sessionId/phases (doubly-nested collection, length 6) or
 // /api/programs/:id/sessions/:sessionId/phases/:id (doubly-nested resource, length 7).
 async function routeSessionPhases(request, env, segments) {
@@ -414,6 +497,25 @@ async function routeSessionPhases(request, env, segments) {
     const response = id
         ? await handleSessionPhaseResource(request, env.DB, sessionId, id)
         : await handleSessionPhasesCollection(request, env.DB, sessionId);
+    return withCors(response, request);
+}
+
+// /api/programs/:id/sessions/:sessionId/phases/:sessionPhaseId/exercises (triply-nested
+// collection, length 8) or .../exercises/:id (triply-nested resource, length 9).
+async function routeProgramExercises(request, env, segments) {
+    const programId = segments[2];
+    const sessionId = segments[4];
+    const sessionPhaseId = segments[6];
+    if (!(await sessionExists(env.DB, programId, sessionId))) {
+        return withCors(jsonResponse({ error: "session not found" }, 404), request);
+    }
+    if (!(await programExerciseSessionPhaseExists(env.DB, sessionId, sessionPhaseId))) {
+        return withCors(jsonResponse({ error: "session phase not found" }, 404), request);
+    }
+    const id = segments[8];
+    const response = id
+        ? await handleProgramExerciseResource(request, env.DB, sessionPhaseId, id)
+        : await handleProgramExercisesCollection(request, env.DB, sessionPhaseId);
     return withCors(response, request);
 }
 
@@ -442,6 +544,10 @@ async function routeProgramResourceOrCollection(request, env, segments) {
 // segments, is not a route this function owns, so it returns null and the caller falls
 // through to notFoundOrAssets.
 async function routePrograms(request, env, segments) {
+    if (isProgramExercisesRoute(segments)) {
+        return routeProgramExercises(request, env, segments);
+    }
+
     if (isSessionPhasesRoute(segments)) {
         return routeSessionPhases(request, env, segments);
     }

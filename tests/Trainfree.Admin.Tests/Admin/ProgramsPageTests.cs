@@ -5,6 +5,7 @@ using NSubstitute;
 using Trainfree.Admin.Admin;
 using Trainfree.Admin.Pages;
 using Trainfree.Domain.Ids;
+using Trainfree.Domain.ProgramExercises;
 
 namespace Trainfree.Admin.Tests.Admin;
 
@@ -15,6 +16,10 @@ public sealed class ProgramsPageTests : BunitContext
     private readonly IPhasesApiClient _phasesApiClient = Substitute.For<IPhasesApiClient>();
     private readonly ISessionPhasesApiClient _sessionPhasesApiClient =
         Substitute.For<ISessionPhasesApiClient>();
+    private readonly IExercisesApiClient _exercisesApiClient =
+        Substitute.For<IExercisesApiClient>();
+    private readonly IProgramExercisesApiClient _programExercisesApiClient =
+        Substitute.For<IProgramExercisesApiClient>();
 
     public ProgramsPageTests()
     {
@@ -22,6 +27,8 @@ public sealed class ProgramsPageTests : BunitContext
         Services.AddSingleton(_sessionsApiClient);
         Services.AddSingleton(_phasesApiClient);
         Services.AddSingleton(_sessionPhasesApiClient);
+        Services.AddSingleton(_exercisesApiClient);
+        Services.AddSingleton(_programExercisesApiClient);
         _sessionsApiClient
             .GetSessionsAsync(Arg.Any<ProgramId>(), Arg.Any<CancellationToken>())
             .Returns([]);
@@ -30,6 +37,15 @@ public sealed class ProgramsPageTests : BunitContext
             .GetSessionPhasesAsync(
                 Arg.Any<ProgramId>(),
                 Arg.Any<SessionId>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns([]);
+        _exercisesApiClient.GetExercisesAsync(Arg.Any<CancellationToken>()).Returns([]);
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<SessionId>(),
+                Arg.Any<SessionPhaseId>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns([]);
@@ -1399,5 +1415,619 @@ public sealed class ProgramsPageTests : BunitContext
         // Assert
         Assert.Contains("Request failed with status 500.", cut.Markup, StringComparison.Ordinal);
         Assert.NotEmpty(cut.FindAll("[data-testid='phase-name-SPH-AAAAAA']"));
+    }
+
+    private (
+        ProgramId ProgramId,
+        SessionId SessionId,
+        SessionPhaseId SessionPhaseId
+    ) SetUpProgramSessionPhase(
+        string exerciseId = "EXR-AAAAAA",
+        string exerciseName = "Bodyweight Squat"
+    )
+    {
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns([
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-AAAAAA"),
+                    SessionId.Parse("SNN-AAAAAA"),
+                    PhaseId.Parse("PHS-AAAAAA")
+                ),
+            ]);
+        _exercisesApiClient
+            .GetExercisesAsync(CancellationToken.None)
+            .Returns([new ExerciseSummary(ExerciseId.Parse(exerciseId), exerciseName)]);
+
+        return (
+            ProgramId.Parse("PRG-AAAAAA"),
+            SessionId.Parse("SNN-AAAAAA"),
+            SessionPhaseId.Parse("SPH-AAAAAA")
+        );
+    }
+
+    [Fact]
+    public void ProgramExercises_SessionPhaseHasProgramExercises_RendersRowsNestedUnderPhase()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            45,
+            3,
+            60,
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.Equal(
+            "Bodyweight Squat",
+            cut.Find("[data-testid='program-exercise-name-PGX-AAAAAA']").TextContent.Trim()
+        );
+    }
+
+    [Fact]
+    public void ProgramExercises_LoadFailsForOneSessionPhase_ShowsErrorButPhaseRowStillRenders()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns<Task<IReadOnlyList<IProgramExercise>>>(_ =>
+                throw new HttpRequestException("simulated failure")
+            );
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll("[data-testid='program-exercises-load-error-SPH-AAAAAA']"));
+        Assert.NotEmpty(cut.FindAll("[data-testid='phase-name-SPH-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task AddProgramExercise_ClickAddExercise_ShowsFormWithExerciseDropdown()
+    {
+        // Arrange
+        SetUpProgramSessionPhase();
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+
+        // Assert
+        var picker = cut.Find("[data-testid='exercise-picker-SPH-AAAAAA']");
+        Assert.Contains("Bodyweight Squat", picker.InnerHtml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AddProgramExercise_EmptyExerciseLibrary_ShowsGuidanceAndMakesNoApiCall()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns([
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-AAAAAA"),
+                    SessionId.Parse("SNN-AAAAAA"),
+                    PhaseId.Parse("PHS-AAAAAA")
+                ),
+            ]);
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+
+        // Assert
+        Assert.NotNull(cut.Find("[data-testid='empty-exercise-library-SPH-AAAAAA']"));
+        await _programExercisesApiClient
+            .DidNotReceive()
+            .CreateRepsProgramExerciseAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<SessionId>(),
+                Arg.Any<SessionPhaseId>(),
+                Arg.Any<ExerciseId>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task AddProgramExercise_MissingRequiredFields_SubmitButtonIsDisabled()
+    {
+        // Arrange
+        SetUpProgramSessionPhase();
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+
+        // Assert
+        var button = cut.Find("[data-testid='add-exercise-submit-SPH-AAAAAA']");
+        Assert.True(button.HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task AddProgramExercise_SubmitValidReps_CallsCreateAndAppendsRow()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        _programExercisesApiClient
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                3,
+                60,
+                CancellationToken.None
+            )
+            .Returns(
+                new CreateProgramExerciseSucceeded(
+                    new RepsProgramExercise(
+                        ProgramExerciseId.Parse("PGX-CCCCCC"),
+                        sessionPhaseId,
+                        ExerciseId.Parse("EXR-AAAAAA"),
+                        10,
+                        0,
+                        3,
+                        60,
+                        ProgramExerciseSide.Both
+                    )
+                )
+            );
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-picker-SPH-AAAAAA']").Change("EXR-AAAAAA")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-count-SPH-AAAAAA']").Input("10")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-sets-SPH-AAAAAA']").Input("3")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-restseconds-SPH-AAAAAA']").Input("60")
+        );
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='add-exercise-submit-SPH-AAAAAA']").Click()
+        );
+
+        // Assert
+        await _programExercisesApiClient
+            .Received(1)
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                3,
+                60,
+                CancellationToken.None
+            );
+        Assert.NotEmpty(cut.FindAll("[data-testid='program-exercise-name-PGX-CCCCCC']"));
+    }
+
+    [Fact]
+    public void ProgramExerciseRow_WeightIsZero_RendersWeightAsEnDash()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            3,
+            60,
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.Equal(
+            "–",
+            cut.Find("[data-testid='program-exercise-weight-PGX-AAAAAA']").GetAttribute("value")
+        );
+    }
+
+    [Fact]
+    public void ProgramExerciseRow_TimedType_RendersDurationInCountCellAndTimedBadge()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var timed = new TimedProgramExercise(
+            ProgramExerciseId.Parse("PGX-BBBBBB"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            30,
+            0,
+            3,
+            60,
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([timed]);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.Equal(
+            "Timed",
+            cut.Find("[data-testid='program-exercise-type-PGX-BBBBBB']").TextContent.Trim()
+        );
+        Assert.Equal(
+            "30",
+            cut.Find("[data-testid='program-exercise-count-PGX-BBBBBB']").GetAttribute("value")
+        );
+    }
+
+    [Fact]
+    public void ProgramExerciseRow_NonZeroValues_RendersActualNumbersWithoutDash()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            45,
+            3,
+            60,
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.Equal(
+            "45",
+            cut.Find("[data-testid='program-exercise-weight-PGX-AAAAAA']").GetAttribute("value")
+        );
+        Assert.Equal(
+            "10",
+            cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").GetAttribute("value")
+        );
+    }
+
+    [Fact]
+    public async Task SaveProgramExercise_EditThenSave_CallsUpdateAndAppliesResult()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            3,
+            60,
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        _programExercisesApiClient
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-AAAAAA"),
+                Arg.Any<ProgramExerciseUpdate>(),
+                CancellationToken.None
+            )
+            .Returns(
+                new UpdateProgramExerciseSucceeded(
+                    new RepsProgramExercise(
+                        ProgramExerciseId.Parse("PGX-AAAAAA"),
+                        sessionPhaseId,
+                        ExerciseId.Parse("EXR-AAAAAA"),
+                        12,
+                        45,
+                        3,
+                        60,
+                        ProgramExerciseSide.Both
+                    )
+                )
+            );
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").Input("12")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-weight-PGX-AAAAAA']").Input("45")
+        );
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-save-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        Assert.Equal(
+            "12",
+            cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").GetAttribute("value")
+        );
+        Assert.Equal(
+            "45",
+            cut.Find("[data-testid='program-exercise-weight-PGX-AAAAAA']").GetAttribute("value")
+        );
+        Assert.Empty(cut.FindAll("[data-testid='program-exercise-save-PGX-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task SaveProgramExercise_NonPositiveCount_ShowsValidationErrorWithoutApiCall()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            3,
+            60,
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").Input("0")
+        );
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-save-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll("[data-testid='program-exercise-error-PGX-AAAAAA']"));
+        await _programExercisesApiClient
+            .DidNotReceive()
+            .UpdateProgramExerciseAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<SessionId>(),
+                Arg.Any<SessionPhaseId>(),
+                Arg.Any<ProgramExerciseId>(),
+                Arg.Any<ProgramExerciseUpdate>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task SaveProgramExercise_ServerRejects_ShowsErrorOnRowWithoutThrowing()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            3,
+            60,
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        _programExercisesApiClient
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-AAAAAA"),
+                Arg.Any<ProgramExerciseUpdate>(),
+                CancellationToken.None
+            )
+            .Returns(new UpdateProgramExerciseFailed("Request failed with status 500."));
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").Input("12")
+        );
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-save-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        Assert.Equal(
+            "Request failed with status 500.",
+            cut.Find("[data-testid='program-exercise-error-PGX-AAAAAA']").TextContent.Trim()
+        );
+    }
+
+    [Fact]
+    public async Task RevertProgramExercise_ClickRevert_RestoresSavedValuesAndMakesNoApiCall()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            3,
+            60,
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").Input("99")
+        );
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-revert-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        Assert.Equal(
+            "10",
+            cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").GetAttribute("value")
+        );
+        await _programExercisesApiClient
+            .DidNotReceive()
+            .UpdateProgramExerciseAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<SessionId>(),
+                Arg.Any<SessionPhaseId>(),
+                Arg.Any<ProgramExerciseId>(),
+                Arg.Any<ProgramExerciseUpdate>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task DeleteProgramExercise_ClickDelete_CallsDeleteAndRemovesRow()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            3,
+            60,
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        _programExercisesApiClient
+            .DeleteProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns(new DeleteProgramExerciseSucceeded());
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-delete-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='program-exercise-name-PGX-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task DeleteProgramExercise_ServerRejects_ShowsErrorOnRowWithoutRemovingIt()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            3,
+            60,
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        _programExercisesApiClient
+            .DeleteProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns(new DeleteProgramExerciseFailed("Request failed with status 500."));
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-delete-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        Assert.Equal(
+            "Request failed with status 500.",
+            cut.Find("[data-testid='program-exercise-error-PGX-AAAAAA']").TextContent.Trim()
+        );
+        Assert.NotEmpty(cut.FindAll("[data-testid='program-exercise-name-PGX-AAAAAA']"));
     }
 }
