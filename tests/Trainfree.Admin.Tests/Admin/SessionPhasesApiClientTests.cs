@@ -123,6 +123,31 @@ public sealed class SessionPhasesApiClientTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateSessionPhaseAsync_ServerReturnsNullBody_ReturnsCreateSessionPhaseFailedWithoutThrowing()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.Created)
+        {
+            Content = new StringContent("null", Encoding.UTF8, "application/json"),
+        };
+        var client = new SessionPhasesApiClient(
+            _httpClient,
+            NullLogger<SessionPhasesApiClient>.Instance
+        );
+
+        // Act
+        var outcome = await client.CreateSessionPhaseAsync(
+            ProgramId.Parse("PRG-AAAAAA"),
+            SessionId.Parse("SNN-AAAAAA"),
+            PhaseId.Parse("PHS-AAAAAA"),
+            CancellationToken.None
+        );
+
+        // Assert
+        Assert.IsType<CreateSessionPhaseFailed>(outcome);
+    }
+
+    [Fact]
     public async Task CreateSessionPhaseAsync_ServerReturns400_ReturnsCreateSessionPhaseFailedWithServerError()
     {
         // Arrange

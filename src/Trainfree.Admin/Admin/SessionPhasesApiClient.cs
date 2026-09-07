@@ -59,7 +59,9 @@ internal sealed class SessionPhasesApiClient : ApiClientBase, ISessionPhasesApiC
                     JsonOptions,
                     cancellationToken
                 );
-                return new CreateSessionPhaseSucceeded(ToSummary(dto!));
+                return dto is null
+                    ? new CreateSessionPhaseFailed("Server returned an empty response.")
+                    : new CreateSessionPhaseSucceeded(ToSummary(dto));
             },
             error => new CreateSessionPhaseFailed(error),
             "Could not add phase to session. Try again.",
