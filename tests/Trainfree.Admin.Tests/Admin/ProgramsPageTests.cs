@@ -1278,6 +1278,35 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public async Task AddPhase_PhaseLibraryFailedToLoad_ShowsLoadErrorInsteadOfEmptyGuidance()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns<Task<IReadOnlyList<PhaseSummary>>>(_ =>
+                throw new HttpRequestException("simulated failure")
+            );
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-phase-SNN-AAAAAA']").Click());
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll("[data-testid='phase-library-load-error-SNN-AAAAAA']"));
+        Assert.Empty(cut.FindAll("[data-testid='empty-phase-library-SNN-AAAAAA']"));
+    }
+
+    [Fact]
     public async Task DeleteSessionPhase_ClickDelete_CallsDeleteAndRemovesRow()
     {
         // Arrange

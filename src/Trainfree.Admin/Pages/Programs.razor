@@ -234,7 +234,16 @@
                                 }
                                 @if (_addingPhaseSessionId == session.Id)
                                 {
-                                    @if (_phaseLibrary.Count == 0)
+                                    @if (_phaseLibraryLoadError is not null)
+                                    {
+                                        <div
+                                            class="text-danger small"
+                                            data-testid="phase-library-load-error-@session.Id"
+                                        >
+                                            @_phaseLibraryLoadError
+                                        </div>
+                                    }
+                                    else if (_phaseLibrary.Count == 0)
                                     {
                                         <div
                                             class="text-muted small"
@@ -319,6 +328,7 @@
     private readonly HashSet<ProgramId> _collapsedIds = [];
     private readonly HashSet<SessionId> _collapsedSessionIds = [];
     private readonly List<PhaseSummary> _phaseLibrary = [];
+    private string? _phaseLibraryLoadError;
     private ProgramId? _editingId;
     private SessionId? _editingSessionId;
     private SessionId? _addingPhaseSessionId;
@@ -344,6 +354,7 @@
                     or OperationCanceledException
             )
         {
+            _phaseLibraryLoadError = "Could not load phases. Try refreshing the page.";
             LogLoadPhaseLibraryFailed(Logger, ex);
         }
 
