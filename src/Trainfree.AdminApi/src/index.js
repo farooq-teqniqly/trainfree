@@ -328,7 +328,7 @@ async function handleSessionPhasesCollection(request, db, sessionId) {
     }
 
     if (request.method === "POST") {
-        const body = await request.json().catch(() => ({}));
+        const body = (await request.json().catch(() => null)) ?? {};
         const phaseId = body.phaseId;
         if (typeof phaseId !== "string" || !(await phaseExists(db, phaseId))) {
             return jsonResponse({ error: "phaseId is required and must reference an existing phase" }, 400);

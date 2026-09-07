@@ -734,6 +734,22 @@ describe("POST /api/programs/:programId/sessions/:sessionId/phases", () => {
         expect(response.status).toBe(400);
     });
 
+    it("rejects a literal JSON null body instead of throwing", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+
+        const response = await SELF.fetch(
+            `http://worker/api/programs/${program.id}/sessions/${session.id}/phases`,
+            {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: "null",
+            },
+        );
+
+        expect(response.status).toBe(400);
+    });
+
     it("allows adding the same phase to a session twice", async () => {
         const program = await (await createProgram("Workout A")).json();
         const session = await (await createSession(program.id, "Monday Lower Body")).json();
