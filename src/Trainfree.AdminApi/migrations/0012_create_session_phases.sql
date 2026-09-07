@@ -6,3 +6,8 @@ CREATE TABLE session_phases (
     phase_id TEXT NOT NULL REFERENCES phases(phase_id),
     created_at TEXT NOT NULL
 );
+
+-- Matches listSessionPhases' lookup by session_id and the phase delete guard's lookup
+-- by phase_id (session-phases.js, phases.js).
+CREATE INDEX idx_session_phases_session_id ON session_phases (session_id);
+CREATE INDEX idx_session_phases_phase_id ON session_phases (phase_id);
