@@ -34,11 +34,6 @@
     <div class="text-danger small mb-2" data-testid="add-phase-error">@_addPhaseError</div>
 }
 
-@if (_deleteError is not null)
-{
-    <div class="text-danger small mb-2" data-testid="delete-phase-error">@_deleteError</div>
-}
-
 @if (_loadError is not null)
 {
     <div class="text-danger small mb-2" data-testid="load-phases-error">@_loadError</div>
@@ -134,7 +129,6 @@ else
     private readonly List<PhaseRow> _rows = [];
     private PhaseId? _editingId;
     private string? _addPhaseError;
-    private string? _deleteError;
     private string? _loadError;
 
     private const int MinNameLength = 4;
@@ -217,10 +211,9 @@ else
         {
             case DeletePhaseSucceeded:
                 _rows.Remove(row);
-                _deleteError = null;
                 break;
             case DeletePhaseFailed failed:
-                _deleteError = failed.Error;
+                row.Error = failed.Error;
                 break;
         }
     }

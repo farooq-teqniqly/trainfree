@@ -5,6 +5,8 @@
 @using Trainfree.Domain.Ids
 @inject IProgramsApiClient Api
 @inject ISessionsApiClient SessionsApi
+@inject IPhasesApiClient PhasesApi
+@inject ISessionPhasesApiClient SessionPhasesApi
 @inject ILogger<Programs> Logger
 
 <PageTitle>Programs - Trainfree Admin</PageTitle>
@@ -44,6 +46,11 @@
 @if (_deleteSessionError is not null)
 {
     <div class="text-danger small mb-2" data-testid="delete-session-error">@_deleteSessionError</div>
+}
+
+@if (_addPhaseError is not null)
+{
+    <div class="text-danger small mb-2" data-testid="add-phase-error">@_addPhaseError</div>
 }
 
 @if (_loadError is not null)
@@ -154,6 +161,20 @@
                         <tr class="row-depth-1">
                             <td>
                                 <div class="name-cell">
+                                    <button
+                                        class="btn btn-sm btn-icon chevron-btn"
+                                        data-testid="session-chevron-@session.Id"
+                                        title="@SessionChevronTitle(session)"
+                                        aria-expanded="@(HasToggleablePhaseContent(session) && !_collapsedSessionIds.Contains(session.Id) ? "true" : "false")"
+                                        disabled="@(!HasToggleablePhaseContent(session))"
+                                        @onclick="() => ToggleCollapsedSession(session)"
+                                    >
+                                        <i
+                                            class="bi bi-chevron-down @(HasToggleablePhaseContent(session) && _collapsedSessionIds.Contains(session.Id) ? "chevron-collapsed" : "")"
+                                            aria-hidden="true"
+                                        ></i>
+                                        <span class="visually-hidden">@SessionChevronTitle(session)</span>
+                                    </button>
                                     <input
                                         class="cell-input"
                                         data-testid="session-name-input-@session.Id"
@@ -183,6 +204,15 @@
                                             </button>
                                         }
                                         <button
+                                            class="btn btn-sm btn-icon btn-outline-dark"
+                                            data-testid="add-phase-@session.Id"
+                                            title="Add Phase"
+                                            @onclick="() => ShowAddPhasePicker(session)"
+                                        >
+                                            <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                                            <span class="visually-hidden">Add Phase</span>
+                                        </button>
+                                        <button
                                             class="btn btn-sm btn-icon btn-outline-danger"
                                             data-testid="session-delete-@session.Id"
                                             title="Delete"
@@ -202,8 +232,90 @@
                                         @session.Error
                                     </div>
                                 }
+                                @if (_addingPhaseSessionId == session.Id)
+                                {
+                                    @if (_phaseLibraryLoadError is not null)
+                                    {
+                                        <div
+                                            class="text-danger small"
+                                            data-testid="phase-library-load-error-@session.Id"
+                                        >
+                                            @_phaseLibraryLoadError
+                                        </div>
+                                    }
+                                    else if (_phaseLibrary.Count == 0)
+                                    {
+                                        <div
+                                            class="text-muted small"
+                                            data-testid="empty-phase-library-@session.Id"
+                                        >
+                                            No phases yet -- create one on the
+                                            <NavLink href="phases">Phases</NavLink> page first.
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <select
+                                            class="form-select form-select-sm w-auto d-inline-block"
+                                            data-testid="phase-picker-@session.Id"
+                                            @onchange="e => AddPhaseAsync(session, (string)e.Value!)"
+                                        >
+                                            <option value="">-- Select a phase --</option>
+                                            @foreach (var phase in _phaseLibrary)
+                                            {
+                                                <option value="@phase.Id">@phase.Name</option>
+                                            }
+                                        </select>
+                                    }
+                                }
                             </td>
                         </tr>
+                        @if (!_collapsedSessionIds.Contains(session.Id))
+                        {
+                            @if (session.PhasesLoadError is not null)
+                            {
+                                <tr>
+                                    <td>
+                                        <div
+                                            class="text-danger small"
+                                            data-testid="phases-load-error-@session.Id"
+                                        >
+                                            @session.PhasesLoadError
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                            @foreach (var phase in session.Phases)
+                            {
+                                <tr class="row-depth-2">
+                                    <td>
+                                        <div class="name-cell">
+                                            <span data-testid="phase-name-@phase.Id">@phase.DisplayName</span>
+                                            <div class="name-actions">
+                                                <button
+                                                    class="btn btn-sm btn-icon btn-outline-danger"
+                                                    data-testid="phase-delete-@phase.Id"
+                                                    title="Delete"
+                                                    @onclick="() => DeleteSessionPhaseAsync(session, phase)"
+                                                >
+                                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                                    <span class="visually-hidden">Delete</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        @if (phase.Error is not null)
+                                        {
+                                            <div
+                                                class="text-danger small"
+                                                data-testid="phase-error-@phase.Id"
+                                            >
+                                                @phase.Error
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
                     }
                 }
             }
@@ -214,16 +326,38 @@
 @code {
     private readonly List<ProgramRow> _rows = [];
     private readonly HashSet<ProgramId> _collapsedIds = [];
+    private readonly HashSet<SessionId> _collapsedSessionIds = [];
+    private readonly List<PhaseSummary> _phaseLibrary = [];
+    private string? _phaseLibraryLoadError;
     private ProgramId? _editingId;
     private SessionId? _editingSessionId;
+    private SessionId? _addingPhaseSessionId;
     private string? _addProgramError;
     private string? _addSessionError;
+    private string? _addPhaseError;
     private string? _deleteError;
     private string? _deleteSessionError;
     private string? _loadError;
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            _phaseLibrary.AddRange(await PhasesApi.GetPhasesAsync());
+        }
+        catch (Exception ex)
+            when (ex
+                is HttpRequestException
+                    or JsonException
+                    or InvalidOperationException
+                    or NotSupportedException
+                    or OperationCanceledException
+            )
+        {
+            _phaseLibraryLoadError = "Could not load phases. Try refreshing the page.";
+            LogLoadPhaseLibraryFailed(Logger, ex);
+        }
+
         try
         {
             var programs = await Api.GetProgramsAsync();
@@ -235,9 +369,39 @@
                 try
                 {
                     var sessions = await SessionsApi.GetSessionsAsync(program.Id);
-                    row.Sessions.AddRange(
-                        sessions.Select(s => new SessionRow(s.Id, program.Id, s.Name))
-                    );
+                    foreach (var session in sessions)
+                    {
+                        var sessionRow = new SessionRow(session.Id, program.Id, session.Name);
+                        row.Sessions.Add(sessionRow);
+
+                        try
+                        {
+                            var sessionPhases = await SessionPhasesApi.GetSessionPhasesAsync(
+                                program.Id,
+                                session.Id
+                            );
+                            sessionRow.Phases.AddRange(
+                                sessionPhases.Select(sp => new SessionPhaseRow(
+                                    sp.Id,
+                                    sp.PhaseId,
+                                    ResolvePhaseName(sp.PhaseId)
+                                ))
+                            );
+                        }
+                        catch (Exception ex)
+                            when (ex
+                                is HttpRequestException
+                                    or JsonException
+                                    or InvalidOperationException
+                                    or NotSupportedException
+                                    or OperationCanceledException
+                            )
+                        {
+                            sessionRow.PhasesLoadError =
+                                "Could not load phases. Try refreshing the page.";
+                            LogLoadPhasesForSessionFailed(Logger, session.Id, ex);
+                        }
+                    }
                 }
                 catch (Exception ex)
                     when (ex
@@ -294,6 +458,88 @@
         if (!_collapsedIds.Add(row.Id))
         {
             _collapsedIds.Remove(row.Id);
+        }
+    }
+
+    private string ResolvePhaseName(PhaseId phaseId) =>
+        _phaseLibrary.FirstOrDefault(p => p.Id == phaseId)?.Name ?? phaseId.Value;
+
+    private static bool HasToggleablePhaseContent(SessionRow session) =>
+        session.Phases.Count > 0 || session.PhasesLoadError is not null;
+
+    private string SessionChevronTitle(SessionRow session)
+    {
+        if (!HasToggleablePhaseContent(session))
+        {
+            return "No phases";
+        }
+
+        return _collapsedSessionIds.Contains(session.Id) ? "Expand" : "Collapse";
+    }
+
+    private void ToggleCollapsedSession(SessionRow session)
+    {
+        if (!HasToggleablePhaseContent(session))
+        {
+            return;
+        }
+
+        if (!_collapsedSessionIds.Add(session.Id))
+        {
+            _collapsedSessionIds.Remove(session.Id);
+        }
+    }
+
+    private void ShowAddPhasePicker(SessionRow session) => _addingPhaseSessionId = session.Id;
+
+    private async Task AddPhaseAsync(SessionRow session, string phaseIdValue)
+    {
+        if (string.IsNullOrEmpty(phaseIdValue) || !PhaseId.TryParse(phaseIdValue, out var phaseId))
+        {
+            return;
+        }
+
+        var outcome = await SessionPhasesApi.CreateSessionPhaseAsync(
+            session.ProgramId,
+            session.Id,
+            phaseId
+        );
+        switch (outcome)
+        {
+            case CreateSessionPhaseSucceeded succeeded:
+                session.Phases.Add(
+                    new SessionPhaseRow(
+                        succeeded.SessionPhase.Id,
+                        succeeded.SessionPhase.PhaseId,
+                        ResolvePhaseName(succeeded.SessionPhase.PhaseId)
+                    )
+                );
+                _addingPhaseSessionId = null;
+                _addPhaseError = null;
+                _collapsedSessionIds.Remove(session.Id);
+                break;
+            case CreateSessionPhaseFailed failed:
+                _addingPhaseSessionId = null;
+                _addPhaseError = failed.Error;
+                break;
+        }
+    }
+
+    private async Task DeleteSessionPhaseAsync(SessionRow session, SessionPhaseRow phase)
+    {
+        var outcome = await SessionPhasesApi.DeleteSessionPhaseAsync(
+            session.ProgramId,
+            session.Id,
+            phase.Id
+        );
+        switch (outcome)
+        {
+            case DeleteSessionPhaseSucceeded:
+                session.Phases.Remove(phase);
+                break;
+            case DeleteSessionPhaseFailed failed:
+                phase.Error = failed.Error;
+                break;
         }
     }
 
@@ -466,6 +712,23 @@
         public string Name { get; set; }
         public string SavedName { get; set; }
         public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
+        public string? Error { get; set; }
+        public string? PhasesLoadError { get; set; }
+        public List<SessionPhaseRow> Phases { get; } = [];
+    }
+
+    private sealed class SessionPhaseRow
+    {
+        public SessionPhaseRow(SessionPhaseId id, PhaseId phaseId, string displayName)
+        {
+            Id = id;
+            PhaseId = phaseId;
+            DisplayName = displayName;
+        }
+
+        public SessionPhaseId Id { get; }
+        public PhaseId PhaseId { get; }
+        public string DisplayName { get; }
         public string? Error { get; set; }
     }
 }

@@ -1,5 +1,5 @@
 import { generatePhaseId } from "./ids.js";
-import { DuplicateNameError, uniqueConstraintColumns } from "./errors.js";
+import { DuplicateNameError, PhaseInUseError, uniqueConstraintColumns } from "./errors.js";
 
 const SELECT_COLUMNS =
     "phase_id as id, name, created_at as createdAt, updated_at as updatedAt";
@@ -11,6 +11,11 @@ const MAX_ID_GENERATION_ATTEMPTS = 5;
 // Exported so tests can assert on the literal tiebreak clause without mocking the D1
 // binding (CLAUDE-baseline.md forbids mocking Worker/D1 test dependencies).
 export const LIST_PHASES_QUERY = `SELECT ${SELECT_COLUMNS} FROM phases ORDER BY created_at ASC, phases.id ASC`;
+
+export async function phaseExists(db, id) {
+    const row = await db.prepare("SELECT 1 FROM phases WHERE phase_id = ?").bind(id).first();
+    return row !== null;
+}
 
 export async function listPhases(db) {
     const { results } = await db.prepare(LIST_PHASES_QUERY).all();
@@ -76,6 +81,14 @@ export async function renamePhase(db, id, name) {
 }
 
 export async function deletePhase(db, id) {
+    const inUse = await db
+        .prepare("SELECT 1 FROM session_phases WHERE phase_id = ?")
+        .bind(id)
+        .first();
+    if (inUse !== null) {
+        throw new PhaseInUseError(id);
+    }
+
     const result = await db
         .prepare("DELETE FROM phases WHERE phase_id = ?")
         .bind(id)

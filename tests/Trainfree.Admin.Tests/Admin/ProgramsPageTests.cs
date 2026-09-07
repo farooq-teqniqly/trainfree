@@ -12,13 +12,26 @@ public sealed class ProgramsPageTests : BunitContext
 {
     private readonly IProgramsApiClient _apiClient = Substitute.For<IProgramsApiClient>();
     private readonly ISessionsApiClient _sessionsApiClient = Substitute.For<ISessionsApiClient>();
+    private readonly IPhasesApiClient _phasesApiClient = Substitute.For<IPhasesApiClient>();
+    private readonly ISessionPhasesApiClient _sessionPhasesApiClient =
+        Substitute.For<ISessionPhasesApiClient>();
 
     public ProgramsPageTests()
     {
         Services.AddSingleton(_apiClient);
         Services.AddSingleton(_sessionsApiClient);
+        Services.AddSingleton(_phasesApiClient);
+        Services.AddSingleton(_sessionPhasesApiClient);
         _sessionsApiClient
             .GetSessionsAsync(Arg.Any<ProgramId>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+        _phasesApiClient.GetPhasesAsync(Arg.Any<CancellationToken>()).Returns([]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<SessionId>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns([]);
     }
 
@@ -893,5 +906,498 @@ public sealed class ProgramsPageTests : BunitContext
         // Assert
         Assert.Contains("Request failed with status 500.", cut.Markup, StringComparison.Ordinal);
         Assert.NotEmpty(cut.FindAll("[data-testid='session-name-input-SNN-AAAAAA']"));
+    }
+
+    [Fact]
+    public void OnInitialized_SessionHasPhases_RendersPhaseRowsNestedUnderSession()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns([
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-AAAAAA"),
+                    SessionId.Parse("SNN-AAAAAA"),
+                    PhaseId.Parse("PHS-AAAAAA")
+                ),
+            ]);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.Contains("Warm Up", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OnInitialized_OneSessionsPhasesFailToLoad_StillRendersEveryOtherRow()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var sessionA = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        var sessionB = new SessionSummary(
+            SessionId.Parse("SNN-BBBBBB"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Wednesday Upper Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([sessionA, sessionB]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns<IReadOnlyList<SessionPhaseSummary>>(_ =>
+                throw new JsonException("'<' is an invalid start of a value.")
+            );
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.Contains("Monday Lower Body", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Wednesday Upper Body", cut.Markup, StringComparison.Ordinal);
+        Assert.NotNull(cut.Find("[data-testid=phases-load-error-SNN-AAAAAA]"));
+    }
+
+    [Fact]
+    public void OnInitialized_SessionHasPhases_StartsExpanded()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns([
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-AAAAAA"),
+                    SessionId.Parse("SNN-AAAAAA"),
+                    PhaseId.Parse("PHS-AAAAAA")
+                ),
+            ]);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll("[data-testid='phase-name-SPH-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task SessionChevron_ClickOnExpandedSession_HidesItsPhases()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns([
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-AAAAAA"),
+                    SessionId.Parse("SNN-AAAAAA"),
+                    PhaseId.Parse("PHS-AAAAAA")
+                ),
+            ]);
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='session-chevron-SNN-AAAAAA']").Click());
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='phase-name-SPH-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task SessionChevron_ClickOnCollapsedSession_RestoresPhasesWithoutRefetch()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns([
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-AAAAAA"),
+                    SessionId.Parse("SNN-AAAAAA"),
+                    PhaseId.Parse("PHS-AAAAAA")
+                ),
+            ]);
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='session-chevron-SNN-AAAAAA']").Click());
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='session-chevron-SNN-AAAAAA']").Click());
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll("[data-testid='phase-name-SPH-AAAAAA']"));
+        await _sessionPhasesApiClient
+            .Received(1)
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            );
+    }
+
+    [Fact]
+    public async Task SessionChevron_CollapseOneSession_LeavesOtherSessionsExpanded()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var sessionA = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        var sessionB = new SessionSummary(
+            SessionId.Parse("SNN-BBBBBB"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Wednesday Upper Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([sessionA, sessionB]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns([
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-AAAAAA"),
+                    SessionId.Parse("SNN-AAAAAA"),
+                    PhaseId.Parse("PHS-AAAAAA")
+                ),
+            ]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-BBBBBB"),
+                CancellationToken.None
+            )
+            .Returns([
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-BBBBBB"),
+                    SessionId.Parse("SNN-BBBBBB"),
+                    PhaseId.Parse("PHS-AAAAAA")
+                ),
+            ]);
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='session-chevron-SNN-AAAAAA']").Click());
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='phase-name-SPH-AAAAAA']"));
+        Assert.NotEmpty(cut.FindAll("[data-testid='phase-name-SPH-BBBBBB']"));
+    }
+
+    [Fact]
+    public async Task AddPhase_ClickAddPhase_ShowsDropdownOfPhaseLibrary()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-phase-SNN-AAAAAA']").Click());
+
+        // Assert
+        var picker = cut.Find("[data-testid='phase-picker-SNN-AAAAAA']");
+        Assert.Contains("Warm Up", picker.InnerHtml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AddPhase_SelectPhase_CallsCreateAndAppendsRow()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
+        _sessionPhasesApiClient
+            .CreateSessionPhaseAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                PhaseId.Parse("PHS-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns(
+                new CreateSessionPhaseSucceeded(
+                    new SessionPhaseSummary(
+                        SessionPhaseId.Parse("SPH-CCCCCC"),
+                        SessionId.Parse("SNN-AAAAAA"),
+                        PhaseId.Parse("PHS-AAAAAA")
+                    )
+                )
+            );
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-phase-SNN-AAAAAA']").Click());
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='phase-picker-SNN-AAAAAA']").Change("PHS-AAAAAA")
+        );
+
+        // Assert
+        await _sessionPhasesApiClient
+            .Received(1)
+            .CreateSessionPhaseAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                PhaseId.Parse("PHS-AAAAAA"),
+                CancellationToken.None
+            );
+        Assert.NotEmpty(cut.FindAll("[data-testid='phase-name-SPH-CCCCCC']"));
+    }
+
+    [Fact]
+    public async Task AddPhase_EmptyPhaseLibrary_ShowsGuidanceAndMakesNoApiCall()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-phase-SNN-AAAAAA']").Click());
+
+        // Assert
+        Assert.NotNull(cut.Find("[data-testid='empty-phase-library-SNN-AAAAAA']"));
+        await _sessionPhasesApiClient
+            .DidNotReceive()
+            .CreateSessionPhaseAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<SessionId>(),
+                Arg.Any<PhaseId>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task AddPhase_PhaseLibraryFailedToLoad_ShowsLoadErrorInsteadOfEmptyGuidance()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns<Task<IReadOnlyList<PhaseSummary>>>(_ =>
+                throw new HttpRequestException("simulated failure")
+            );
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-phase-SNN-AAAAAA']").Click());
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll("[data-testid='phase-library-load-error-SNN-AAAAAA']"));
+        Assert.Empty(cut.FindAll("[data-testid='empty-phase-library-SNN-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task DeleteSessionPhase_ClickDelete_CallsDeleteAndRemovesRow()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns([
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-AAAAAA"),
+                    SessionId.Parse("SNN-AAAAAA"),
+                    PhaseId.Parse("PHS-AAAAAA")
+                ),
+            ]);
+        _sessionPhasesApiClient
+            .DeleteSessionPhaseAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                SessionPhaseId.Parse("SPH-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns(new DeleteSessionPhaseSucceeded());
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='phase-delete-SPH-AAAAAA']").Click());
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='phase-name-SPH-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task DeleteSessionPhase_ServerRejects_ShowsErrorOnRowWithoutThrowing()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns([
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-AAAAAA"),
+                    SessionId.Parse("SNN-AAAAAA"),
+                    PhaseId.Parse("PHS-AAAAAA")
+                ),
+            ]);
+        _sessionPhasesApiClient
+            .DeleteSessionPhaseAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                SessionPhaseId.Parse("SPH-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns(new DeleteSessionPhaseFailed("Request failed with status 500."));
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='phase-delete-SPH-AAAAAA']").Click());
+
+        // Assert
+        Assert.Contains("Request failed with status 500.", cut.Markup, StringComparison.Ordinal);
+        Assert.NotEmpty(cut.FindAll("[data-testid='phase-name-SPH-AAAAAA']"));
     }
 }

@@ -17,6 +17,7 @@ builder.Services.AddScoped(sp => new HttpClient
 });
 builder.Services.AddScoped<IProgramsApiClient, ProgramsApiClient>();
 builder.Services.AddScoped<ISessionsApiClient, SessionsApiClient>();
+builder.Services.AddScoped<ISessionPhasesApiClient, SessionPhasesApiClient>();
 builder.Services.AddScoped<IPhasesApiClient, PhasesApiClient>();
 builder.Services.AddScoped<IExercisesApiClient, ExercisesApiClient>();
 
