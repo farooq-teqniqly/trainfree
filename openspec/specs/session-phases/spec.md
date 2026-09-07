@@ -9,7 +9,7 @@ session phase's externally visible identity, the Worker's nested create/delete A
 the `session_phases` table, its cascade relationship with its parent session, and the
 Blazor admin UI that manages it nested under a session row.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Session phase identifier format
 Each session phase SHALL be identified externally by a surrogate key in the form
@@ -191,42 +191,3 @@ one level deeper.
 #### Scenario: Collapsing one session does not affect others
 - **WHEN** the admin user collapses one session with multiple sessions loaded
 - **THEN** every other session's expanded/collapsed state is unchanged
-
-## Decisions
-
-- **No `phaseName` embedded in the session-phase API response.** The admin UI already
-  has to fetch `GET /api/phases` in full to populate the "Add Phase" dropdown, so it
-  resolves each row's display name client-side by matching `phaseId` against that
-  already-fetched list rather than requiring the Worker to join `phases` into every
-  `session_phases` read. This would become wrong if the picker ever became a
-  server-side search (paginated/filtered) instead of a full-list dropdown, since the
-  client would no longer reliably hold the full phase list to resolve names from.
-- **No uniqueness constraint on `(session_id, phase_id)`.** The same canonical phase can
-  be added to one session more than once (e.g. two separate cool-down blocks), so
-  `session_phases` allows duplicate `phase_id` values within a session, unlike
-  `sessions.name`'s uniqueness-within-program constraint.
-- **No `PATCH` route.** A session phase carries only a `phaseId` reference; changing it
-  is identical in effect to delete-then-recreate, so no update route is registered
-  rather than adding one that duplicates `POST`/`DELETE`.
-- **Invalid `phaseId` in the request body is a `400`, not a `404`.** `404` is reserved
-  for URL path segments that fail to resolve to a resource (`:programId`, `:sessionId`,
-  `:id`); an invalid value inside the JSON body is a validation failure, consistent
-  with how an out-of-bound `name` on other capabilities is also a `400`.
-- **The `Phase` delete guard and the `phases` capability's `Purpose` text.** This
-  change adds the guard behavior (see the `phases` capability's delta in this same
-  change) but does not rewrite `openspec/specs/phases/spec.md`'s `## Purpose` section,
-  which still describes delete as unconditional -- that line is corrected when this
-  change is archived and synced into the main spec, not while the guard only exists in
-  a not-yet-shipped delta.
-
-## Requirement coverage
-
-Anchor: `docs/trainfree-roadmap.md` slice 7 (`add-session-phases-crud`)
-
-| # | Anchor requirement | Covered by |
-|---|--------------------|-----------|
-| 1 | D1 migration: `session_phases` table (FK `session_id`, `phase_id`; cascade-deleted when its parent `Session` is deleted) | Req: Deleting a session cascades to its session phases (behavior); migration itself is an implementation detail of tasks.md |
-| 2 | Worker: nested routes, create/delete only (no rename) | Req: List a session's phases; Req: Create a session phase; Req: A session phase cannot be renamed; Req: Delete a session phase |
-| 3 | `Phase` delete guard deferred from slice 5 | Covered in this change's `phases` capability delta (`MODIFIED Requirements`), not in this file |
-| 4 | Phase picked via plain dropdown, no search, no inline "New phase..." shortcut | Req: Admin session phase rows nested under their session (scenario: Adding a phase to a session) |
-| 5 | Blazor: session rows gain expand/collapse chevron revealing phase rows, same dirty-row/cascading-delete pattern as session rows under programs | Req: Admin session phase rows nested under their session |

@@ -4,9 +4,8 @@
 Phases are the canonical phase library (e.g. "Warm Up", "Legs") that program
 sessions pick from instead of typing free text. This spec covers a phase's externally
 visible identity and name rules, the Worker's flat CRUD API over the `phases` table,
-and the Blazor admin UI that manages them. Delete is unconditional here -- no other table
-references `phases` yet; a usage guard is expected once a future capability adds a
-join from sessions to phases.
+and the Blazor admin UI that manages them. Delete is guarded: a phase referenced by at
+least one `session_phases` row cannot be deleted until that reference is removed.
 ## Requirements
 ### Requirement: Phase identifier format
 Each phase SHALL be identified externally by a surrogate key in the form `PHS-` followed
@@ -133,12 +132,18 @@ The system SHALL provide `PATCH /api/phases/:id` to update a phase's name.
 
 ### Requirement: Delete a phase
 
-The system SHALL provide `DELETE /api/phases/:id` to remove a phase unconditionally --
-no other table references `phases` yet, so no usage guard applies in this capability.
+The system SHALL provide `DELETE /api/phases/:id` to remove a phase, but SHALL reject
+the deletion with `409` and make no change when the phase is referenced by at least one
+`session_phases` row.
+**Rationale**: A phase is a global library entity (not scoped to a single program), so
+deleting one that a session already uses would silently orphan that session's
+reference; failing the delete is cheaper and safer than a cascade that could reach
+across other users' data once multi-user support exists.
 
-#### Scenario: Phase exists
+#### Scenario: Phase exists and is unused
 
-- **WHEN** a client calls `DELETE /api/phases/:id` for an existing phase
+- **WHEN** a client calls `DELETE /api/phases/:id` for an existing phase referenced by
+  no `session_phases` row
 - **THEN** the Worker deletes the row and responds `204`
 
 #### Scenario: Phase does not exist
@@ -146,11 +151,22 @@ no other table references `phases` yet, so no usage guard applies in this capabi
 - **WHEN** a client calls `DELETE /api/phases/:id` for an `:id` with no matching phase
 - **THEN** the Worker responds `404`
 
+#### Scenario: Phase is used by a session
+
+- **WHEN** a client calls `DELETE /api/phases/:id` for a phase referenced by at least
+  one `session_phases` row
+- **THEN** the Worker responds `409` with a JSON error body and makes no change
+
 ### Requirement: Admin phases page
 
 The Blazor admin app SHALL provide a `Phases` page at `/phases` listing every phase as a
-row, using the same working/saved-value dirty-row pattern as the Programs page, with no
-usage indicator or delete guard.
+row, using the same working/saved-value dirty-row pattern as the Programs page. A
+phase's `Delete` action SHALL surface the Worker's `409` usage rejection instead of
+silently failing or removing the row.
+**Rationale**: Extends the existing page's delete flow to handle the new `409` case
+introduced by the usage guard above; it does not need a proactive "Used in" indicator
+in this change, since that only mattered for a searchable picker experience already
+deferred out of scope.
 
 #### Scenario: Page loads with existing phases
 
@@ -187,12 +203,18 @@ usage indicator or delete guard.
 - **THEN** the page restores the last-saved name in the row, hides `Save` and `Revert`,
   and makes no API call
 
-#### Scenario: Deleting a phase
+#### Scenario: Deleting an unused phase
 
-- **WHEN** the admin user clicks a phase row's `Delete` button
+- **WHEN** the admin user clicks an unused phase row's `Delete` button
 - **THEN** the page calls `DELETE /api/phases/:id` and removes the row from the list on
-  success -- no confirmation prompt or disabled state, since no usage guard exists in
-  this capability
+  success
+
+#### Scenario: Deleting a phase that is in use
+
+- **WHEN** the admin user clicks a phase row's `Delete` button and the Worker responds
+  `409`
+- **THEN** the page shows an in-use error on that row, keeps the row in the list, and
+  remains usable -- it does not throw an unhandled exception
 
 #### Scenario: Save rejects a name that fails the length bound client-side
 
