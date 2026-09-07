@@ -389,53 +389,72 @@ async function routeExercises(request, env, segments) {
     return withCors(response, request);
 }
 
-// /api/programs (collection, length 2), /api/programs/:id (resource, length 3),
-// /api/programs/:id/sessions (nested collection, length 4),
-// /api/programs/:id/sessions/:sessionId (nested resource, length 5),
-// /api/programs/:id/sessions/:sessionId/phases (doubly-nested collection, length 6), or
-// /api/programs/:id/sessions/:sessionId/phases/:id (doubly-nested resource, length 7)
-// -- anything else, including trailing segments past those, is not a route this
-// function owns, so it returns null and the caller falls through to notFoundOrAssets.
-async function routePrograms(request, env, segments) {
-    const isSessionsRoute =
-        segments.length >= 4 && segments.length <= 5 && segments[3] === "sessions";
-    const isSessionPhasesRoute =
+function isSessionsRoute(segments) {
+    return segments.length >= 4 && segments.length <= 5 && segments[3] === "sessions";
+}
+
+function isSessionPhasesRoute(segments) {
+    return (
         segments.length >= 6 &&
         segments.length <= 7 &&
         segments[3] === "sessions" &&
-        segments[5] === "phases";
+        segments[5] === "phases"
+    );
+}
 
-    if (segments.length > 3 && !isSessionsRoute && !isSessionPhasesRoute) {
-        return null;
+// /api/programs/:id/sessions/:sessionId/phases (doubly-nested collection, length 6) or
+// /api/programs/:id/sessions/:sessionId/phases/:id (doubly-nested resource, length 7).
+async function routeSessionPhases(request, env, segments) {
+    const programId = segments[2];
+    const sessionId = segments[4];
+    if (!(await sessionExists(env.DB, programId, sessionId))) {
+        return withCors(jsonResponse({ error: "session not found" }, 404), request);
     }
+    const id = segments[6];
+    const response = id
+        ? await handleSessionPhaseResource(request, env.DB, sessionId, id)
+        : await handleSessionPhasesCollection(request, env.DB, sessionId);
+    return withCors(response, request);
+}
 
-    if (isSessionPhasesRoute) {
-        const programId = segments[2];
-        const sessionId = segments[4];
-        if (!(await sessionExists(env.DB, programId, sessionId))) {
-            return withCors(jsonResponse({ error: "session not found" }, 404), request);
-        }
-        const id = segments[6];
-        const response = id
-            ? await handleSessionPhaseResource(request, env.DB, sessionId, id)
-            : await handleSessionPhasesCollection(request, env.DB, sessionId);
-        return withCors(response, request);
-    }
+// /api/programs/:id/sessions (nested collection, length 4) or
+// /api/programs/:id/sessions/:sessionId (nested resource, length 5).
+async function routeSessions(request, env, segments) {
+    const programId = segments[2];
+    const sessionId = segments[4];
+    const response = sessionId
+        ? await handleSessionResource(request, env.DB, programId, sessionId)
+        : await handleSessionsCollection(request, env.DB, programId);
+    return withCors(response, request);
+}
 
-    if (isSessionsRoute) {
-        const programId = segments[2];
-        const sessionId = segments[4];
-        const response = sessionId
-            ? await handleSessionResource(request, env.DB, programId, sessionId)
-            : await handleSessionsCollection(request, env.DB, programId);
-        return withCors(response, request);
-    }
-
+// /api/programs (collection, length 2) or /api/programs/:id (resource, length 3).
+async function routeProgramResourceOrCollection(request, env, segments) {
     const id = segments[2];
     const response = id
         ? await handleProgramResource(request, env.DB, id)
         : await handleProgramsCollection(request, env.DB);
     return withCors(response, request);
+}
+
+// Dispatches to the program-scoped router matching segments, falling through the
+// nesting levels from deepest to shallowest; anything past those, including trailing
+// segments, is not a route this function owns, so it returns null and the caller falls
+// through to notFoundOrAssets.
+async function routePrograms(request, env, segments) {
+    if (isSessionPhasesRoute(segments)) {
+        return routeSessionPhases(request, env, segments);
+    }
+
+    if (isSessionsRoute(segments)) {
+        return routeSessions(request, env, segments);
+    }
+
+    if (segments.length > 3) {
+        return null;
+    }
+
+    return routeProgramResourceOrCollection(request, env, segments);
 }
 
 export default {
