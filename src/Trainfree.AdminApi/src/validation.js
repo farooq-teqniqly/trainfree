@@ -120,6 +120,10 @@ export function validateCreateProgramExercise(body) {
 }
 
 export function validateUpdateProgramExercise(body, existingType) {
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+        return { valid: false, error: "request body must be an object" };
+    }
+
     if ("exerciseId" in body || "type" in body) {
         return { valid: false, error: "exerciseId and type cannot be changed" };
     }

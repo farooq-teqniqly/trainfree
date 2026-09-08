@@ -450,6 +450,16 @@ describe("validateUpdateProgramExercise", () => {
         expect(result).toEqual({ valid: true, updates: { durationSeconds: 30 } });
     });
 
+    it.each([[123], [true], ["text"], [null], [[1, 2]]])(
+        "rejects a non-object body %j",
+        (body) => {
+            const result = validateUpdateProgramExercise(body);
+
+            expect(result.valid).toBe(false);
+            expect(result.error).toBeTypeOf("string");
+        },
+    );
+
     it("rejects a body with no recognized fields", () => {
         const result = validateUpdateProgramExercise({});
 

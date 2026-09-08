@@ -1632,6 +1632,21 @@ describe("PATCH /api/programs/:programId/sessions/:sessionId/phases/:sessionPhas
         expect(response.status).toBe(404);
     });
 
+    it("returns 400 instead of throwing when the body is a JSON primitive", async () => {
+        const { program, session, sessionPhase, programExercise } = await setUp();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, sessionPhase.id, programExercise.id),
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(123),
+            },
+        );
+
+        expect(response.status).toBe(400);
+    });
+
     it("returns 400 when the body carries exerciseId", async () => {
         const { program, session, sessionPhase, programExercise, exercise } = await setUp();
 
