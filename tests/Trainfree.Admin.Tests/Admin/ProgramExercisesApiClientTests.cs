@@ -101,6 +101,56 @@ public sealed class ProgramExercisesApiClientTests : IDisposable
     }
 
     [Fact]
+    public async Task GetProgramExercisesAsync_ServerReturnsUnknownType_ThrowsFormatException()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """[{"id":"PGX-AAAAAA","sessionPhaseId":"SPH-AAAAAA","exerciseId":"EXR-AAAAAA","type":"Bogus","weight":0,"sets":3,"restSeconds":60,"side":"Both"}]""",
+                Encoding.UTF8,
+                "application/json"
+            ),
+        };
+        var client = CreateClient();
+
+        // Act / Assert
+        await Assert.ThrowsAsync<FormatException>(() =>
+            client.GetProgramExercisesAsync(
+                _programId,
+                _sessionId,
+                _sessionPhaseId,
+                CancellationToken.None
+            )
+        );
+    }
+
+    [Fact]
+    public async Task GetProgramExercisesAsync_ServerReturnsUnknownSide_ThrowsArgumentException()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """[{"id":"PGX-AAAAAA","sessionPhaseId":"SPH-AAAAAA","exerciseId":"EXR-AAAAAA","type":"Reps","reps":10,"weight":0,"sets":3,"restSeconds":60,"side":"Bogus"}]""",
+                Encoding.UTF8,
+                "application/json"
+            ),
+        };
+        var client = CreateClient();
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.GetProgramExercisesAsync(
+                _programId,
+                _sessionId,
+                _sessionPhaseId,
+                CancellationToken.None
+            )
+        );
+    }
+
+    [Fact]
     public async Task CreateRepsProgramExerciseAsync_ServerReturns201_ReturnsSucceeded()
     {
         // Arrange

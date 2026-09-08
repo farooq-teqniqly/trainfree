@@ -1512,6 +1512,25 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public void ProgramExercises_LoadThrowsFormatException_ShowsErrorButPhaseRowStillRenders()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns<Task<IReadOnlyList<IProgramExercise>>>(_ =>
+                throw new FormatException("Unknown program exercise type: 'Bogus'.")
+            );
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll("[data-testid='program-exercises-load-error-SPH-AAAAAA']"));
+        Assert.NotEmpty(cut.FindAll("[data-testid='phase-name-SPH-AAAAAA']"));
+    }
+
+    [Fact]
     public async Task AddProgramExercise_ClickAddExercise_ShowsFormWithExerciseDropdown()
     {
         // Arrange
@@ -1659,6 +1678,52 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public async Task AddProgramExercise_SubmitFailure_ShowsErrorScopedToPhase()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        _programExercisesApiClient
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                3,
+                60,
+                CancellationToken.None
+            )
+            .Returns(
+                new CreateProgramExerciseFailed("Could not add exercise to phase. Try again.")
+            );
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-picker-SPH-AAAAAA']").Change("EXR-AAAAAA")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-count-SPH-AAAAAA']").Input("10")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-sets-SPH-AAAAAA']").Input("3")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-restseconds-SPH-AAAAAA']").Input("60")
+        );
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='add-exercise-submit-SPH-AAAAAA']").Click()
+        );
+
+        // Assert
+        Assert.Equal(
+            "Could not add exercise to phase. Try again.",
+            cut.Find("[data-testid='add-exercise-error-SPH-AAAAAA']").TextContent.Trim()
+        );
+    }
+
+    [Fact]
     public void ProgramExerciseRow_WeightIsZero_RendersWeightAsEnDash()
     {
         // Arrange
@@ -1750,6 +1815,39 @@ public sealed class ProgramsPageTests : BunitContext
         Assert.Equal(
             "10",
             cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").GetAttribute("value")
+        );
+    }
+
+    [Fact]
+    public async Task ProgramExerciseRow_TypeSubOneWeightStartingFromDash_KeepsIntermediateKeystrokes()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            3,
+            60,
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        var cut = Render<Programs>();
+        var weightInput = cut.Find("[data-testid='program-exercise-weight-PGX-AAAAAA']");
+
+        // Act
+        await cut.InvokeAsync(() => weightInput.Input("0"));
+        await cut.InvokeAsync(() => weightInput.Input("0."));
+        await cut.InvokeAsync(() => weightInput.Input("0.5"));
+
+        // Assert
+        Assert.Equal(
+            "0.5",
+            cut.Find("[data-testid='program-exercise-weight-PGX-AAAAAA']").GetAttribute("value")
         );
     }
 

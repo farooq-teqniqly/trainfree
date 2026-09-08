@@ -56,11 +56,6 @@
     <div class="text-danger small mb-2" data-testid="add-phase-error">@_addPhaseError</div>
 }
 
-@if (_addProgramExerciseError is not null)
-{
-    <div class="text-danger small mb-2" data-testid="add-exercise-error">@_addProgramExerciseError</div>
-}
-
 @if (_loadError is not null)
 {
     <div class="text-danger small mb-2" data-testid="load-programs-error">@_loadError</div>
@@ -360,6 +355,15 @@
                                                 @phase.Error
                                             </div>
                                         }
+                                        @if (phase.AddExerciseError is not null)
+                                        {
+                                            <div
+                                                class="text-danger small"
+                                                data-testid="add-exercise-error-@phase.Id"
+                                            >
+                                                @phase.AddExerciseError
+                                            </div>
+                                        }
                                         @if (_addingExerciseSessionPhaseId == phase.Id)
                                         {
                                             @if (_exerciseLibraryLoadError is not null)
@@ -487,8 +491,8 @@
                                                     type="text"
                                                     class="cell-input"
                                                     data-testid="program-exercise-weight-@programExercise.Id"
-                                                    value="@DashIfZero(programExercise.Weight)"
-                                                    @oninput="e => programExercise.Weight = ParseDecimal(e.Value)" />
+                                                    value="@programExercise.WeightText"
+                                                    @oninput="e => SetWeight(programExercise, (string?)e.Value)" />
                                             </td>
                                             <td>
                                                 <input
@@ -585,7 +589,6 @@
     private string? _addProgramError;
     private string? _addSessionError;
     private string? _addPhaseError;
-    private string? _addProgramExerciseError;
     private string? _deleteError;
     private string? _deleteSessionError;
     private string? _loadError;
@@ -678,6 +681,8 @@
                                             or InvalidOperationException
                                             or NotSupportedException
                                             or OperationCanceledException
+                                            or FormatException
+                                            or ArgumentException
                                     )
                                 {
                                     sessionPhaseRow.ProgramExercisesLoadError =
@@ -803,6 +808,7 @@
         _addExerciseCount = null;
         _addExerciseSets = null;
         _addExerciseRestSeconds = null;
+        phase.AddExerciseError = null;
     }
 
     private bool CanSubmitAddExercise =>
@@ -821,6 +827,12 @@
 
     private static string DashIfZero(decimal value) =>
         value == 0 ? "–" : value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static void SetWeight(ProgramExerciseRow row, string? text)
+    {
+        row.WeightText = text ?? "";
+        row.Weight = ParseDecimal(text);
+    }
 
     private async Task AddProgramExerciseAsync(SessionRow session, SessionPhaseRow phase)
     {
@@ -863,11 +875,11 @@
                     )
                 );
                 _addingExerciseSessionPhaseId = null;
-                _addProgramExerciseError = null;
+                phase.AddExerciseError = null;
                 _collapsedSessionPhaseIds.Remove(phase.Id);
                 break;
             case CreateProgramExerciseFailed failed:
-                _addProgramExerciseError = failed.Error;
+                phase.AddExerciseError = failed.Error;
                 break;
         }
     }
@@ -881,6 +893,12 @@
         if (row.Count <= 0 || row.Sets <= 0 || row.RestSeconds <= 0)
         {
             row.Error = "Reps/duration, sets, and rest must be positive.";
+            return;
+        }
+
+        if (row.Weight < 0)
+        {
+            row.Error = "Weight cannot be negative.";
             return;
         }
 
@@ -923,6 +941,7 @@
     {
         row.Count = row.SavedCount;
         row.Weight = row.SavedWeight;
+        row.WeightText = DashIfZero(row.SavedWeight);
         row.Sets = row.SavedSets;
         row.RestSeconds = row.SavedRestSeconds;
         row.Side = row.SavedSide;
@@ -1219,6 +1238,7 @@
         public string DisplayName { get; }
         public string? Error { get; set; }
         public string? ProgramExercisesLoadError { get; set; }
+        public string? AddExerciseError { get; set; }
         public List<ProgramExerciseRow> ProgramExercises { get; } = [];
     }
 
@@ -1239,6 +1259,7 @@
         public int SavedCount { get; set; }
         public decimal Weight { get; set; }
         public decimal SavedWeight { get; set; }
+        public string WeightText { get; set; } = "";
         public int Sets { get; set; }
         public int SavedSets { get; set; }
         public int RestSeconds { get; set; }
@@ -1262,6 +1283,7 @@
             SavedCount = Count;
             Weight = programExercise.Weight;
             SavedWeight = Weight;
+            WeightText = DashIfZero(Weight);
             Sets = programExercise.Sets;
             SavedSets = Sets;
             RestSeconds = programExercise.RestSeconds;
