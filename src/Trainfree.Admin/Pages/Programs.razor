@@ -871,8 +871,7 @@
                     phase.Id,
                     exerciseId,
                     _addExerciseCount!.Value,
-                    _addExerciseSets!.Value,
-                    _addExerciseRestSeconds!.Value
+                    new SetPrescription(_addExerciseSets!.Value, _addExerciseRestSeconds!.Value)
                 )
                 : await ProgramExercisesApi.CreateRepsProgramExerciseAsync(
                     session.ProgramId,
@@ -880,8 +879,7 @@
                     phase.Id,
                     exerciseId,
                     _addExerciseCount!.Value,
-                    _addExerciseSets!.Value,
-                    _addExerciseRestSeconds!.Value
+                    new SetPrescription(_addExerciseSets!.Value, _addExerciseRestSeconds!.Value)
                 );
 
         switch (outcome)

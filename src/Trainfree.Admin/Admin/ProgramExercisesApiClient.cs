@@ -39,17 +39,20 @@ internal sealed class ProgramExercisesApiClient : ApiClientBase, IProgramExercis
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="prescription"/> is <see langword="null"/>.</exception>
     public Task<CreateProgramExerciseOutcome> CreateRepsProgramExerciseAsync(
         ProgramId programId,
         SessionId sessionId,
         SessionPhaseId sessionPhaseId,
         ExerciseId exerciseId,
         int reps,
-        int sets,
-        int restSeconds,
+        SetPrescription prescription,
         CancellationToken cancellationToken = default
-    ) =>
-        CreateAsync(
+    )
+    {
+        ArgumentNullException.ThrowIfNull(prescription);
+
+        return CreateAsync(
             programId,
             sessionId,
             sessionPhaseId,
@@ -58,24 +61,28 @@ internal sealed class ProgramExercisesApiClient : ApiClientBase, IProgramExercis
                 exerciseId = exerciseId.Value,
                 type = "Reps",
                 reps,
-                sets,
-                restSeconds,
+                sets = prescription.Sets,
+                restSeconds = prescription.RestSeconds,
             },
             cancellationToken
         );
+    }
 
     /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="prescription"/> is <see langword="null"/>.</exception>
     public Task<CreateProgramExerciseOutcome> CreateTimedProgramExerciseAsync(
         ProgramId programId,
         SessionId sessionId,
         SessionPhaseId sessionPhaseId,
         ExerciseId exerciseId,
         int durationSeconds,
-        int sets,
-        int restSeconds,
+        SetPrescription prescription,
         CancellationToken cancellationToken = default
-    ) =>
-        CreateAsync(
+    )
+    {
+        ArgumentNullException.ThrowIfNull(prescription);
+
+        return CreateAsync(
             programId,
             sessionId,
             sessionPhaseId,
@@ -84,11 +91,12 @@ internal sealed class ProgramExercisesApiClient : ApiClientBase, IProgramExercis
                 exerciseId = exerciseId.Value,
                 type = "Timed",
                 durationSeconds,
-                sets,
-                restSeconds,
+                sets = prescription.Sets,
+                restSeconds = prescription.RestSeconds,
             },
             cancellationToken
         );
+    }
 
     private Task<CreateProgramExerciseOutcome> CreateAsync(
         ProgramId programId,
@@ -256,8 +264,7 @@ internal sealed class ProgramExercisesApiClient : ApiClientBase, IProgramExercis
                 exerciseId,
                 dto.Reps!.Value,
                 dto.Weight,
-                dto.Sets,
-                dto.RestSeconds,
+                new SetPrescription(dto.Sets, dto.RestSeconds),
                 side
             ),
             "Timed" => new TimedProgramExercise(
@@ -266,8 +273,7 @@ internal sealed class ProgramExercisesApiClient : ApiClientBase, IProgramExercis
                 exerciseId,
                 dto.DurationSeconds!.Value,
                 dto.Weight,
-                dto.Sets,
-                dto.RestSeconds,
+                new SetPrescription(dto.Sets, dto.RestSeconds),
                 side
             ),
             _ => throw new FormatException($"Unknown program exercise type: '{dto.Type}'."),

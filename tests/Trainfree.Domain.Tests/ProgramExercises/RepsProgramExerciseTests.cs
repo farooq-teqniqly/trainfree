@@ -15,7 +15,16 @@ public sealed class RepsProgramExerciseTests
         int sets = 3,
         int restSeconds = 60,
         ProgramExerciseSide side = ProgramExerciseSide.Both
-    ) => new(_id, _sessionPhaseId, _exerciseId, reps, weight, sets, restSeconds, side);
+    ) =>
+        new(
+            _id,
+            _sessionPhaseId,
+            _exerciseId,
+            reps,
+            weight,
+            new SetPrescription(sets, restSeconds),
+            side
+        );
 
     [Fact]
     public void Constructor_ValidValues_AssignsProperties()

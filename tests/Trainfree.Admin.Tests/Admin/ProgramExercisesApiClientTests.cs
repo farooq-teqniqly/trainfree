@@ -171,8 +171,7 @@ public sealed class ProgramExercisesApiClientTests : IDisposable
             _sessionPhaseId,
             _exerciseId,
             10,
-            3,
-            60,
+            new SetPrescription(3, 60),
             CancellationToken.None
         );
 
@@ -203,8 +202,7 @@ public sealed class ProgramExercisesApiClientTests : IDisposable
             _sessionPhaseId,
             _exerciseId,
             30,
-            3,
-            60,
+            new SetPrescription(3, 60),
             CancellationToken.None
         );
 
@@ -235,8 +233,7 @@ public sealed class ProgramExercisesApiClientTests : IDisposable
             _sessionPhaseId,
             _exerciseId,
             10,
-            3,
-            60,
+            new SetPrescription(3, 60),
             CancellationToken.None
         );
 
@@ -266,8 +263,7 @@ public sealed class ProgramExercisesApiClientTests : IDisposable
             _sessionPhaseId,
             _exerciseId,
             10,
-            3,
-            60,
+            new SetPrescription(3, 60),
             CancellationToken.None
         );
 
@@ -289,8 +285,7 @@ public sealed class ProgramExercisesApiClientTests : IDisposable
             _sessionPhaseId,
             _exerciseId,
             10,
-            3,
-            60,
+            new SetPrescription(3, 60),
             CancellationToken.None
         );
 
