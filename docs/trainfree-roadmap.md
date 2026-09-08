@@ -98,7 +98,7 @@ shipped and deployed together. TDD applies within each slice on both stacks.
    `GET/POST/DELETE /api/programs/:programId/sessions/:sessionId/phases`. Blazor: session
    rows gain an expand/collapse chevron revealing phase rows beneath them, same
    dirty-row/cascading-delete pattern as session rows under programs.
-8. **`add-program-exercises-crud`** -- Extends admin CRUD with a per-`SessionPhase`
+8. **`add-program-exercises-crud`** -- **Done** (PR #91). Extends admin CRUD with a per-`SessionPhase`
    `ProgramExercise` join referencing an `Exercise` from slice 6's library, completing
    the full spreadsheet per `docs/design/admin-mockups/Main.dc.html`. `ProgramExercise`
    is keyed to a specific `SessionPhase` row (one session's instance of a phase), not to
