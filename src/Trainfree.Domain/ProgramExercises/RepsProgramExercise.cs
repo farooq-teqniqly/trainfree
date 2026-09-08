@@ -33,9 +33,9 @@ public sealed class RepsProgramExercise : IProgramExercise, IEquatable<RepsProgr
     public ProgramExerciseSide Side { get; }
 
     /// <summary>Initializes a new instance of <see cref="RepsProgramExercise"/>.</summary>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="prescription"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// Thrown when <paramref name="reps"/>, <paramref name="sets"/>, or
-    /// <paramref name="restSeconds"/> is not strictly positive, or when
+    /// Thrown when <paramref name="reps"/> is not strictly positive, or when
     /// <paramref name="weight"/> is negative.
     /// </exception>
     public RepsProgramExercise(
@@ -44,23 +44,21 @@ public sealed class RepsProgramExercise : IProgramExercise, IEquatable<RepsProgr
         ExerciseId exerciseId,
         int reps,
         decimal weight,
-        int sets,
-        int restSeconds,
+        SetPrescription prescription,
         ProgramExerciseSide side
     )
     {
+        ArgumentNullException.ThrowIfNull(prescription);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(reps, 0);
         ArgumentOutOfRangeException.ThrowIfNegative(weight);
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(sets, 0);
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(restSeconds, 0);
 
         Id = id;
         SessionPhaseId = sessionPhaseId;
         ExerciseId = exerciseId;
         Reps = reps;
         Weight = weight;
-        Sets = sets;
-        RestSeconds = restSeconds;
+        Sets = prescription.Sets;
+        RestSeconds = prescription.RestSeconds;
         Side = side;
     }
 

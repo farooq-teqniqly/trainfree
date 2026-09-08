@@ -15,7 +15,16 @@ public sealed class TimedProgramExerciseTests
         int sets = 3,
         int restSeconds = 60,
         ProgramExerciseSide side = ProgramExerciseSide.Both
-    ) => new(_id, _sessionPhaseId, _exerciseId, durationSeconds, weight, sets, restSeconds, side);
+    ) =>
+        new(
+            _id,
+            _sessionPhaseId,
+            _exerciseId,
+            durationSeconds,
+            weight,
+            new SetPrescription(sets, restSeconds),
+            side
+        );
 
     [Fact]
     public void Constructor_ValidValues_AssignsProperties()

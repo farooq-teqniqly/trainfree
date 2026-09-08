@@ -1474,8 +1474,7 @@ public sealed class ProgramsPageTests : BunitContext
             ExerciseId.Parse("EXR-AAAAAA"),
             10,
             45,
-            3,
-            60,
+            new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
         _programExercisesApiClient
@@ -1590,8 +1589,7 @@ public sealed class ProgramsPageTests : BunitContext
                 Arg.Any<SessionPhaseId>(),
                 Arg.Any<ExerciseId>(),
                 Arg.Any<int>(),
-                Arg.Any<int>(),
-                Arg.Any<int>(),
+                Arg.Any<SetPrescription>(),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -1623,8 +1621,7 @@ public sealed class ProgramsPageTests : BunitContext
                 sessionPhaseId,
                 ExerciseId.Parse("EXR-AAAAAA"),
                 10,
-                3,
-                60,
+                new SetPrescription(3, 60),
                 CancellationToken.None
             )
             .Returns(
@@ -1635,8 +1632,7 @@ public sealed class ProgramsPageTests : BunitContext
                         ExerciseId.Parse("EXR-AAAAAA"),
                         10,
                         0,
-                        3,
-                        60,
+                        new SetPrescription(3, 60),
                         ProgramExerciseSide.Both
                     )
                 )
@@ -1670,8 +1666,7 @@ public sealed class ProgramsPageTests : BunitContext
                 sessionPhaseId,
                 ExerciseId.Parse("EXR-AAAAAA"),
                 10,
-                3,
-                60,
+                new SetPrescription(3, 60),
                 CancellationToken.None
             );
         Assert.NotEmpty(cut.FindAll("[data-testid='program-exercise-name-PGX-CCCCCC']"));
@@ -1689,8 +1684,7 @@ public sealed class ProgramsPageTests : BunitContext
                 sessionPhaseId,
                 ExerciseId.Parse("EXR-AAAAAA"),
                 10,
-                3,
-                60,
+                new SetPrescription(3, 60),
                 CancellationToken.None
             )
             .Returns(
@@ -1734,8 +1728,7 @@ public sealed class ProgramsPageTests : BunitContext
             ExerciseId.Parse("EXR-AAAAAA"),
             10,
             0,
-            3,
-            60,
+            new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
         _programExercisesApiClient
@@ -1763,8 +1756,7 @@ public sealed class ProgramsPageTests : BunitContext
             ExerciseId.Parse("EXR-AAAAAA"),
             30,
             0,
-            3,
-            60,
+            new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
         _programExercisesApiClient
@@ -1796,8 +1788,7 @@ public sealed class ProgramsPageTests : BunitContext
             ExerciseId.Parse("EXR-AAAAAA"),
             10,
             45,
-            3,
-            60,
+            new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
         _programExercisesApiClient
@@ -1829,8 +1820,7 @@ public sealed class ProgramsPageTests : BunitContext
             ExerciseId.Parse("EXR-AAAAAA"),
             10,
             0,
-            3,
-            60,
+            new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
         _programExercisesApiClient
@@ -1862,8 +1852,7 @@ public sealed class ProgramsPageTests : BunitContext
             ExerciseId.Parse("EXR-AAAAAA"),
             10,
             45,
-            3,
-            60,
+            new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
         _programExercisesApiClient
@@ -1907,8 +1896,7 @@ public sealed class ProgramsPageTests : BunitContext
             ExerciseId.Parse("EXR-AAAAAA"),
             10,
             0,
-            3,
-            60,
+            new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
         _programExercisesApiClient
@@ -1931,8 +1919,7 @@ public sealed class ProgramsPageTests : BunitContext
                         ExerciseId.Parse("EXR-AAAAAA"),
                         12,
                         45,
-                        3,
-                        60,
+                        new SetPrescription(3, 60),
                         ProgramExerciseSide.Both
                     )
                 )
@@ -1973,8 +1960,7 @@ public sealed class ProgramsPageTests : BunitContext
             ExerciseId.Parse("EXR-AAAAAA"),
             10,
             0,
-            3,
-            60,
+            new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
         _programExercisesApiClient
@@ -2015,8 +2001,7 @@ public sealed class ProgramsPageTests : BunitContext
             ExerciseId.Parse("EXR-AAAAAA"),
             10,
             0,
-            3,
-            60,
+            new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
         _programExercisesApiClient
@@ -2060,8 +2045,7 @@ public sealed class ProgramsPageTests : BunitContext
             ExerciseId.Parse("EXR-AAAAAA"),
             10,
             0,
-            3,
-            60,
+            new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
         _programExercisesApiClient
@@ -2105,8 +2089,7 @@ public sealed class ProgramsPageTests : BunitContext
             ExerciseId.Parse("EXR-AAAAAA"),
             10,
             0,
-            3,
-            60,
+            new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
         _programExercisesApiClient
@@ -2143,8 +2126,7 @@ public sealed class ProgramsPageTests : BunitContext
             ExerciseId.Parse("EXR-AAAAAA"),
             10,
             0,
-            3,
-            60,
+            new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
         _programExercisesApiClient

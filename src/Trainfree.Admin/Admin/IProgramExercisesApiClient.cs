@@ -28,8 +28,7 @@ internal interface IProgramExercisesApiClient
     /// <param name="sessionPhaseId">The owning session phase's identifier.</param>
     /// <param name="exerciseId">The canonical exercise to reference.</param>
     /// <param name="reps">The number of reps prescribed per set. Must be strictly positive.</param>
-    /// <param name="sets">The number of sets prescribed. Must be strictly positive.</param>
-    /// <param name="restSeconds">The rest between sets, in seconds. Must be strictly positive.</param>
+    /// <param name="prescription">The number of sets and the rest between them.</param>
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="CreateProgramExerciseSucceeded"/> on success, or a
@@ -42,8 +41,7 @@ internal interface IProgramExercisesApiClient
         SessionPhaseId sessionPhaseId,
         ExerciseId exerciseId,
         int reps,
-        int sets,
-        int restSeconds,
+        SetPrescription prescription,
         CancellationToken cancellationToken = default
     );
 
@@ -53,8 +51,7 @@ internal interface IProgramExercisesApiClient
     /// <param name="sessionPhaseId">The owning session phase's identifier.</param>
     /// <param name="exerciseId">The canonical exercise to reference.</param>
     /// <param name="durationSeconds">The duration prescribed per set, in seconds. Must be strictly positive.</param>
-    /// <param name="sets">The number of sets prescribed. Must be strictly positive.</param>
-    /// <param name="restSeconds">The rest between sets, in seconds. Must be strictly positive.</param>
+    /// <param name="prescription">The number of sets and the rest between them.</param>
     /// <param name="cancellationToken">Token used to cancel the request.</param>
     /// <returns>
     /// A <see cref="CreateProgramExerciseSucceeded"/> on success, or a
@@ -67,8 +64,7 @@ internal interface IProgramExercisesApiClient
         SessionPhaseId sessionPhaseId,
         ExerciseId exerciseId,
         int durationSeconds,
-        int sets,
-        int restSeconds,
+        SetPrescription prescription,
         CancellationToken cancellationToken = default
     );
 
