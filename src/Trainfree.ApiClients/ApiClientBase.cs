@@ -57,10 +57,9 @@ public abstract partial class ApiClientBase
 
         try
         {
-            var body = await response.Content.ReadFromJsonAsync<ErrorDto>(
-                JsonOptions,
-                cancellationToken
-            );
+            var body = await response
+                .Content.ReadFromJsonAsync<ErrorDto>(JsonOptions, cancellationToken)
+                .ConfigureAwait(false);
             return body?.Error ?? fallback;
         }
         // A body labeled JSON that is not (an intermediary's error page with the wrong
@@ -115,7 +114,7 @@ public abstract partial class ApiClientBase
 
         try
         {
-            return await operation();
+            return await operation().ConfigureAwait(false);
         }
         // Mirrors the exception set OnInitializedAsync already catches around the initial
         // load: a transport failure, a redirected Cloudflare Access login page arriving as
