@@ -85,4 +85,31 @@ public sealed class RepsProgramExerciseTests
         // Act / Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => CreateValid(restSeconds: restSeconds));
     }
+
+    [Fact]
+    public void Equals_SamePropertyValues_ReturnsTrue()
+    {
+        // Arrange
+        var left = CreateValid();
+        var right = CreateValid();
+
+        // Act / Assert
+        Assert.Equal(left, right);
+        Assert.True(left == right);
+        Assert.False(left != right);
+        Assert.Equal(left.GetHashCode(), right.GetHashCode());
+    }
+
+    [Fact]
+    public void Equals_DifferentReps_ReturnsFalse()
+    {
+        // Arrange
+        var left = CreateValid(reps: 10);
+        var right = CreateValid(reps: 12);
+
+        // Act / Assert
+        Assert.NotEqual(left, right);
+        Assert.False(left == right);
+        Assert.True(left != right);
+    }
 }

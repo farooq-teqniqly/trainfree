@@ -6,7 +6,7 @@ namespace Trainfree.Domain.ProgramExercises;
 /// A program exercise prescribed by a rep count -- as opposed to
 /// <see cref="TimedProgramExercise"/>, which is prescribed by a duration.
 /// </summary>
-public sealed class RepsProgramExercise : IProgramExercise
+public sealed class RepsProgramExercise : IProgramExercise, IEquatable<RepsProgramExercise>
 {
     /// <inheritdoc/>
     public ProgramExerciseId Id { get; }
@@ -63,4 +63,39 @@ public sealed class RepsProgramExercise : IProgramExercise
         RestSeconds = restSeconds;
         Side = side;
     }
+
+    /// <inheritdoc/>
+    public bool Equals(RepsProgramExercise? other) =>
+        other is not null
+        && Id.Equals(other.Id)
+        && SessionPhaseId.Equals(other.SessionPhaseId)
+        && ExerciseId.Equals(other.ExerciseId)
+        && Reps == other.Reps
+        && Weight == other.Weight
+        && Sets == other.Sets
+        && RestSeconds == other.RestSeconds
+        && Side == other.Side;
+
+    /// <inheritdoc/>
+    public override bool Equals(object? obj) => Equals(obj as RepsProgramExercise);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() =>
+        HashCode.Combine(
+            Id,
+            SessionPhaseId,
+            ExerciseId,
+            Reps,
+            Weight,
+            Sets,
+            HashCode.Combine(RestSeconds, Side)
+        );
+
+    /// <summary>Determines whether two <see cref="RepsProgramExercise"/> instances are equal.</summary>
+    public static bool operator ==(RepsProgramExercise? left, RepsProgramExercise? right) =>
+        left is null ? right is null : left.Equals(right);
+
+    /// <summary>Determines whether two <see cref="RepsProgramExercise"/> instances are not equal.</summary>
+    public static bool operator !=(RepsProgramExercise? left, RepsProgramExercise? right) =>
+        !(left == right);
 }
