@@ -119,6 +119,75 @@ export function validateCreateProgramExercise(body) {
     };
 }
 
+function validateUpdateReps(body, existingType) {
+    if (body.reps === undefined) {
+        return null;
+    }
+    if (existingType === "Timed") {
+        return { valid: false, error: "reps is not allowed when type is Timed" };
+    }
+    if (!isPositiveInteger(body.reps)) {
+        return { valid: false, error: "reps must be a positive integer" };
+    }
+    return { valid: true, key: "reps", value: body.reps };
+}
+
+function validateUpdateDurationSeconds(body, existingType) {
+    if (body.durationSeconds === undefined) {
+        return null;
+    }
+    if (existingType === "Reps") {
+        return { valid: false, error: "durationSeconds is not allowed when type is Reps" };
+    }
+    if (!isPositiveInteger(body.durationSeconds)) {
+        return { valid: false, error: "durationSeconds must be a positive integer" };
+    }
+    return { valid: true, key: "durationSeconds", value: body.durationSeconds };
+}
+
+function validateUpdateSets(body) {
+    if (body.sets === undefined) {
+        return null;
+    }
+    if (!isPositiveInteger(body.sets)) {
+        return { valid: false, error: "sets must be a positive integer" };
+    }
+    return { valid: true, key: "sets", value: body.sets };
+}
+
+function validateUpdateRestSeconds(body) {
+    if (body.restSeconds === undefined) {
+        return null;
+    }
+    if (!isPositiveInteger(body.restSeconds)) {
+        return { valid: false, error: "restSeconds must be a positive integer" };
+    }
+    return { valid: true, key: "restSeconds", value: body.restSeconds };
+}
+
+function validateUpdateWeight(body) {
+    if (body.weight === undefined) {
+        return null;
+    }
+    if (typeof body.weight !== "number" || body.weight < 0) {
+        return { valid: false, error: "weight must be a non-negative number" };
+    }
+    return { valid: true, key: "weight", value: body.weight };
+}
+
+function validateUpdateSide(body) {
+    if (body.side === undefined) {
+        return null;
+    }
+    if (!PROGRAM_EXERCISE_SIDES.includes(body.side)) {
+        return {
+            valid: false,
+            error: `side must be one of ${PROGRAM_EXERCISE_SIDES.join(", ")}`,
+        };
+    }
+    return { valid: true, key: "side", value: body.side };
+}
+
 export function validateUpdateProgramExercise(body, existingType) {
     if (typeof body !== "object" || body === null || Array.isArray(body)) {
         return { valid: false, error: "request body must be an object" };
@@ -128,57 +197,25 @@ export function validateUpdateProgramExercise(body, existingType) {
         return { valid: false, error: "exerciseId and type cannot be changed" };
     }
 
+    const fieldValidators = [
+        () => validateUpdateReps(body, existingType),
+        () => validateUpdateDurationSeconds(body, existingType),
+        () => validateUpdateSets(body),
+        () => validateUpdateRestSeconds(body),
+        () => validateUpdateWeight(body),
+        () => validateUpdateSide(body),
+    ];
+
     const updates = {};
-
-    if (body.reps !== undefined) {
-        if (existingType === "Timed") {
-            return { valid: false, error: "reps is not allowed when type is Timed" };
+    for (const validate of fieldValidators) {
+        const result = validate();
+        if (result === null) {
+            continue;
         }
-        if (!isPositiveInteger(body.reps)) {
-            return { valid: false, error: "reps must be a positive integer" };
+        if (!result.valid) {
+            return result;
         }
-        updates.reps = body.reps;
-    }
-
-    if (body.durationSeconds !== undefined) {
-        if (existingType === "Reps") {
-            return { valid: false, error: "durationSeconds is not allowed when type is Reps" };
-        }
-        if (!isPositiveInteger(body.durationSeconds)) {
-            return { valid: false, error: "durationSeconds must be a positive integer" };
-        }
-        updates.durationSeconds = body.durationSeconds;
-    }
-
-    if (body.sets !== undefined) {
-        if (!isPositiveInteger(body.sets)) {
-            return { valid: false, error: "sets must be a positive integer" };
-        }
-        updates.sets = body.sets;
-    }
-
-    if (body.restSeconds !== undefined) {
-        if (!isPositiveInteger(body.restSeconds)) {
-            return { valid: false, error: "restSeconds must be a positive integer" };
-        }
-        updates.restSeconds = body.restSeconds;
-    }
-
-    if (body.weight !== undefined) {
-        if (typeof body.weight !== "number" || body.weight < 0) {
-            return { valid: false, error: "weight must be a non-negative number" };
-        }
-        updates.weight = body.weight;
-    }
-
-    if (body.side !== undefined) {
-        if (!PROGRAM_EXERCISE_SIDES.includes(body.side)) {
-            return {
-                valid: false,
-                error: `side must be one of ${PROGRAM_EXERCISE_SIDES.join(", ")}`,
-            };
-        }
-        updates.side = body.side;
+        updates[result.key] = result.value;
     }
 
     if (Object.keys(updates).length === 0) {

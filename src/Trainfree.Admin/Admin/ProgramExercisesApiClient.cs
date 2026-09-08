@@ -142,31 +142,7 @@ internal sealed class ProgramExercisesApiClient : ApiClientBase, IProgramExercis
         return ExecuteAsync<UpdateProgramExerciseOutcome>(
             async () =>
             {
-                var body = new Dictionary<string, object>();
-                if (update.Reps is { } reps)
-                {
-                    body["reps"] = reps;
-                }
-                if (update.DurationSeconds is { } durationSeconds)
-                {
-                    body["durationSeconds"] = durationSeconds;
-                }
-                if (update.Weight is { } weight)
-                {
-                    body["weight"] = weight;
-                }
-                if (update.Sets is { } sets)
-                {
-                    body["sets"] = sets;
-                }
-                if (update.RestSeconds is { } restSeconds)
-                {
-                    body["restSeconds"] = restSeconds;
-                }
-                if (update.Side is { } side)
-                {
-                    body["side"] = side.ToString();
-                }
+                var body = BuildUpdateBody(update);
 
                 var response = await _httpClient.PatchAsJsonAsync(
                     $"{ExercisesUrl(programId, sessionId, sessionPhaseId)}/{id}",
@@ -227,6 +203,37 @@ internal sealed class ProgramExercisesApiClient : ApiClientBase, IProgramExercis
             "Could not delete exercise. Try again.",
             _logger
         );
+
+    private static Dictionary<string, object> BuildUpdateBody(ProgramExerciseUpdate update)
+    {
+        var body = new Dictionary<string, object>();
+        if (update.Reps is { } reps)
+        {
+            body["reps"] = reps;
+        }
+        if (update.DurationSeconds is { } durationSeconds)
+        {
+            body["durationSeconds"] = durationSeconds;
+        }
+        if (update.Weight is { } weight)
+        {
+            body["weight"] = weight;
+        }
+        if (update.Sets is { } sets)
+        {
+            body["sets"] = sets;
+        }
+        if (update.RestSeconds is { } restSeconds)
+        {
+            body["restSeconds"] = restSeconds;
+        }
+        if (update.Side is { } side)
+        {
+            body["side"] = side.ToString();
+        }
+
+        return body;
+    }
 
     private static string ExercisesUrl(
         ProgramId programId,
