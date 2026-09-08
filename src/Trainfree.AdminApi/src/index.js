@@ -178,40 +178,48 @@ async function handlePhasesCollection(request, db) {
     return new Response("Method not allowed", { status: 405 });
 }
 
+async function handleRename(request, db, id, validateFn, renameFn, notFoundMessage) {
+    const body = (await request.json().catch(() => null)) ?? {};
+    const validation = validateFn(body.name);
+    if (!validation.valid) {
+        return jsonResponse({ error: validation.error }, 400);
+    }
+    try {
+        const resource = await renameFn(db, id, validation.name);
+        if (!resource) {
+            return jsonResponse({ error: notFoundMessage }, 404);
+        }
+        return jsonResponse(resource);
+    } catch (err) {
+        if (err instanceof DuplicateNameError) {
+            return jsonResponse({ error: err.message }, 409);
+        }
+        throw err;
+    }
+}
+
+async function handleDeleteWithConflict(db, id, deleteFn, notFoundMessage, ConflictErrorType) {
+    try {
+        const deleted = await deleteFn(db, id);
+        if (!deleted) {
+            return jsonResponse({ error: notFoundMessage }, 404);
+        }
+        return new Response(null, { status: 204 });
+    } catch (err) {
+        if (err instanceof ConflictErrorType) {
+            return jsonResponse({ error: err.message }, 409);
+        }
+        throw err;
+    }
+}
+
 async function handlePhaseResource(request, db, id) {
     if (request.method === "PATCH") {
-        const body = await request.json().catch(() => ({}));
-        const validation = validatePhaseName(body.name);
-        if (!validation.valid) {
-            return jsonResponse({ error: validation.error }, 400);
-        }
-        try {
-            const phase = await renamePhase(db, id, validation.name);
-            if (!phase) {
-                return jsonResponse({ error: "phase not found" }, 404);
-            }
-            return jsonResponse(phase);
-        } catch (err) {
-            if (err instanceof DuplicateNameError) {
-                return jsonResponse({ error: err.message }, 409);
-            }
-            throw err;
-        }
+        return handleRename(request, db, id, validatePhaseName, renamePhase, "phase not found");
     }
 
     if (request.method === "DELETE") {
-        try {
-            const deleted = await deletePhase(db, id);
-            if (!deleted) {
-                return jsonResponse({ error: "phase not found" }, 404);
-            }
-            return new Response(null, { status: 204 });
-        } catch (err) {
-            if (err instanceof PhaseInUseError) {
-                return jsonResponse({ error: err.message }, 409);
-            }
-            throw err;
-        }
+        return handleDeleteWithConflict(db, id, deletePhase, "phase not found", PhaseInUseError);
     }
 
     return new Response("Method not allowed", { status: 405 });
@@ -243,38 +251,24 @@ async function handleExercisesCollection(request, db) {
 
 async function handleExerciseResource(request, db, id) {
     if (request.method === "PATCH") {
-        const body = (await request.json().catch(() => null)) ?? {};
-        const validation = validateExerciseName(body.name);
-        if (!validation.valid) {
-            return jsonResponse({ error: validation.error }, 400);
-        }
-        try {
-            const exercise = await renameExercise(db, id, validation.name);
-            if (!exercise) {
-                return jsonResponse({ error: "exercise not found" }, 404);
-            }
-            return jsonResponse(exercise);
-        } catch (err) {
-            if (err instanceof DuplicateNameError) {
-                return jsonResponse({ error: err.message }, 409);
-            }
-            throw err;
-        }
+        return handleRename(
+            request,
+            db,
+            id,
+            validateExerciseName,
+            renameExercise,
+            "exercise not found"
+        );
     }
 
     if (request.method === "DELETE") {
-        try {
-            const deleted = await deleteExercise(db, id);
-            if (!deleted) {
-                return jsonResponse({ error: "exercise not found" }, 404);
-            }
-            return new Response(null, { status: 204 });
-        } catch (err) {
-            if (err instanceof ExerciseInUseError) {
-                return jsonResponse({ error: err.message }, 409);
-            }
-            throw err;
-        }
+        return handleDeleteWithConflict(
+            db,
+            id,
+            deleteExercise,
+            "exercise not found",
+            ExerciseInUseError
+        );
     }
 
     return new Response("Method not allowed", { status: 405 });

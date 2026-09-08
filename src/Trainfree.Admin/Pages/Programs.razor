@@ -636,92 +636,7 @@
             {
                 var row = new ProgramRow(program.Id, program.Name);
                 _rows.Add(row);
-
-                try
-                {
-                    var sessions = await SessionsApi.GetSessionsAsync(program.Id);
-                    foreach (var session in sessions)
-                    {
-                        var sessionRow = new SessionRow(session.Id, program.Id, session.Name);
-                        row.Sessions.Add(sessionRow);
-
-                        try
-                        {
-                            var sessionPhases = await SessionPhasesApi.GetSessionPhasesAsync(
-                                program.Id,
-                                session.Id
-                            );
-                            foreach (var sessionPhase in sessionPhases)
-                            {
-                                var sessionPhaseRow = new SessionPhaseRow(
-                                    sessionPhase.Id,
-                                    sessionPhase.PhaseId,
-                                    ResolvePhaseName(sessionPhase.PhaseId)
-                                );
-                                sessionRow.Phases.Add(sessionPhaseRow);
-
-                                try
-                                {
-                                    var programExercises = await ProgramExercisesApi.GetProgramExercisesAsync(
-                                        program.Id,
-                                        session.Id,
-                                        sessionPhase.Id
-                                    );
-                                    sessionPhaseRow.ProgramExercises.AddRange(
-                                        programExercises.Select(pe => new ProgramExerciseRow(
-                                            pe,
-                                            ResolveExerciseName(pe.ExerciseId)
-                                        ))
-                                    );
-                                }
-                                catch (Exception ex)
-                                    when (ex
-                                        is HttpRequestException
-                                            or JsonException
-                                            or InvalidOperationException
-                                            or NotSupportedException
-                                            or OperationCanceledException
-                                            or FormatException
-                                            or ArgumentException
-                                    )
-                                {
-                                    sessionPhaseRow.ProgramExercisesLoadError =
-                                        "Could not load exercises. Try refreshing the page.";
-                                    LogLoadProgramExercisesForSessionPhaseFailed(
-                                        Logger,
-                                        sessionPhase.Id,
-                                        ex
-                                    );
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                            when (ex
-                                is HttpRequestException
-                                    or JsonException
-                                    or InvalidOperationException
-                                    or NotSupportedException
-                                    or OperationCanceledException
-                            )
-                        {
-                            sessionRow.PhasesLoadError =
-                                "Could not load phases. Try refreshing the page.";
-                            LogLoadPhasesForSessionFailed(Logger, session.Id, ex);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                    when (ex
-                        is HttpRequestException
-                            or JsonException
-                            or InvalidOperationException
-                            or NotSupportedException
-                            or OperationCanceledException
-                    )
-                {
-                    row.SessionsLoadError = "Could not load sessions. Try refreshing the page.";
-                    LogLoadSessionsForProgramFailed(Logger, program.Id, ex);
-                }
+                await LoadSessionsAsync(row, program.Id);
             }
         }
         // HttpRequestException alone was not enough: Cloudflare Access answers a request made
@@ -739,6 +654,104 @@
         {
             _loadError = "Could not load programs. Try refreshing the page.";
             LogLoadProgramsFailed(Logger, ex);
+        }
+    }
+
+    private async Task LoadSessionsAsync(ProgramRow row, ProgramId programId)
+    {
+        try
+        {
+            var sessions = await SessionsApi.GetSessionsAsync(programId);
+            foreach (var session in sessions)
+            {
+                var sessionRow = new SessionRow(session.Id, programId, session.Name);
+                row.Sessions.Add(sessionRow);
+                await LoadSessionPhasesAsync(sessionRow, programId, session.Id);
+            }
+        }
+        catch (Exception ex)
+            when (ex
+                is HttpRequestException
+                    or JsonException
+                    or InvalidOperationException
+                    or NotSupportedException
+                    or OperationCanceledException
+            )
+        {
+            row.SessionsLoadError = "Could not load sessions. Try refreshing the page.";
+            LogLoadSessionsForProgramFailed(Logger, programId, ex);
+        }
+    }
+
+    private async Task LoadSessionPhasesAsync(
+        SessionRow sessionRow,
+        ProgramId programId,
+        SessionId sessionId
+    )
+    {
+        try
+        {
+            var sessionPhases = await SessionPhasesApi.GetSessionPhasesAsync(programId, sessionId);
+            foreach (var sessionPhase in sessionPhases)
+            {
+                var sessionPhaseRow = new SessionPhaseRow(
+                    sessionPhase.Id,
+                    sessionPhase.PhaseId,
+                    ResolvePhaseName(sessionPhase.PhaseId)
+                );
+                sessionRow.Phases.Add(sessionPhaseRow);
+                await LoadProgramExercisesAsync(sessionPhaseRow, programId, sessionId, sessionPhase.Id);
+            }
+        }
+        catch (Exception ex)
+            when (ex
+                is HttpRequestException
+                    or JsonException
+                    or InvalidOperationException
+                    or NotSupportedException
+                    or OperationCanceledException
+            )
+        {
+            sessionRow.PhasesLoadError = "Could not load phases. Try refreshing the page.";
+            LogLoadPhasesForSessionFailed(Logger, sessionId, ex);
+        }
+    }
+
+    private async Task LoadProgramExercisesAsync(
+        SessionPhaseRow sessionPhaseRow,
+        ProgramId programId,
+        SessionId sessionId,
+        SessionPhaseId sessionPhaseId
+    )
+    {
+        try
+        {
+            var programExercises = await ProgramExercisesApi.GetProgramExercisesAsync(
+                programId,
+                sessionId,
+                sessionPhaseId
+            );
+            sessionPhaseRow.ProgramExercises.AddRange(
+                programExercises.Select(pe => new ProgramExerciseRow(
+                    pe,
+                    ResolveExerciseName(pe.ExerciseId)
+                ))
+            );
+        }
+        catch (Exception ex)
+            when (ex
+                is HttpRequestException
+                    or JsonException
+                    or InvalidOperationException
+                    or NotSupportedException
+                    or OperationCanceledException
+                    or FormatException
+                    or ArgumentException
+            )
+        {
+            sessionPhaseRow.ProgramExercisesLoadError =
+                "Could not load exercises. Try refreshing the page.";
+            LogLoadProgramExercisesForSessionPhaseFailed(Logger, sessionPhaseId, ex);
         }
     }
 
