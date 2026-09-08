@@ -11,16 +11,16 @@ namespace Trainfree.Admin.Tests.Layout;
 
 public sealed class MainLayoutTests : BunitContext
 {
-    private static readonly RenderFragment _workingPage = builder =>
+    private static readonly RenderFragment WorkingPage = builder =>
         builder.AddMarkupContent(0, """<p data-testid="page-body">page body</p>""");
 
-    private static readonly RenderFragment _homePage = builder =>
+    private static readonly RenderFragment HomePage = builder =>
     {
         builder.OpenComponent<Home>(0);
         builder.CloseComponent();
     };
 
-    private static readonly RenderFragment _failingPage = builder =>
+    private static readonly RenderFragment FailingPage = builder =>
     {
         builder.OpenComponent<ThrowingComponent>(0);
         builder.CloseComponent();
@@ -28,7 +28,7 @@ public sealed class MainLayoutTests : BunitContext
 
     // A real routed page, so the write-path containment is proven where it actually failed
     // rather than through a stand-in that only approximates an event handler.
-    private static readonly RenderFragment _adminPage = builder =>
+    private static readonly RenderFragment AdminPage = builder =>
     {
         builder.OpenComponent<Programs>(0);
         builder.CloseComponent();
@@ -69,7 +69,7 @@ public sealed class MainLayoutTests : BunitContext
             );
 
         // Act
-        var cut = Render<MainLayout>(p => p.Add(x => x.Body, _workingPage));
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, WorkingPage));
 
         // Assert
         Assert.NotEmpty(cut.FindAll("[data-testid=page-body]"));
@@ -84,7 +84,7 @@ public sealed class MainLayoutTests : BunitContext
         _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new VersionUnknown());
 
         // Act
-        var cut = Render<MainLayout>(p => p.Add(x => x.Body, _failingPage));
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, FailingPage));
 
         // Assert
         Assert.NotEmpty(cut.FindAll("[data-testid=page-error]"));
@@ -101,7 +101,7 @@ public sealed class MainLayoutTests : BunitContext
         _programs
             .CreateProgramAsync("New Program", CancellationToken.None)
             .Returns<CreateProgramOutcome>(_ => throw new HttpRequestException("network down"));
-        var cut = Render<MainLayout>(p => p.Add(x => x.Body, _adminPage));
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, AdminPage));
 
         // Act
         cut.Find("[data-testid=add-program]").Click();
@@ -116,10 +116,10 @@ public sealed class MainLayoutTests : BunitContext
     {
         // Arrange
         _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new VersionUnknown());
-        var cut = Render<MainLayout>(p => p.Add(x => x.Body, _failingPage));
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, FailingPage));
 
         // Act
-        cut.Render(p => p.Add(x => x.Body, _workingPage));
+        cut.Render(p => p.Add(x => x.Body, WorkingPage));
 
         // Assert
         Assert.NotEmpty(cut.FindAll("[data-testid=page-body]"));
@@ -136,10 +136,10 @@ public sealed class MainLayoutTests : BunitContext
                 _ => throw new InvalidTimeZoneException("arbitrary check failure"),
                 _ => new RunningLatestVersion()
             );
-        var cut = Render<MainLayout>(p => p.Add(x => x.Body, _workingPage));
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, WorkingPage));
 
         // Act
-        cut.Render(p => p.Add(x => x.Body, _workingPage));
+        cut.Render(p => p.Add(x => x.Body, WorkingPage));
 
         // Assert
         Assert.NotEmpty(cut.FindAll(".version-stamp"));
@@ -152,7 +152,7 @@ public sealed class MainLayoutTests : BunitContext
         _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new RunningLatestVersion());
 
         // Act
-        var cut = Render<MainLayout>(p => p.Add(x => x.Body, _workingPage));
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, WorkingPage));
 
         // Assert
         Assert.NotEmpty(cut.FindAll("[data-testid=page-body]"));
@@ -167,7 +167,7 @@ public sealed class MainLayoutTests : BunitContext
         _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new RunningLatestVersion());
 
         // Act
-        var cut = Render<MainLayout>(p => p.Add(x => x.Body, _workingPage));
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, WorkingPage));
 
         // Assert
         var brand = cut.Find(".navbar-brand");
@@ -176,13 +176,13 @@ public sealed class MainLayoutTests : BunitContext
     }
 
     [Fact]
-    public void Render_HomePage_ShowsTheVersionIndicatorExactlyOnce()
+    public void RenderHomePage_ShowsTheVersionIndicatorExactlyOnce()
     {
         // Arrange
         _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new RunningLatestVersion());
 
         // Act
-        var cut = Render<MainLayout>(p => p.Add(x => x.Body, _homePage));
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, HomePage));
 
         // Assert
         Assert.Single(cut.FindAll(".version-stamp"));
@@ -193,7 +193,7 @@ public sealed class MainLayoutTests : BunitContext
     {
         // Arrange
         _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new RunningLatestVersion());
-        var cut = Render<MainLayout>(p => p.Add(x => x.Body, _workingPage));
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, WorkingPage));
         Assert.Contains("collapse", cut.Find("nav.sidebar").ClassList);
         Assert.Equal("false", cut.Find(".navbar-toggler").GetAttribute("aria-expanded"));
 
