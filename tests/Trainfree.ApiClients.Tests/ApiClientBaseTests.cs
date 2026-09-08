@@ -241,14 +241,13 @@ public sealed class ApiClientBaseTests : IDisposable
     }
 
     public static TheoryData<string> GuardedExceptionKeys() =>
-        new()
-        {
+        [
             "HttpRequestException",
             "JsonException",
             "InvalidOperationException",
             "NotSupportedException",
             "OperationCanceledException",
-        };
+        ];
 
     private static Exception CreateGuardedException(string key) =>
         key switch
