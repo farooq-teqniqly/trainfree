@@ -81,7 +81,7 @@ shipped and deployed together. TDD applies within each slice on both stacks.
    is deferred to slice 14; this slice's page omits the upload affordance entirely rather
    than showing an inert one (the mockup still shows it, matching slice 14's eventual
    state).
-7. **`add-session-phases-crud`** -- Extends admin CRUD with a per-session `SessionPhase`
+7. **`add-session-phases-crud`** -- **Done** (PR #88). Extends admin CRUD with a per-session `SessionPhase`
    join (referencing a `Phase` from slice 5's library) per
    `docs/design/admin-mockups/Main.dc.html`'s phase rows (no exercises yet -- that's
    slice 8). `SessionPhase` has no name of its own; it only points at a canonical
