@@ -67,17 +67,34 @@
 }
 
 <div class="sheet-wrap">
-    <table class="table">
+    <table class="table sheet">
+        <colgroup>
+            <col class="c-name" />
+            <col class="c-type" />
+            <col class="c-count" />
+            <col class="c-weight" />
+            <col class="c-sets" />
+            <col class="c-rest" />
+            <col class="c-side" />
+            <col class="c-actions" />
+        </colgroup>
         <thead>
             <tr>
-                <th>Name</th>
+                <th class="col-name">Name</th>
+                <th>Type</th>
+                <th>Reps / Duration</th>
+                <th>Weight</th>
+                <th>Sets</th>
+                <th>Rest (s)</th>
+                <th>Side</th>
+                <th class="col-actions"></th>
             </tr>
         </thead>
         <tbody>
             @foreach (var row in _rows)
             {
                 <tr class="row-depth-0">
-                    <td>
+                    <td colspan="8">
                         <div class="name-cell">
                             <button
                                 class="btn btn-sm btn-icon chevron-btn"
@@ -154,7 +171,7 @@
                     @if (row.SessionsLoadError is not null)
                     {
                         <tr>
-                            <td>
+                            <td colspan="8">
                                 <div
                                     class="text-danger small"
                                     data-testid="sessions-load-error-@row.Id"
@@ -167,7 +184,7 @@
                     @foreach (var session in row.Sessions)
                     {
                         <tr class="row-depth-1">
-                            <td>
+                            <td colspan="8">
                                 <div class="name-cell">
                                     <button
                                         class="btn btn-sm btn-icon chevron-btn"
@@ -283,7 +300,7 @@
                             @if (session.PhasesLoadError is not null)
                             {
                                 <tr>
-                                    <td>
+                                    <td colspan="8">
                                         <div
                                             class="text-danger small"
                                             data-testid="phases-load-error-@session.Id"
@@ -296,7 +313,7 @@
                             @foreach (var phase in session.Phases)
                             {
                                 <tr class="row-depth-2">
-                                    <td>
+                                    <td colspan="8">
                                         <div class="name-cell">
                                             <button
                                                 class="btn btn-sm btn-icon chevron-btn"
@@ -422,7 +439,7 @@
                                     @if (phase.ProgramExercisesLoadError is not null)
                                     {
                                         <tr>
-                                            <td>
+                                            <td colspan="8">
                                                 <div
                                                     class="text-danger small"
                                                     data-testid="program-exercises-load-error-@phase.Id"
@@ -436,79 +453,11 @@
                                     {
                                         <tr class="row-depth-3">
                                             <td>
-                                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                                <div class="name-cell">
+                                                    <span class="chevron-spacer"></span>
                                                     <span data-testid="program-exercise-name-@programExercise.Id">
                                                         @programExercise.ExerciseName
                                                     </span>
-                                                    <span class="badge text-bg-secondary" data-testid="program-exercise-type-@programExercise.Id">
-                                                        @(programExercise.IsTimed ? "Timed" : "Reps")
-                                                    </span>
-                                                    <input
-                                                        type="number"
-                                                        class="cell-input w-auto"
-                                                        data-testid="program-exercise-count-@programExercise.Id"
-                                                        value="@programExercise.Count"
-                                                        @oninput="e => programExercise.Count = ParseInt(e.Value)" />
-                                                    <input
-                                                        type="text"
-                                                        class="cell-input w-auto"
-                                                        data-testid="program-exercise-weight-@programExercise.Id"
-                                                        value="@DashIfZero(programExercise.Weight)"
-                                                        @oninput="e => programExercise.Weight = ParseDecimal(e.Value)" />
-                                                    <input
-                                                        type="number"
-                                                        class="cell-input w-auto"
-                                                        data-testid="program-exercise-sets-@programExercise.Id"
-                                                        value="@programExercise.Sets"
-                                                        @oninput="e => programExercise.Sets = ParseInt(e.Value)" />
-                                                    <input
-                                                        type="number"
-                                                        class="cell-input w-auto"
-                                                        data-testid="program-exercise-rest-@programExercise.Id"
-                                                        value="@programExercise.RestSeconds"
-                                                        @oninput="e => programExercise.RestSeconds = ParseInt(e.Value)" />
-                                                    <select
-                                                        class="form-select form-select-sm w-auto"
-                                                        data-testid="program-exercise-side-@programExercise.Id"
-                                                        @onchange="e => programExercise.Side = Enum.Parse<ProgramExerciseSide>((string)e.Value!)"
-                                                    >
-                                                        @foreach (var side in Enum.GetValues<ProgramExerciseSide>())
-                                                        {
-                                                            <option value="@side" selected="@(side == programExercise.Side)">@side</option>
-                                                        }
-                                                    </select>
-                                                    <div class="name-actions">
-                                                        @if (programExercise.IsDirty)
-                                                        {
-                                                            <button
-                                                                class="btn btn-sm btn-icon btn-outline-dark"
-                                                                data-testid="program-exercise-save-@programExercise.Id"
-                                                                title="Save"
-                                                                @onclick="() => SaveProgramExerciseAsync(session, phase, programExercise)"
-                                                            >
-                                                                <i class="bi bi-floppy" aria-hidden="true"></i>
-                                                                <span class="visually-hidden">Save</span>
-                                                            </button>
-                                                            <button
-                                                                class="btn btn-sm btn-icon btn-outline-secondary"
-                                                                data-testid="program-exercise-revert-@programExercise.Id"
-                                                                title="Revert"
-                                                                @onclick="() => RevertProgramExercise(programExercise)"
-                                                            >
-                                                                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
-                                                                <span class="visually-hidden">Revert</span>
-                                                            </button>
-                                                        }
-                                                        <button
-                                                            class="btn btn-sm btn-icon btn-outline-danger"
-                                                            data-testid="program-exercise-delete-@programExercise.Id"
-                                                            title="Delete"
-                                                            @onclick="() => DeleteProgramExerciseAsync(session, phase, programExercise)"
-                                                        >
-                                                            <i class="bi bi-trash" aria-hidden="true"></i>
-                                                            <span class="visually-hidden">Delete</span>
-                                                        </button>
-                                                    </div>
                                                 </div>
                                                 @if (programExercise.Error is not null)
                                                 {
@@ -519,6 +468,89 @@
                                                         @programExercise.Error
                                                     </div>
                                                 }
+                                            </td>
+                                            <td>
+                                                <span class="badge text-bg-secondary" data-testid="program-exercise-type-@programExercise.Id">
+                                                    @(programExercise.IsTimed ? "Timed" : "Reps")
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="number"
+                                                    class="cell-input"
+                                                    data-testid="program-exercise-count-@programExercise.Id"
+                                                    value="@programExercise.Count"
+                                                    @oninput="e => programExercise.Count = ParseInt(e.Value)" />
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="text"
+                                                    class="cell-input"
+                                                    data-testid="program-exercise-weight-@programExercise.Id"
+                                                    value="@DashIfZero(programExercise.Weight)"
+                                                    @oninput="e => programExercise.Weight = ParseDecimal(e.Value)" />
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="number"
+                                                    class="cell-input"
+                                                    data-testid="program-exercise-sets-@programExercise.Id"
+                                                    value="@programExercise.Sets"
+                                                    @oninput="e => programExercise.Sets = ParseInt(e.Value)" />
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="number"
+                                                    class="cell-input"
+                                                    data-testid="program-exercise-rest-@programExercise.Id"
+                                                    value="@programExercise.RestSeconds"
+                                                    @oninput="e => programExercise.RestSeconds = ParseInt(e.Value)" />
+                                            </td>
+                                            <td>
+                                                <select
+                                                    class="form-select form-select-sm cell-input"
+                                                    data-testid="program-exercise-side-@programExercise.Id"
+                                                    @onchange="e => programExercise.Side = Enum.Parse<ProgramExerciseSide>((string)e.Value!)"
+                                                >
+                                                    @foreach (var side in Enum.GetValues<ProgramExerciseSide>())
+                                                    {
+                                                        <option value="@side" selected="@(side == programExercise.Side)">@side</option>
+                                                    }
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <div class="name-actions">
+                                                    @if (programExercise.IsDirty)
+                                                    {
+                                                        <button
+                                                            class="btn btn-sm btn-icon btn-outline-dark"
+                                                            data-testid="program-exercise-save-@programExercise.Id"
+                                                            title="Save"
+                                                            @onclick="() => SaveProgramExerciseAsync(session, phase, programExercise)"
+                                                        >
+                                                            <i class="bi bi-floppy" aria-hidden="true"></i>
+                                                            <span class="visually-hidden">Save</span>
+                                                        </button>
+                                                        <button
+                                                            class="btn btn-sm btn-icon btn-outline-secondary"
+                                                            data-testid="program-exercise-revert-@programExercise.Id"
+                                                            title="Revert"
+                                                            @onclick="() => RevertProgramExercise(programExercise)"
+                                                        >
+                                                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                                                            <span class="visually-hidden">Revert</span>
+                                                        </button>
+                                                    }
+                                                    <button
+                                                        class="btn btn-sm btn-icon btn-outline-danger"
+                                                        data-testid="program-exercise-delete-@programExercise.Id"
+                                                        title="Delete"
+                                                        @onclick="() => DeleteProgramExerciseAsync(session, phase, programExercise)"
+                                                    >
+                                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                                        <span class="visually-hidden">Delete</span>
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     }
