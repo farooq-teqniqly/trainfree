@@ -449,4 +449,11 @@ describe("validateUpdateProgramExercise", () => {
 
         expect(result).toEqual({ valid: true, updates: { durationSeconds: 30 } });
     });
+
+    it("rejects a body with no recognized fields", () => {
+        const result = validateUpdateProgramExercise({});
+
+        expect(result.valid).toBe(false);
+        expect(result.error).toBeTypeOf("string");
+    });
 });

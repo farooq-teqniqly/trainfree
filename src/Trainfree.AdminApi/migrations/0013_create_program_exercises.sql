@@ -4,13 +4,13 @@ CREATE TABLE program_exercises (
     program_exercise_id TEXT NOT NULL UNIQUE,
     session_phase_id TEXT NOT NULL REFERENCES session_phases(session_phase_id) ON DELETE CASCADE,
     exercise_id TEXT NOT NULL REFERENCES exercises(exercise_id),
-    type TEXT NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('Reps', 'Timed')),
     reps INTEGER,
     duration_seconds INTEGER,
     weight REAL NOT NULL,
     sets INTEGER NOT NULL,
     rest_seconds INTEGER NOT NULL,
-    side TEXT NOT NULL,
+    side TEXT NOT NULL CHECK (side IN ('Both', 'Left', 'Right')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );

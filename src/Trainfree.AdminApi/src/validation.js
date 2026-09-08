@@ -177,5 +177,9 @@ export function validateUpdateProgramExercise(body, existingType) {
         updates.side = body.side;
     }
 
+    if (Object.keys(updates).length === 0) {
+        return { valid: false, error: "at least one field must be provided" };
+    }
+
     return { valid: true, updates };
 }
