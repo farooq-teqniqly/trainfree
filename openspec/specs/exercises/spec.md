@@ -144,14 +144,18 @@ name.
 
 ### Requirement: Delete an exercise
 
-The system SHALL provide `DELETE /api/exercises/:id` to remove an exercise
-unconditionally -- no other table references `exercises` yet, so no usage
-guard applies in this capability.
+The system SHALL provide `DELETE /api/exercises/:id` to remove an exercise, but SHALL
+reject the deletion with `409` and make no change when the exercise is referenced by at
+least one `program_exercises` row.
+**Rationale**: An exercise is a global library entity (not scoped to a single program),
+so deleting one that a program exercise already uses would silently orphan that
+reference -- the same reasoning already applied to `phases` when `session_phases`
+started referencing them.
 
-#### Scenario: Exercise exists
+#### Scenario: Exercise exists and is unused
 
-- **WHEN** a client calls `DELETE /api/exercises/:id` for an existing
-  exercise
+- **WHEN** a client calls `DELETE /api/exercises/:id` for an existing exercise
+  referenced by no `program_exercises` row
 - **THEN** the Worker deletes the row and responds `204`
 
 #### Scenario: Exercise does not exist
@@ -160,12 +164,22 @@ guard applies in this capability.
   matching exercise
 - **THEN** the Worker responds `404`
 
+#### Scenario: Exercise is used by a program exercise
+
+- **WHEN** a client calls `DELETE /api/exercises/:id` for an exercise referenced by at
+  least one `program_exercises` row
+- **THEN** the Worker responds `409` with a JSON error body and makes no change
+
 ### Requirement: Admin exercises page
 
-The Blazor admin app SHALL provide an `Exercises` page at `/exercises`
-listing every exercise as a row, using the same working/saved-value
-dirty-row pattern as the Phases page, with no image column, no type column,
-and no usage indicator or delete guard.
+The Blazor admin app SHALL provide an `Exercises` page at `/exercises` listing every
+exercise as a row, using the same working/saved-value dirty-row pattern as the Phases
+page, with no image column and no type column. An exercise row's `Delete` action SHALL
+surface the Worker's `409` usage rejection instead of silently failing or removing the
+row.
+**Rationale**: Extends the existing page's delete flow to handle the new `409` case
+introduced by the usage guard above, matching how the Phases page already handles its
+own `409` from the `phases` capability.
 
 #### Scenario: Page loads with existing exercises
 
@@ -206,12 +220,17 @@ and no usage indicator or delete guard.
 - **THEN** the page restores the last-saved name in the row, hides `Save`
   and `Revert`, and makes no API call
 
-#### Scenario: Deleting an exercise
+#### Scenario: Deleting an unused exercise
 
-- **WHEN** the admin user clicks an exercise row's `Delete` button
-- **THEN** the page calls `DELETE /api/exercises/:id` and removes the row
-  from the list on success -- no confirmation prompt or disabled state,
-  since no usage guard exists in this capability
+- **WHEN** the admin user clicks an unused exercise row's `Delete` button
+- **THEN** the page calls `DELETE /api/exercises/:id` and removes the row from the list
+  on success
+
+#### Scenario: Deleting a used exercise surfaces the usage rejection
+
+- **WHEN** the admin user clicks a used exercise row's `Delete` button
+- **THEN** the page calls `DELETE /api/exercises/:id`, receives `409`, shows that
+  rejection on the row, and does not remove the row
 
 #### Scenario: Save rejects a name that fails the length bound client-side
 
