@@ -3,8 +3,8 @@
     // wrangler.jsonc's `main`/`d1_databases` and adds `assets`, giving this Worker both
     // the /api/* routes and the Trainfree.Admin Blazor static output under one name --
     // see CLAUDE.md's Project-specific rules for the per-app Worker architecture. Keep
-    // in sync with wrangler.jsonc's `name`, `main`, `compatibility_date`, and
-    // `d1_databases`.
+    // in sync with wrangler.jsonc's `name`, `main`, `compatibility_date`,
+    // `d1_databases`, and `observability`.
     "name": "trainfree-admin",
     "main": "src/index.js",
     // Pinned to match wrangler.jsonc -- see that file's comment for why.
@@ -19,6 +19,12 @@
             "database_id": "f99013f2-e1c9-48d7-9f63-cfb3c853f421"
         }
     ],
+    "observability": {
+        "logs": {
+            "enabled": true,
+            "invocation_logs": true
+        }
+    },
     // The Blazor project publishes into a sibling directory; deploy.yaml runs
     // `dotnet publish` before `wrangler deploy` so this path exists at deploy time.
     "assets": {

@@ -23,7 +23,13 @@
             // local sqlite file regardless of this value.
             "database_id": "f99013f2-e1c9-48d7-9f63-cfb3c853f421"
         }
-    ]
+    ],
+    "observability": {
+        "logs": {
+            "enabled": true,
+            "invocation_logs": true
+        }
+    }
     // No `assets` block here: this config is used for local `wrangler dev` and for
     // `vitest`/Miniflare, neither of which has (or needs) a Blazor publish output on
     // disk. The production deploy uses wrangler.deploy.jsonc instead, which adds
