@@ -256,6 +256,30 @@ a.tile:hover {
     font-weight: 600;
     letter-spacing: 0.03em;
     text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.sheet-wrap .table col.c-name {
+    width: 40%;
+}
+
+.sheet-wrap .table col.c-type {
+    width: 9%;
+}
+
+.sheet-wrap .table col.c-count,
+.sheet-wrap .table col.c-weight,
+.sheet-wrap .table col.c-sets,
+.sheet-wrap .table col.c-rest {
+    width: 8%;
+}
+
+.sheet-wrap .table col.c-side {
+    width: 10%;
+}
+
+.sheet-wrap .table col.c-actions {
+    width: 9%;
 }
 
 .row-depth-0 > td {
@@ -264,7 +288,21 @@ a.tile:hover {
 }
 
 .row-depth-1 > td {
-    padding-left: 2.35rem;
+    padding-left: 1.5rem;
+}
+
+.row-depth-2 > td {
+    padding-left: 2.4rem;
+}
+
+.row-depth-3 > td:first-child {
+    padding-left: 3.3rem;
+}
+
+.chevron-spacer {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 28px;
 }
 
 .name-cell {
@@ -284,7 +322,17 @@ a.tile:hover {
     padding: 0.2rem 0.35rem;
 }
 
-.name-cell .cell-input:focus {
+.sheet-wrap .table td .cell-input {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.2rem;
+    color: inherit;
+    font: inherit;
+    padding: 0.2rem 0.35rem;
+    width: 100%;
+}
+
+.sheet-wrap .table td .cell-input:focus {
     background: #fff;
     border-color: #258cfb;
     box-shadow: 0 0 0 3px rgba(37, 140, 251, 0.15);
@@ -297,6 +345,14 @@ a.tile:hover {
     flex-shrink: 0;
     gap: 0.3rem;
     margin-left: auto;
+}
+
+/* Exercise-row action cells sit directly in a <td> rather than inside the flexed
+   .name-cell, so margin-left: auto has no containing flex row to push against --
+   right-align explicitly to line up with the group rows' add/delete buttons above. */
+td > .name-actions {
+    justify-content: flex-end;
+    width: 100%;
 }
 
 .btn-icon {

@@ -12,6 +12,15 @@ export class PhaseInUseError extends Error {
     }
 }
 
+export class ExerciseInUseError extends Error {
+    constructor(id) {
+        super(
+            `Exercise "${id}" is referenced by at least one program exercise and cannot be deleted.`,
+        );
+        this.name = "ExerciseInUseError";
+    }
+}
+
 // SQLite's UNIQUE-violation text names every column of the constraint that fired as
 // "<table>.<column>", e.g. "D1_ERROR: UNIQUE constraint failed: programs.name:
 // SQLITE_CONSTRAINT". A table can have more than one such column -- e.g. `programs`

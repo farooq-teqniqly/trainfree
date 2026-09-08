@@ -40,6 +40,9 @@ public sealed class MainLayoutTests : BunitContext
     private readonly IPhasesApiClient _phases = Substitute.For<IPhasesApiClient>();
     private readonly ISessionPhasesApiClient _sessionPhases =
         Substitute.For<ISessionPhasesApiClient>();
+    private readonly IExercisesApiClient _exercises = Substitute.For<IExercisesApiClient>();
+    private readonly IProgramExercisesApiClient _programExercises =
+        Substitute.For<IProgramExercisesApiClient>();
 
     public MainLayoutTests()
     {
@@ -48,8 +51,11 @@ public sealed class MainLayoutTests : BunitContext
         Services.AddSingleton(_sessions);
         Services.AddSingleton(_phases);
         Services.AddSingleton(_sessionPhases);
+        Services.AddSingleton(_exercises);
+        Services.AddSingleton(_programExercises);
         Services.AddSingleton(new VersionStamp("v0.0.3", "e4f5g6h"));
         _phases.GetPhasesAsync(Arg.Any<CancellationToken>()).Returns([]);
+        _exercises.GetExercisesAsync(Arg.Any<CancellationToken>()).Returns([]);
     }
 
     [Fact]
@@ -170,7 +176,7 @@ public sealed class MainLayoutTests : BunitContext
     }
 
     [Fact]
-    public void Render_HomePage_ShowsTheVersionIndicatorExactlyOnce()
+    public void RenderHomePage_ShowsTheVersionIndicatorExactlyOnce()
     {
         // Arrange
         _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new RunningLatestVersion());

@@ -29,4 +29,17 @@ public partial class Programs
         SessionId sessionId,
         Exception exception
     );
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to load the exercise library.")]
+    private static partial void LogLoadExerciseLibraryFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Failed to load program exercises for session phase {SessionPhaseId}."
+    )]
+    private static partial void LogLoadProgramExercisesForSessionPhaseFailed(
+        ILogger logger,
+        SessionPhaseId sessionPhaseId,
+        Exception exception
+    );
 }

@@ -1,5 +1,5 @@
 import { generateExerciseId } from "./ids.js";
-import { DuplicateNameError, uniqueConstraintColumns } from "./errors.js";
+import { DuplicateNameError, ExerciseInUseError, uniqueConstraintColumns } from "./errors.js";
 
 const SELECT_COLUMNS =
     "exercise_id as id, name, created_at as createdAt, updated_at as updatedAt";
@@ -11,6 +11,14 @@ const MAX_ID_GENERATION_ATTEMPTS = 5;
 // Exported so tests can assert on the literal tiebreak clause without mocking the D1
 // binding (CLAUDE-baseline.md forbids mocking Worker/D1 test dependencies).
 export const LIST_EXERCISES_QUERY = `SELECT ${SELECT_COLUMNS} FROM exercises ORDER BY created_at ASC, exercises.id ASC`;
+
+export async function exerciseExists(db, id) {
+    const row = await db
+        .prepare("SELECT 1 FROM exercises WHERE exercise_id = ?")
+        .bind(id)
+        .first();
+    return row !== null;
+}
 
 export async function listExercises(db) {
     const { results } = await db.prepare(LIST_EXERCISES_QUERY).all();
@@ -76,6 +84,14 @@ export async function renameExercise(db, id, name) {
 }
 
 export async function deleteExercise(db, id) {
+    const inUse = await db
+        .prepare("SELECT 1 FROM program_exercises WHERE exercise_id = ?")
+        .bind(id)
+        .first();
+    if (inUse !== null) {
+        throw new ExerciseInUseError(id);
+    }
+
     const result = await db
         .prepare("DELETE FROM exercises WHERE exercise_id = ?")
         .bind(id)
