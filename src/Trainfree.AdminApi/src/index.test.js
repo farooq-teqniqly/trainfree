@@ -1706,6 +1706,50 @@ describe("PATCH /api/programs/:programId/sessions/:sessionId/phases/:sessionPhas
 
         expect(response.status).toBe(400);
     });
+
+    it("returns 400 when durationSeconds is set on a Reps-type row", async () => {
+        const { program, session, sessionPhase, programExercise } = await setUp();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(program.id, session.id, sessionPhase.id, programExercise.id),
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ durationSeconds: 30 }),
+            },
+        );
+
+        expect(response.status).toBe(400);
+    });
+
+    it("returns 400 when reps is set on a Timed-type row", async () => {
+        const { program, session, sessionPhase, exercise } = await setUp();
+        const timedProgramExercise = await (
+            await createProgramExercise(program.id, session.id, sessionPhase.id, {
+                exerciseId: exercise.id,
+                type: "Timed",
+                durationSeconds: 30,
+                sets: 3,
+                restSeconds: 60,
+            })
+        ).json();
+
+        const response = await SELF.fetch(
+            programExercisesUrl(
+                program.id,
+                session.id,
+                sessionPhase.id,
+                timedProgramExercise.id,
+            ),
+            {
+                method: "PATCH",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ reps: 10 }),
+            },
+        );
+
+        expect(response.status).toBe(400);
+    });
 });
 
 describe("DELETE /api/programs/:programId/sessions/:sessionId/phases/:sessionPhaseId/exercises/:id", () => {

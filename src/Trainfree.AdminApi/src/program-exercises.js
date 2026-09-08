@@ -41,6 +41,16 @@ export async function programExerciseSessionPhaseExists(db, sessionId, sessionPh
     return row !== null;
 }
 
+export async function getProgramExerciseType(db, sessionPhaseId, id) {
+    const row = await db
+        .prepare(
+            "SELECT type FROM program_exercises WHERE program_exercise_id = ? AND session_phase_id = ?",
+        )
+        .bind(id, sessionPhaseId)
+        .first();
+    return row?.type ?? null;
+}
+
 export async function listProgramExercises(db, sessionPhaseId) {
     const { results } = await db
         .prepare(

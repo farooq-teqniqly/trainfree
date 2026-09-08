@@ -423,4 +423,30 @@ describe("validateUpdateProgramExercise", () => {
 
         expect(result.valid).toBe(false);
     });
+
+    it("rejects durationSeconds on a Reps-type row", () => {
+        const result = validateUpdateProgramExercise({ durationSeconds: 30 }, "Reps");
+
+        expect(result.valid).toBe(false);
+        expect(result.error).toBeTypeOf("string");
+    });
+
+    it("rejects reps on a Timed-type row", () => {
+        const result = validateUpdateProgramExercise({ reps: 10 }, "Timed");
+
+        expect(result.valid).toBe(false);
+        expect(result.error).toBeTypeOf("string");
+    });
+
+    it("accepts reps on a Reps-type row", () => {
+        const result = validateUpdateProgramExercise({ reps: 10 }, "Reps");
+
+        expect(result).toEqual({ valid: true, updates: { reps: 10 } });
+    });
+
+    it("accepts durationSeconds on a Timed-type row", () => {
+        const result = validateUpdateProgramExercise({ durationSeconds: 30 }, "Timed");
+
+        expect(result).toEqual({ valid: true, updates: { durationSeconds: 30 } });
+    });
 });

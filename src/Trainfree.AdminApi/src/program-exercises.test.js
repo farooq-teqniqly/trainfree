@@ -8,6 +8,7 @@ import { createSessionPhase } from "./session-phases.js";
 import {
     createProgramExercise,
     deleteProgramExercise,
+    getProgramExerciseType,
     listProgramExercises,
     programExerciseSessionPhaseExists,
     updateProgramExercise,
@@ -216,6 +217,40 @@ describe("createProgramExercise", () => {
         expect(result.id).toBeTypeOf("string");
         const list = await listProgramExercises(env.DB, sessionPhase.id);
         expect(list).toHaveLength(2);
+    });
+});
+
+describe("getProgramExerciseType", () => {
+    it("returns the row's type when it exists under that session phase", async () => {
+        const program = await createProgram(env.DB, "Workout A");
+        const session = await createSession(env.DB, program.id, "Monday Lower Body");
+        const phase = await createPhase(env.DB, "Warm Up");
+        const sessionPhase = await createSessionPhase(env.DB, session.id, phase.id);
+        const exercise = await createExercise(env.DB, "Bodyweight Squat");
+        const created = await createProgramExercise(env.DB, sessionPhase.id, {
+            exerciseId: exercise.id,
+            type: "Timed",
+            durationSeconds: 30,
+            sets: 3,
+            restSeconds: 60,
+            weight: 0,
+            side: "Both",
+        });
+
+        const result = await getProgramExerciseType(env.DB, sessionPhase.id, created.id);
+
+        expect(result).toBe("Timed");
+    });
+
+    it("returns null for an id that does not exist under that session phase", async () => {
+        const program = await createProgram(env.DB, "Workout A");
+        const session = await createSession(env.DB, program.id, "Monday Lower Body");
+        const phase = await createPhase(env.DB, "Warm Up");
+        const sessionPhase = await createSessionPhase(env.DB, session.id, phase.id);
+
+        const result = await getProgramExerciseType(env.DB, sessionPhase.id, "PGX-ZZZZZZ");
+
+        expect(result).toBeNull();
     });
 });
 

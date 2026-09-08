@@ -29,6 +29,7 @@ import {
 import {
     createProgramExercise,
     deleteProgramExercise,
+    getProgramExerciseType,
     listProgramExercises,
     programExerciseSessionPhaseExists,
     updateProgramExercise,
@@ -396,8 +397,12 @@ async function handleProgramExercisesCollection(request, db, sessionPhaseId) {
 
 async function handleProgramExerciseResource(request, db, sessionPhaseId, id) {
     if (request.method === "PATCH") {
+        const existingType = await getProgramExerciseType(db, sessionPhaseId, id);
+        if (existingType === null) {
+            return jsonResponse({ error: "program exercise not found" }, 404);
+        }
         const body = (await request.json().catch(() => null)) ?? {};
-        const validation = validateUpdateProgramExercise(body);
+        const validation = validateUpdateProgramExercise(body, existingType);
         if (!validation.valid) {
             return jsonResponse({ error: validation.error }, 400);
         }

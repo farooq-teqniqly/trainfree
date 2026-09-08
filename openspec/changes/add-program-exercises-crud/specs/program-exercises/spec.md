@@ -178,6 +178,17 @@ conversion.
   `side` to a value other than `Both`/`Left`/`Right`
 - **THEN** the Worker responds `400` with a JSON error body and makes no change
 
+#### Scenario: Update sets the field the row's type does not carry
+- **WHEN** a client calls the update route with a `durationSeconds` property for a
+  `RepsProgramExercise` row, or a `reps` property for a `TimedProgramExercise` row
+- **THEN** the Worker responds `400` with a JSON error body and makes no change
+**Rationale**: Without this check, `reps` and `durationSeconds` validate independently
+of each other, so a client could set the field the row's type does not carry and leave
+the D1 row with both columns populated -- silently violating this requirement's own
+"whichever the row's type carries" contract and the Decisions section's "same set of
+fields present before and after" invariant. The Worker looks up the existing row's
+`type` before validating the update body.
+
 ### Requirement: Delete a program exercise
 The system SHALL provide
 `DELETE /api/programs/:programId/sessions/:sessionId/phases/:sessionPhaseId/exercises/:id`
@@ -212,18 +223,20 @@ The Blazor admin page SHALL display each session phase's program exercises as ro
 nested beneath that session phase's row, using the same chevron expand/collapse pattern
 already used for a session's phases. Each row SHALL show: the exercise's name (picked
 from a plain dropdown of the exercise library, no search box, no inline "New
-exercise..." shortcut), a `Reps`/`Timed` type badge, the reps-or-duration cell, weight,
-sets, rest seconds, and side -- all editable inline via the same working/saved-value
-dirty-row pattern as other admin rows, except the exercise reference and type, which are
-fixed after creation. A numeric cell SHALL render as an en dash (`–`) when its
-value is `0`; a `TimedProgramExercise` row's `Reps` cell SHALL also render as a dash, for
-the different reason that the type has no `Reps` property at all -- the page SHALL NOT
-carry a spurious `Reps = 0` on that type to produce the dash.
+exercise..." shortcut), a `Reps`/`Timed` type badge, a single merged "Reps / Duration"
+cell showing the row's `reps` for a `RepsProgramExercise` or its `durationSeconds` for a
+`TimedProgramExercise`, weight, sets, rest seconds, and side -- all editable inline via
+the same working/saved-value dirty-row pattern as other admin rows, except the exercise
+reference and type, which are fixed after creation. A numeric cell (`weight`, `sets`,
+`restSeconds`, or the merged reps/duration cell) SHALL render as an en dash (`–`) when
+its value is `0`.
 **Rationale**: Reuses the nesting and dirty-row patterns already established one level
-up; the two different reasons for showing a dash (an actual zero value vs. a
-type-absent property) matter because the client's `RepsProgramExercise`/
-`TimedProgramExercise` domain types must stay faithful to the DDD "no nullable field for
-data only some states carry" rule even though the rendered result looks identical.
+up. A single merged cell (rather than a `Reps` column that goes blank/dashed on every
+`TimedProgramExercise` row) keeps the sheet's columns meaningful for both types without
+a column that is permanently empty for half the rows; the client's
+`RepsProgramExercise`/`TimedProgramExercise` domain types still stay faithful to the DDD
+"no nullable field for data only some states carry" rule underneath -- only the Blazor
+presentation layer merges the two into one display cell.
 
 #### Scenario: Page loads with existing program exercises
 - **WHEN** the admin page loads and a session phase has program exercises
@@ -288,6 +301,18 @@ data only some states carry" rule even though the rendered result looks identica
 
 ## Decisions
 
+- **Merged "Reps / Duration" cell instead of a dash-on-Timed-rows `Reps` column.** The
+  anchor roadmap text called for a `TimedProgramExercise` row's `Reps` cell to render as
+  a dash, matching the original mockup's separate `Reps` column. The shipped
+  implementation instead merges `reps`/`durationSeconds` into a single cell that shows
+  the row's actual value regardless of type -- a `TimedProgramExercise` row shows its
+  duration there rather than a permanently-dashed `Reps` column. This is more useful (the
+  sheet never has a column that is empty for half its rows) and was judged worth the
+  deviation from the anchor's literal wording; the underlying domain types
+  (`RepsProgramExercise`/`TimedProgramExercise`) are unaffected -- only the Blazor
+  presentation layer merges the two into one display cell. See requirement coverage row
+  8.
+
 - **Small add-time form instead of create-bare-then-edit.** Every other admin entity in
   this app (`Program`, `Session`, `Phase`, `Exercise`, `SessionPhase`) is created bare
   and edited inline afterward, because none of them has a field with a positive-value
@@ -335,7 +360,7 @@ Anchor: `docs/trainfree-roadmap.md`, slice 8 (`add-program-exercises-crud`)
 | 5 | Neither type carries a `note` field (deferred) | Req: Program exercise is one of two distinct types (Rationale) |
 | 6 | `side` defaults to `Both` on create (other values `Left`/`Right`) | Req: Create a program exercise |
 | 7 | A numeric cell (e.g. `Weight`) renders as an en dash when its value is `0` | Req: Admin program exercise rows nested under their session phase |
-| 8 | A `TimedProgramExercise` row's `Reps` cell renders as a dash because the type has no `Reps` property, and the UI must not fake this with `Reps = 0` | Req: Admin program exercise rows nested under their session phase |
+| 8 | A `TimedProgramExercise` row's `Reps` cell renders as a dash because the type has no `Reps` property, and the UI must not fake this with `Reps = 0` | Deviated -- the admin page merges `reps`/`durationSeconds` into one "Reps / Duration" cell showing the row's real value instead of a dash, so a `TimedProgramExercise` row shows its duration rather than a dashed-out `Reps` column; see Req: Admin program exercise rows nested under their session phase and this change's Decisions |
 | 9 | Adds the `Exercise` delete guard deferred from slice 6, same global-entity reasoning as slice 7's `Phase` guard | See `exercises` capability's MODIFIED delta in this change |
 | 10 | Exercise row's name picked from a plain dropdown (no search, no inline "New exercise..." shortcut); per-row `Image` column from the original mockup is gone | Req: Admin program exercise rows nested under their session phase |
 | 11 | D1 migration: `program_exercises` table (FK `session_phase_id`, `exercise_id`, discriminator + type-specific columns; cascade-deleted when parent `SessionPhase` is deleted) | Req: Deleting a session phase cascades to its program exercises; Decisions |

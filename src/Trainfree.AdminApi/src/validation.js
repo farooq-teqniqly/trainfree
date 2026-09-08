@@ -119,7 +119,7 @@ export function validateCreateProgramExercise(body) {
     };
 }
 
-export function validateUpdateProgramExercise(body) {
+export function validateUpdateProgramExercise(body, existingType) {
     if ("exerciseId" in body || "type" in body) {
         return { valid: false, error: "exerciseId and type cannot be changed" };
     }
@@ -127,6 +127,9 @@ export function validateUpdateProgramExercise(body) {
     const updates = {};
 
     if (body.reps !== undefined) {
+        if (existingType === "Timed") {
+            return { valid: false, error: "reps is not allowed when type is Timed" };
+        }
         if (!isPositiveInteger(body.reps)) {
             return { valid: false, error: "reps must be a positive integer" };
         }
@@ -134,6 +137,9 @@ export function validateUpdateProgramExercise(body) {
     }
 
     if (body.durationSeconds !== undefined) {
+        if (existingType === "Reps") {
+            return { valid: false, error: "durationSeconds is not allowed when type is Reps" };
+        }
         if (!isPositiveInteger(body.durationSeconds)) {
             return { valid: false, error: "durationSeconds must be a positive integer" };
         }
