@@ -1852,6 +1852,51 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public async Task SaveProgramExercise_WeightIsUnparsableText_ShowsErrorAndDoesNotCallUpdate()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            45,
+            3,
+            60,
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-weight-PGX-AAAAAA']").Input("abc")
+        );
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-save-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        await _programExercisesApiClient
+            .DidNotReceive()
+            .UpdateProgramExerciseAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<SessionId>(),
+                Arg.Any<SessionPhaseId>(),
+                Arg.Any<ProgramExerciseId>(),
+                Arg.Any<ProgramExerciseUpdate>(),
+                Arg.Any<CancellationToken>()
+            );
+        Assert.Equal(
+            "Weight must be a valid number.",
+            cut.Find("[data-testid='program-exercise-error-PGX-AAAAAA']").TextContent.Trim()
+        );
+    }
+
+    [Fact]
     public async Task SaveProgramExercise_EditThenSave_CallsUpdateAndAppliesResult()
     {
         // Arrange

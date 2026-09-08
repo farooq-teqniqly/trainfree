@@ -822,16 +822,22 @@
 
     private static int ParseInt(object? value) => int.TryParse(value as string, out var parsed) ? parsed : 0;
 
-    private static decimal ParseDecimal(object? value) =>
-        decimal.TryParse(value as string, out var parsed) ? parsed : 0;
-
     private static string DashIfZero(decimal value) =>
         value == 0 ? "–" : value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     private static void SetWeight(ProgramExerciseRow row, string? text)
     {
         row.WeightText = text ?? "";
-        row.Weight = ParseDecimal(text);
+        row.WeightIsValid = decimal.TryParse(
+            row.WeightText,
+            System.Globalization.NumberStyles.Number,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var parsed
+        );
+        if (row.WeightIsValid)
+        {
+            row.Weight = parsed;
+        }
     }
 
     private async Task AddProgramExerciseAsync(SessionRow session, SessionPhaseRow phase)
@@ -896,6 +902,12 @@
             return;
         }
 
+        if (!row.WeightIsValid)
+        {
+            row.Error = "Weight must be a valid number.";
+            return;
+        }
+
         if (row.Weight < 0)
         {
             row.Error = "Weight cannot be negative.";
@@ -942,6 +954,7 @@
         row.Count = row.SavedCount;
         row.Weight = row.SavedWeight;
         row.WeightText = DashIfZero(row.SavedWeight);
+        row.WeightIsValid = true;
         row.Sets = row.SavedSets;
         row.RestSeconds = row.SavedRestSeconds;
         row.Side = row.SavedSide;
@@ -1260,6 +1273,7 @@
         public decimal Weight { get; set; }
         public decimal SavedWeight { get; set; }
         public string WeightText { get; set; } = "";
+        public bool WeightIsValid { get; set; } = true;
         public int Sets { get; set; }
         public int SavedSets { get; set; }
         public int RestSeconds { get; set; }
@@ -1271,6 +1285,7 @@
         public bool IsDirty =>
             Count != SavedCount
             || Weight != SavedWeight
+            || !WeightIsValid
             || Sets != SavedSets
             || RestSeconds != SavedRestSeconds
             || Side != SavedSide;
@@ -1284,6 +1299,7 @@
             Weight = programExercise.Weight;
             SavedWeight = Weight;
             WeightText = DashIfZero(Weight);
+            WeightIsValid = true;
             Sets = programExercise.Sets;
             SavedSets = Sets;
             RestSeconds = programExercise.RestSeconds;
