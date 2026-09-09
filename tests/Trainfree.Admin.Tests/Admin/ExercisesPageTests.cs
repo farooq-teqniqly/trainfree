@@ -308,6 +308,40 @@ public sealed class ExercisesPageTests : BunitContext
     }
 
     [Fact]
+    public async Task RenameExercise_SaveInFlight_DisablesNameInputSoLaterEditsAreNotSilentlyLost()
+    {
+        // Arrange
+        var exercise = new ExerciseSummary(ExerciseId.Parse("EXR-AAAAAA"), "Bodyweight Squat");
+        _apiClient.GetExercisesAsync(CancellationToken.None).Returns([exercise]);
+        var tcs = new TaskCompletionSource<RenameExerciseOutcome>();
+        _apiClient
+            .RenameExerciseAsync(
+                ExerciseId.Parse("EXR-AAAAAA"),
+                "Skater Jump",
+                CancellationToken.None
+            )
+            .Returns(tcs.Task);
+        var cut = Render<Exercises>();
+        var input = cut.Find("[data-testid='name-input-EXR-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Skater Jump"));
+
+        // Act
+        var saveTask = cut.InvokeAsync(() =>
+            input.KeyDown(new KeyboardEventArgs { Key = "Enter" })
+        );
+
+        // Assert: input is disabled while the save is in flight, so a second edit
+        // cannot be typed and silently discarded when the first response lands
+        Assert.True(cut.Find("[data-testid='name-input-EXR-AAAAAA']").HasAttribute("disabled"));
+
+        await cut.InvokeAsync(() =>
+            tcs.SetResult(new RenameExerciseSucceeded(exercise with { Name = "Skater Jump" }))
+        );
+        await saveTask;
+        Assert.False(cut.Find("[data-testid='name-input-EXR-AAAAAA']").HasAttribute("disabled"));
+    }
+
+    [Fact]
     public void SaveButton_NoUnsavedChanges_IsNotShown()
     {
         // Arrange

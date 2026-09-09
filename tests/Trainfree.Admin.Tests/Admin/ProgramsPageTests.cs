@@ -338,6 +338,39 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public async Task RenameProgram_SaveInFlight_DisablesNameInputSoLaterEditsAreNotSilentlyLost()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var tcs = new TaskCompletionSource<RenameProgramOutcome>();
+        _apiClient
+            .RenameProgramAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                "Renamed Workout",
+                CancellationToken.None
+            )
+            .Returns(tcs.Task);
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Renamed Workout"));
+
+        // Act
+        var saveTask = cut.InvokeAsync(() =>
+            input.KeyDown(new KeyboardEventArgs { Key = "Enter" })
+        );
+
+        // Assert
+        Assert.True(cut.Find("[data-testid='name-input-PRG-AAAAAA']").HasAttribute("disabled"));
+
+        await cut.InvokeAsync(() =>
+            tcs.SetResult(new RenameProgramSucceeded(program with { Name = "Renamed Workout" }))
+        );
+        await saveTask;
+        Assert.False(cut.Find("[data-testid='name-input-PRG-AAAAAA']").HasAttribute("disabled"));
+    }
+
+    [Fact]
     public void SaveButton_NoUnsavedChanges_IsNotShown()
     {
         // Arrange
@@ -857,6 +890,52 @@ public sealed class ProgramsPageTests : BunitContext
                 "Renamed Session",
                 CancellationToken.None
             );
+    }
+
+    [Fact]
+    public async Task RenameSession_SaveInFlight_DisablesNameInputSoLaterEditsAreNotSilentlyLost()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        var tcs = new TaskCompletionSource<RenameSessionOutcome>();
+        _sessionsApiClient
+            .RenameSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                "Renamed Session",
+                CancellationToken.None
+            )
+            .Returns(tcs.Task);
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='session-name-input-SNN-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Renamed Session"));
+
+        // Act
+        var saveTask = cut.InvokeAsync(() =>
+            input.KeyDown(new KeyboardEventArgs { Key = "Enter" })
+        );
+
+        // Assert
+        Assert.True(
+            cut.Find("[data-testid='session-name-input-SNN-AAAAAA']").HasAttribute("disabled")
+        );
+
+        await cut.InvokeAsync(() =>
+            tcs.SetResult(new RenameSessionSucceeded(session with { Name = "Renamed Session" }))
+        );
+        await saveTask;
+        Assert.False(
+            cut.Find("[data-testid='session-name-input-SNN-AAAAAA']").HasAttribute("disabled")
+        );
     }
 
     [Fact]
@@ -2091,6 +2170,64 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public async Task AddProgramExercise_CreateInFlight_DisablesFormSoLaterEditsAreNotSilentlyLost()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var tcs = new TaskCompletionSource<CreateProgramExerciseOutcome>();
+        _programExercisesApiClient
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            )
+            .Returns(tcs.Task);
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-picker-SPH-AAAAAA']").Change("EXR-AAAAAA")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-sets-SPH-AAAAAA']").Input("3")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-restseconds-SPH-AAAAAA']").Input("60")
+        );
+        var countInput = cut.Find("[data-testid='exercise-count-SPH-AAAAAA']");
+        await cut.InvokeAsync(() => countInput.Input("10"));
+
+        // Act
+        var createTask = cut.InvokeAsync(() =>
+            countInput.KeyDown(new KeyboardEventArgs { Key = "Enter" })
+        );
+
+        // Assert
+        Assert.True(cut.Find("[data-testid='exercise-count-SPH-AAAAAA']").HasAttribute("disabled"));
+        Assert.True(
+            cut.Find("[data-testid='add-exercise-submit-SPH-AAAAAA']").HasAttribute("disabled")
+        );
+
+        tcs.SetResult(
+            new CreateProgramExerciseSucceeded(
+                new RepsProgramExercise(
+                    ProgramExerciseId.Parse("PGX-CCCCCC"),
+                    sessionPhaseId,
+                    ExerciseId.Parse("EXR-AAAAAA"),
+                    10,
+                    0,
+                    new SetPrescription(3, 60),
+                    ProgramExerciseSide.Both
+                )
+            )
+        );
+        await createTask;
+    }
+
+    [Fact]
     public void ProgramExerciseRow_WeightIsZero_RendersWeightAsEnDash()
     {
         // Arrange
@@ -2478,6 +2615,69 @@ public sealed class ProgramsPageTests : BunitContext
                 Arg.Any<ProgramExerciseUpdate>(),
                 CancellationToken.None
             );
+    }
+
+    [Fact]
+    public async Task SaveProgramExercise_SaveInFlight_DisablesRowSoLaterEditsAreNotSilentlyLost()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        var tcs = new TaskCompletionSource<UpdateProgramExerciseOutcome>();
+        _programExercisesApiClient
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-AAAAAA"),
+                Arg.Any<ProgramExerciseUpdate>(),
+                CancellationToken.None
+            )
+            .Returns(tcs.Task);
+        var cut = Render<Programs>();
+        var countInput = cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']");
+        await cut.InvokeAsync(() => countInput.Input("12"));
+
+        // Act
+        var saveTask = cut.InvokeAsync(() =>
+            countInput.KeyDown(new KeyboardEventArgs { Key = "Enter" })
+        );
+
+        // Assert
+        Assert.True(
+            cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").HasAttribute("disabled")
+        );
+
+        await cut.InvokeAsync(() =>
+            tcs.SetResult(
+                new UpdateProgramExerciseSucceeded(
+                    new RepsProgramExercise(
+                        ProgramExerciseId.Parse("PGX-AAAAAA"),
+                        sessionPhaseId,
+                        ExerciseId.Parse("EXR-AAAAAA"),
+                        12,
+                        0,
+                        new SetPrescription(3, 60),
+                        ProgramExerciseSide.Both
+                    )
+                )
+            )
+        );
+        await saveTask;
+        Assert.False(
+            cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").HasAttribute("disabled")
+        );
     }
 
     [Fact]

@@ -110,6 +110,7 @@
                                 data-testid="name-input-@row.Id"
                                 value="@row.Name"
                                 autofocus="@(row.Id == _editingId)"
+                                disabled="@row.IsSaving"
                                 @oninput="e => row.Name = (string)e.Value!"
                                 @onkeydown="e => OnProgramNameKeyDownAsync(e, row)" />
                             <div class="name-actions">
@@ -119,6 +120,7 @@
                                         class="btn btn-sm btn-icon btn-outline-dark"
                                         data-testid="save-@row.Id"
                                         title="Save"
+                                        disabled="@row.IsSaving"
                                         @onclick="() => RenameAsync(row)"
                                     >
                                         <i class="bi bi-floppy" aria-hidden="true"></i>
@@ -128,6 +130,7 @@
                                         class="btn btn-sm btn-icon btn-outline-secondary"
                                         data-testid="revert-@row.Id"
                                         title="Revert"
+                                        disabled="@row.IsSaving"
                                         @onclick="() => Revert(row)"
                                     >
                                         <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
@@ -201,6 +204,7 @@
                                         data-testid="session-name-input-@session.Id"
                                         value="@session.Name"
                                         autofocus="@(session.Id == _editingSessionId)"
+                                        disabled="@session.IsSaving"
                                         @oninput="e => session.Name = (string)e.Value!"
                                         @onkeydown="e => OnSessionNameKeyDownAsync(e, session)" />
                                     <div class="name-actions">
@@ -210,6 +214,7 @@
                                                 class="btn btn-sm btn-icon btn-outline-dark"
                                                 data-testid="session-save-@session.Id"
                                                 title="Save"
+                                                disabled="@session.IsSaving"
                                                 @onclick="() => RenameSessionAsync(session)"
                                             >
                                                 <i class="bi bi-floppy" aria-hidden="true"></i>
@@ -219,6 +224,7 @@
                                                 class="btn btn-sm btn-icon btn-outline-secondary"
                                                 data-testid="session-revert-@session.Id"
                                                 title="Revert"
+                                                disabled="@session.IsSaving"
                                                 @onclick="() => RevertSession(session)"
                                             >
                                                 <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
@@ -393,6 +399,7 @@
                                                     <select
                                                         class="form-select form-select-sm w-auto"
                                                         data-testid="exercise-picker-@phase.Id"
+                                                        disabled="@phase.IsAddingExercise"
                                                         @onchange="e => _addExerciseExerciseId = (string)e.Value!"
                                                     >
                                                         <option value="">-- Select an exercise --</option>
@@ -404,6 +411,7 @@
                                                     <select
                                                         class="form-select form-select-sm w-auto"
                                                         data-testid="exercise-type-@phase.Id"
+                                                        disabled="@phase.IsAddingExercise"
                                                         @onchange="e => _addExerciseType = (string)e.Value!"
                                                     >
                                                         <option value="Reps">Reps</option>
@@ -414,6 +422,7 @@
                                                         class="form-control form-control-sm w-auto"
                                                         placeholder="@(_addExerciseType == "Timed" ? "Duration (s)" : "Reps")"
                                                         data-testid="exercise-count-@phase.Id"
+                                                        disabled="@phase.IsAddingExercise"
                                                         @oninput="e => _addExerciseCount = ParseNullableInt(e.Value)"
                                                         @onkeydown="e => OnAddExerciseKeyDownAsync(e, session, phase)" />
                                                     <input
@@ -421,6 +430,7 @@
                                                         class="form-control form-control-sm w-auto"
                                                         placeholder="Sets"
                                                         data-testid="exercise-sets-@phase.Id"
+                                                        disabled="@phase.IsAddingExercise"
                                                         @oninput="e => _addExerciseSets = ParseNullableInt(e.Value)"
                                                         @onkeydown="e => OnAddExerciseKeyDownAsync(e, session, phase)" />
                                                     <input
@@ -428,12 +438,13 @@
                                                         class="form-control form-control-sm w-auto"
                                                         placeholder="Rest (s)"
                                                         data-testid="exercise-restseconds-@phase.Id"
+                                                        disabled="@phase.IsAddingExercise"
                                                         @oninput="e => _addExerciseRestSeconds = ParseNullableInt(e.Value)"
                                                         @onkeydown="e => OnAddExerciseKeyDownAsync(e, session, phase)" />
                                                     <button
                                                         class="btn btn-sm btn-dark"
                                                         data-testid="add-exercise-submit-@phase.Id"
-                                                        disabled="@(!CanSubmitAddExercise)"
+                                                        disabled="@(!CanSubmitAddExercise || phase.IsAddingExercise)"
                                                         @onclick="() => AddProgramExerciseAsync(session, phase)"
                                                     >
                                                         Add
@@ -489,6 +500,7 @@
                                                     class="cell-input"
                                                     data-testid="program-exercise-count-@programExercise.Id"
                                                     value="@programExercise.Count"
+                                                    disabled="@programExercise.IsSaving"
                                                     @oninput="e => programExercise.Count = ParseInt(e.Value)"
                                                     @onkeydown="e => OnProgramExerciseKeyDownAsync(e, session, phase, programExercise)" />
                                             </td>
@@ -498,6 +510,7 @@
                                                     class="cell-input"
                                                     data-testid="program-exercise-weight-@programExercise.Id"
                                                     value="@programExercise.WeightText"
+                                                    disabled="@programExercise.IsSaving"
                                                     @oninput="e => SetWeight(programExercise, (string?)e.Value)"
                                                     @onkeydown="e => OnProgramExerciseKeyDownAsync(e, session, phase, programExercise)" />
                                             </td>
@@ -507,6 +520,7 @@
                                                     class="cell-input"
                                                     data-testid="program-exercise-sets-@programExercise.Id"
                                                     value="@programExercise.Sets"
+                                                    disabled="@programExercise.IsSaving"
                                                     @oninput="e => programExercise.Sets = ParseInt(e.Value)"
                                                     @onkeydown="e => OnProgramExerciseKeyDownAsync(e, session, phase, programExercise)" />
                                             </td>
@@ -516,6 +530,7 @@
                                                     class="cell-input"
                                                     data-testid="program-exercise-rest-@programExercise.Id"
                                                     value="@programExercise.RestSeconds"
+                                                    disabled="@programExercise.IsSaving"
                                                     @oninput="e => programExercise.RestSeconds = ParseInt(e.Value)"
                                                     @onkeydown="e => OnProgramExerciseKeyDownAsync(e, session, phase, programExercise)" />
                                             </td>
@@ -523,6 +538,7 @@
                                                 <select
                                                     class="form-select form-select-sm cell-input"
                                                     data-testid="program-exercise-side-@programExercise.Id"
+                                                    disabled="@programExercise.IsSaving"
                                                     @onchange="e => programExercise.Side = Enum.Parse<ProgramExerciseSide>((string)e.Value!)"
                                                 >
                                                     @foreach (var side in Enum.GetValues<ProgramExerciseSide>())
@@ -539,6 +555,7 @@
                                                             class="btn btn-sm btn-icon btn-outline-dark"
                                                             data-testid="program-exercise-save-@programExercise.Id"
                                                             title="Save"
+                                                            disabled="@programExercise.IsSaving"
                                                             @onclick="() => SaveProgramExerciseAsync(session, phase, programExercise)"
                                                         >
                                                             <i class="bi bi-floppy" aria-hidden="true"></i>
@@ -548,6 +565,7 @@
                                                             class="btn btn-sm btn-icon btn-outline-secondary"
                                                             data-testid="program-exercise-revert-@programExercise.Id"
                                                             title="Revert"
+                                                            disabled="@programExercise.IsSaving"
                                                             @onclick="() => RevertProgramExercise(programExercise)"
                                                         >
                                                             <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>

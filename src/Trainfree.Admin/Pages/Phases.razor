@@ -77,6 +77,7 @@ else
                                     data-testid="name-input-@row.Id"
                                     value="@row.Name"
                                     autofocus="@(row.Id == _editingId)"
+                                    disabled="@row.IsSaving"
                                     @oninput="e => row.Name = (string)e.Value!"
                                     @onkeydown="e => OnNameKeyDownAsync(e, row)" />
                                 <div class="name-actions">
@@ -86,6 +87,7 @@ else
                                             class="btn btn-sm btn-icon btn-outline-dark"
                                             data-testid="save-@row.Id"
                                             title="Save"
+                                            disabled="@row.IsSaving"
                                             @onclick="() => RenameAsync(row)"
                                         >
                                             <i class="bi bi-floppy" aria-hidden="true"></i>
@@ -95,6 +97,7 @@ else
                                             class="btn btn-sm btn-icon btn-outline-secondary"
                                             data-testid="revert-@row.Id"
                                             title="Revert"
+                                            disabled="@row.IsSaving"
                                             @onclick="() => Revert(row)"
                                         >
                                             <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>

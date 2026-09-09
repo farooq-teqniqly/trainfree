@@ -252,6 +252,35 @@ public sealed class PhasesPageTests : BunitContext
     }
 
     [Fact]
+    public async Task RenamePhase_SaveInFlight_DisablesNameInputSoLaterEditsAreNotSilentlyLost()
+    {
+        // Arrange
+        var phase = new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up");
+        _apiClient.GetPhasesAsync(CancellationToken.None).Returns([phase]);
+        var tcs = new TaskCompletionSource<RenamePhaseOutcome>();
+        _apiClient
+            .RenamePhaseAsync(PhaseId.Parse("PHS-AAAAAA"), "Cool Down", CancellationToken.None)
+            .Returns(tcs.Task);
+        var cut = Render<Phases>();
+        var input = cut.Find("[data-testid='name-input-PHS-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Cool Down"));
+
+        // Act
+        var saveTask = cut.InvokeAsync(() =>
+            input.KeyDown(new KeyboardEventArgs { Key = "Enter" })
+        );
+
+        // Assert
+        Assert.True(cut.Find("[data-testid='name-input-PHS-AAAAAA']").HasAttribute("disabled"));
+
+        await cut.InvokeAsync(() =>
+            tcs.SetResult(new RenamePhaseSucceeded(phase with { Name = "Cool Down" }))
+        );
+        await saveTask;
+        Assert.False(cut.Find("[data-testid='name-input-PHS-AAAAAA']").HasAttribute("disabled"));
+    }
+
+    [Fact]
     public void SaveButton_NoUnsavedChanges_IsNotShown()
     {
         // Arrange
