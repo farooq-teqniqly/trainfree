@@ -2249,6 +2249,7 @@ public sealed class ProgramsPageTests : BunitContext
         // completion clear them out from under phase A (or vice versa)
         Assert.Empty(cut.FindAll("[data-testid='exercise-picker-SPH-BBBBBB']"));
         Assert.True(cut.Find("[data-testid='add-exercise-SPH-BBBBBB']").HasAttribute("disabled"));
+        Assert.True(cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").HasAttribute("disabled"));
 
         await cut.InvokeAsync(() =>
             tcs.SetResult(

@@ -338,7 +338,7 @@
                                                     class="btn btn-sm btn-icon btn-outline-dark"
                                                     data-testid="add-exercise-@phase.Id"
                                                     title="Add Exercise"
-                                                    disabled="@(_submittingAddExercisePhaseId is not null && _submittingAddExercisePhaseId != phase.Id)"
+                                                    disabled="@(_submittingAddExercisePhaseId is not null)"
                                                     @onclick="() => ShowAddExercisePicker(phase)"
                                                 >
                                                     <i class="bi bi-plus-circle" aria-hidden="true"></i>
