@@ -3847,4 +3847,59 @@ public sealed class ProgramsPageTests : BunitContext
             cut.Find("[data-testid='program-exercise-error-PGX-CCCCCC']").TextContent.Trim()
         );
     }
+
+    [Fact]
+    public async Task DeleteProgramExercise_DoubleClickWhileDeleteInFlight_CallsDeleteOnlyOnce()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        var tcs = new TaskCompletionSource<DeleteProgramExerciseOutcome>();
+        _programExercisesApiClient
+            .DeleteProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns(tcs.Task);
+        var cut = Render<Programs>();
+
+        // Act
+        var firstClick = cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-delete-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        Assert.True(
+            cut.Find("[data-testid='program-exercise-delete-PGX-AAAAAA']").HasAttribute("disabled")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-delete-PGX-AAAAAA']").Click()
+        );
+        tcs.SetResult(new DeleteProgramExerciseSucceeded());
+        await firstClick;
+
+        await _programExercisesApiClient
+            .Received(1)
+            .DeleteProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-AAAAAA"),
+                CancellationToken.None
+            );
+    }
 }

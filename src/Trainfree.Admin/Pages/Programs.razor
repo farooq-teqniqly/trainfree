@@ -587,6 +587,7 @@
                                                         class="btn btn-sm btn-icon btn-outline-danger"
                                                         data-testid="program-exercise-delete-@programExercise.Id"
                                                         title="Delete"
+                                                        disabled="@programExercise.IsSaving"
                                                         @onclick="() => DeleteProgramExerciseAsync(session, phase, programExercise)"
                                                     >
                                                         <i class="bi bi-trash" aria-hidden="true"></i>
@@ -1164,20 +1165,33 @@
         ProgramExerciseRow row
     )
     {
-        var outcome = await ProgramExercisesApi.DeleteProgramExerciseAsync(
-            session.ProgramId,
-            session.Id,
-            phase.Id,
-            row.Id
-        );
-        switch (outcome)
+        if (row.IsSaving)
         {
-            case DeleteProgramExerciseSucceeded:
-                phase.ProgramExercises.Remove(row);
-                break;
-            case DeleteProgramExerciseFailed failed:
-                row.Error = failed.Error;
-                break;
+            return;
+        }
+
+        row.IsSaving = true;
+        try
+        {
+            var outcome = await ProgramExercisesApi.DeleteProgramExerciseAsync(
+                session.ProgramId,
+                session.Id,
+                phase.Id,
+                row.Id
+            );
+            switch (outcome)
+            {
+                case DeleteProgramExerciseSucceeded:
+                    phase.ProgramExercises.Remove(row);
+                    break;
+                case DeleteProgramExerciseFailed failed:
+                    row.Error = failed.Error;
+                    break;
+            }
+        }
+        finally
+        {
+            row.IsSaving = false;
         }
     }
 
