@@ -9,6 +9,7 @@
 
 - [x] 2.1 Write a failing test asserting the new row is appended to the end of `phase.ProgramExercises` (not inserted next to the source), matching the Decisions in the delta spec. Verify it fails, then passes.
 - [x] 2.2 Write a failing test asserting `Duplicate` clones the source row's last-saved values (`SavedCount`/`SavedWeight`/`SavedSets`/`SavedRestSeconds`/`SavedSide`), not its unsaved working values, when the source row is dirty. Verify it fails, then passes.
+- [x] 2.3 Write a failing test asserting that when the source row's `weight` is `0` and `side` is `Both` (the create route's own defaults), `Duplicate` still issues the follow-up update call with those values rather than skipping it as a no-op. Verify it fails, then passes.
 
 ## 3. Failure paths
 
