@@ -42,24 +42,4 @@ public partial class Programs
         SessionPhaseId sessionPhaseId,
         Exception exception
     );
-
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        Message = "Failed to create the duplicate of program exercise {ProgramExerciseId}."
-    )]
-    private static partial void LogDuplicateProgramExerciseCreateFailed(
-        ILogger logger,
-        ProgramExerciseId programExerciseId,
-        Exception exception
-    );
-
-    [LoggerMessage(
-        Level = LogLevel.Warning,
-        Message = "Failed to apply the source row's values to duplicate program exercise {ProgramExerciseId}."
-    )]
-    private static partial void LogDuplicateProgramExerciseUpdateFailed(
-        ILogger logger,
-        ProgramExerciseId programExerciseId,
-        Exception exception
-    );
 }

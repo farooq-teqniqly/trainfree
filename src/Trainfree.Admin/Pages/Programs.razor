@@ -1077,40 +1077,23 @@
         try
         {
             var prescription = new SetPrescription(row.SavedSets, row.SavedRestSeconds);
-            CreateProgramExerciseOutcome createOutcome;
-            try
-            {
-                createOutcome = row.IsTimed
-                    ? await ProgramExercisesApi.CreateTimedProgramExerciseAsync(
-                        session.ProgramId,
-                        session.Id,
-                        phase.Id,
-                        row.ExerciseId,
-                        row.SavedCount,
-                        prescription
-                    )
-                    : await ProgramExercisesApi.CreateRepsProgramExerciseAsync(
-                        session.ProgramId,
-                        session.Id,
-                        phase.Id,
-                        row.ExerciseId,
-                        row.SavedCount,
-                        prescription
-                    );
-            }
-            catch (Exception ex)
-                when (ex
-                    is HttpRequestException
-                        or JsonException
-                        or InvalidOperationException
-                        or NotSupportedException
-                        or OperationCanceledException
+            var createOutcome = row.IsTimed
+                ? await ProgramExercisesApi.CreateTimedProgramExerciseAsync(
+                    session.ProgramId,
+                    session.Id,
+                    phase.Id,
+                    row.ExerciseId,
+                    row.SavedCount,
+                    prescription
                 )
-            {
-                row.Error = "Could not duplicate exercise. Try again.";
-                LogDuplicateProgramExerciseCreateFailed(Logger, row.Id, ex);
-                return;
-            }
+                : await ProgramExercisesApi.CreateRepsProgramExerciseAsync(
+                    session.ProgramId,
+                    session.Id,
+                    phase.Id,
+                    row.ExerciseId,
+                    row.SavedCount,
+                    prescription
+                );
 
             if (createOutcome is CreateProgramExerciseFailed createFailed)
             {
@@ -1151,18 +1134,6 @@
                         newRow.Error = failed.Error;
                         break;
                 }
-            }
-            catch (Exception ex)
-                when (ex
-                    is HttpRequestException
-                        or JsonException
-                        or InvalidOperationException
-                        or NotSupportedException
-                        or OperationCanceledException
-                )
-            {
-                newRow.Error = "Could not duplicate exercise. Try again.";
-                LogDuplicateProgramExerciseUpdateFailed(Logger, newRow.Id, ex);
             }
             finally
             {
