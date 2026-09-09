@@ -2609,9 +2609,23 @@ public sealed class ProgramsPageTests : BunitContext
         await cut.InvokeAsync(() => countInput.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
 
         // Assert
+        await _programExercisesApiClient
+            .Received(1)
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-AAAAAA"),
+                Arg.Any<ProgramExerciseUpdate>(),
+                CancellationToken.None
+            );
         Assert.Equal(
             "12",
             cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").GetAttribute("value")
+        );
+        Assert.Equal(
+            "45",
+            cut.Find("[data-testid='program-exercise-weight-PGX-AAAAAA']").GetAttribute("value")
         );
         Assert.Empty(cut.FindAll("[data-testid='program-exercise-save-PGX-AAAAAA']"));
     }
