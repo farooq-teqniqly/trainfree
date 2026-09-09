@@ -299,3 +299,59 @@ its value is `0`.
   response
 - **THEN** the page shows the returned error on that row or form and remains usable --
   it does not throw an unhandled exception
+
+### Requirement: Admin user can duplicate a program exercise row
+Each program exercise row SHALL show a `Duplicate` action alongside `Save`/`Revert`/
+`Delete`. Clicking it creates a new program exercise in the same session phase, cloning
+the source row's exercise reference, type (`Reps`/`Timed`), reps-or-duration count,
+weight, sets, rest seconds, and side. Because the create route does not accept `weight`
+or `side`, the page issues a create call with exercise/type/count/sets/rest, then an
+update call to set weight and side to match the source row. The new row is appended to
+the end of the session phase's program exercise list -- no reorder/position feature
+exists, so a duplicate never lands next to its source; the admin user repositions the
+new row's field values (most commonly `side`) after duplicating.
+
+**Rationale**: The same exercise is frequently entered multiple times differing only by
+`side` (e.g. a left/right dumbbell variant) or repeated as part of a superset-like group.
+Duplicating an existing row is faster than re-selecting the exercise and retyping its
+prescription from the add-exercise form. Landing at the end rather than beside the source
+is an accepted limitation, not a design goal.
+
+#### Scenario: Duplicating a Reps program exercise
+- **WHEN** the admin user clicks `Duplicate` on a `RepsProgramExercise` row
+- **THEN** the page calls the create route with that row's `exerciseId`, `type: "Reps"`,
+  `reps`, `sets`, and `restSeconds`, then calls the update route on the new row to set
+  `weight` and `side` to the source row's values, and appends the new row to the end of
+  the phase's exercise list
+
+#### Scenario: Duplicating a Timed program exercise
+- **WHEN** the admin user clicks `Duplicate` on a `TimedProgramExercise` row
+- **THEN** the page calls the create route with that row's `exerciseId`, `type: "Timed"`,
+  `durationSeconds`, `sets`, and `restSeconds`, then calls the update route on the new row
+  to set `weight` and `side` to the source row's values, and appends the new row to the
+  end of the phase's exercise list
+
+#### Scenario: Source row has default weight and side
+- **WHEN** the admin user clicks `Duplicate` on a row whose `weight` is `0` and `side` is
+  `Both` (the create route's own defaults)
+- **THEN** the page still issues the follow-up update call so the new row's saved state
+  matches the source exactly, rather than skipping it as a no-op
+
+#### Scenario: Duplicate's create call fails
+- **WHEN** the create call issued by `Duplicate` returns a non-2xx response or a
+  transport/parse exception is caught
+- **THEN** the page shows the returned error on the source row, issues no update call,
+  and adds no new row
+
+#### Scenario: Duplicate's create succeeds but the follow-up update call fails
+- **WHEN** the create call succeeds but the follow-up update call returns a non-2xx
+  response or a transport/parse exception is caught
+- **THEN** the page still appends the new row (created with the create route's default
+  `weight` of `0` and `side` of `Both`) and shows the update failure's error on that new
+  row, not the source row
+
+#### Scenario: Duplicate is available regardless of the source row's dirty state
+- **WHEN** the admin user has unsaved edits on a program exercise row (its `Save`/
+  `Revert` buttons are showing) and clicks `Duplicate`
+- **THEN** the page duplicates the row's last-saved values, not its unsaved working
+  values, and leaves the source row's unsaved edits untouched
