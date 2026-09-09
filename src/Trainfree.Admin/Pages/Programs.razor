@@ -574,9 +574,20 @@
                                                         </button>
                                                     }
                                                     <button
+                                                        class="btn btn-sm btn-icon btn-outline-dark"
+                                                        data-testid="program-exercise-duplicate-@programExercise.Id"
+                                                        title="Duplicate"
+                                                        disabled="@programExercise.IsSaving"
+                                                        @onclick="() => DuplicateProgramExerciseAsync(session, phase, programExercise)"
+                                                    >
+                                                        <i class="bi bi-copy" aria-hidden="true"></i>
+                                                        <span class="visually-hidden">Duplicate</span>
+                                                    </button>
+                                                    <button
                                                         class="btn btn-sm btn-icon btn-outline-danger"
                                                         data-testid="program-exercise-delete-@programExercise.Id"
                                                         title="Delete"
+                                                        disabled="@programExercise.IsSaving"
                                                         @onclick="() => DeleteProgramExerciseAsync(session, phase, programExercise)"
                                                     >
                                                         <i class="bi bi-trash" aria-hidden="true"></i>
@@ -1052,6 +1063,90 @@
         }
     }
 
+    private async Task DuplicateProgramExerciseAsync(
+        SessionRow session,
+        SessionPhaseRow phase,
+        ProgramExerciseRow row
+    )
+    {
+        if (row.IsSaving)
+        {
+            return;
+        }
+
+        row.IsSaving = true;
+        try
+        {
+            var prescription = new SetPrescription(row.SavedSets, row.SavedRestSeconds);
+            var createOutcome = row.IsTimed
+                ? await ProgramExercisesApi.CreateTimedProgramExerciseAsync(
+                    session.ProgramId,
+                    session.Id,
+                    phase.Id,
+                    row.ExerciseId,
+                    row.SavedCount,
+                    prescription
+                )
+                : await ProgramExercisesApi.CreateRepsProgramExerciseAsync(
+                    session.ProgramId,
+                    session.Id,
+                    phase.Id,
+                    row.ExerciseId,
+                    row.SavedCount,
+                    prescription
+                );
+
+            if (createOutcome is CreateProgramExerciseFailed createFailed)
+            {
+                row.Error = createFailed.Error;
+                return;
+            }
+
+            row.Error = null;
+            var created = ((CreateProgramExerciseSucceeded)createOutcome).ProgramExercise;
+            var newRow = new ProgramExerciseRow(created, ResolveExerciseName(created.ExerciseId));
+            phase.ProgramExercises.Add(newRow);
+
+            var update = new ProgramExerciseUpdate(
+                Reps: row.IsTimed ? null : row.SavedCount,
+                DurationSeconds: row.IsTimed ? row.SavedCount : null,
+                Weight: row.SavedWeight,
+                Sets: row.SavedSets,
+                RestSeconds: row.SavedRestSeconds,
+                Side: row.SavedSide
+            );
+
+            newRow.IsSaving = true;
+            try
+            {
+                var updateOutcome = await ProgramExercisesApi.UpdateProgramExerciseAsync(
+                    session.ProgramId,
+                    session.Id,
+                    phase.Id,
+                    newRow.Id,
+                    update
+                );
+                switch (updateOutcome)
+                {
+                    case UpdateProgramExerciseSucceeded succeeded:
+                        newRow.ApplySaved(succeeded.ProgramExercise);
+                        break;
+                    case UpdateProgramExerciseFailed failed:
+                        newRow.Error = failed.Error;
+                        break;
+                }
+            }
+            finally
+            {
+                newRow.IsSaving = false;
+            }
+        }
+        finally
+        {
+            row.IsSaving = false;
+        }
+    }
+
     private static void RevertProgramExercise(ProgramExerciseRow row)
     {
         row.Count = row.SavedCount;
@@ -1070,20 +1165,33 @@
         ProgramExerciseRow row
     )
     {
-        var outcome = await ProgramExercisesApi.DeleteProgramExerciseAsync(
-            session.ProgramId,
-            session.Id,
-            phase.Id,
-            row.Id
-        );
-        switch (outcome)
+        if (row.IsSaving)
         {
-            case DeleteProgramExerciseSucceeded:
-                phase.ProgramExercises.Remove(row);
-                break;
-            case DeleteProgramExerciseFailed failed:
-                row.Error = failed.Error;
-                break;
+            return;
+        }
+
+        row.IsSaving = true;
+        try
+        {
+            var outcome = await ProgramExercisesApi.DeleteProgramExerciseAsync(
+                session.ProgramId,
+                session.Id,
+                phase.Id,
+                row.Id
+            );
+            switch (outcome)
+            {
+                case DeleteProgramExerciseSucceeded:
+                    phase.ProgramExercises.Remove(row);
+                    break;
+                case DeleteProgramExerciseFailed failed:
+                    row.Error = failed.Error;
+                    break;
+            }
+        }
+        finally
+        {
+            row.IsSaving = false;
         }
     }
 
@@ -1408,12 +1516,14 @@
         public ProgramExerciseRow(IProgramExercise programExercise, string exerciseName)
         {
             Id = programExercise.Id;
+            ExerciseId = programExercise.ExerciseId;
             ExerciseName = exerciseName;
             IsTimed = programExercise is TimedProgramExercise;
             ApplySaved(programExercise);
         }
 
         public ProgramExerciseId Id { get; }
+        public ExerciseId ExerciseId { get; }
         public string ExerciseName { get; }
         public bool IsTimed { get; }
         public int Count { get; set; }
