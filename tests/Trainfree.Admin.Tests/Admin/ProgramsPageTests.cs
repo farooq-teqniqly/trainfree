@@ -3007,4 +3007,495 @@ public sealed class ProgramsPageTests : BunitContext
         );
         Assert.NotEmpty(cut.FindAll("[data-testid='program-exercise-name-PGX-AAAAAA']"));
     }
+
+    [Fact]
+    public void DuplicateButton_ProgramExerciseRow_IsRendered()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            45,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.NotNull(cut.Find("[data-testid='program-exercise-duplicate-PGX-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task DuplicateProgramExercise_ClickDuplicateOnRepsRow_CallsCreateThenUpdateWithSourceValues()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            45,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Left
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        var created = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-CCCCCC"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            )
+            .Returns(new CreateProgramExerciseSucceeded(created));
+        _programExercisesApiClient
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-CCCCCC"),
+                new ProgramExerciseUpdate(
+                    Reps: 10,
+                    Weight: 45,
+                    Sets: 3,
+                    RestSeconds: 60,
+                    Side: ProgramExerciseSide.Left
+                ),
+                CancellationToken.None
+            )
+            .Returns(
+                new UpdateProgramExerciseSucceeded(
+                    new RepsProgramExercise(
+                        ProgramExerciseId.Parse("PGX-CCCCCC"),
+                        sessionPhaseId,
+                        ExerciseId.Parse("EXR-AAAAAA"),
+                        10,
+                        45,
+                        new SetPrescription(3, 60),
+                        ProgramExerciseSide.Left
+                    )
+                )
+            );
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-duplicate-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        await _programExercisesApiClient
+            .Received(1)
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            );
+        await _programExercisesApiClient
+            .Received(1)
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-CCCCCC"),
+                new ProgramExerciseUpdate(
+                    Reps: 10,
+                    Weight: 45,
+                    Sets: 3,
+                    RestSeconds: 60,
+                    Side: ProgramExerciseSide.Left
+                ),
+                CancellationToken.None
+            );
+    }
+
+    [Fact]
+    public async Task DuplicateProgramExercise_ClickDuplicateOnTimedRow_CallsCreateTimedThenUpdateWithSourceValues()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var timed = new TimedProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            30,
+            45,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Right
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([timed]);
+        var created = new TimedProgramExercise(
+            ProgramExerciseId.Parse("PGX-CCCCCC"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            30,
+            0,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .CreateTimedProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                30,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            )
+            .Returns(new CreateProgramExerciseSucceeded(created));
+        _programExercisesApiClient
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-CCCCCC"),
+                new ProgramExerciseUpdate(
+                    DurationSeconds: 30,
+                    Weight: 45,
+                    Sets: 3,
+                    RestSeconds: 60,
+                    Side: ProgramExerciseSide.Right
+                ),
+                CancellationToken.None
+            )
+            .Returns(new UpdateProgramExerciseSucceeded(created));
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-duplicate-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        await _programExercisesApiClient
+            .Received(1)
+            .CreateTimedProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                30,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            );
+        await _programExercisesApiClient
+            .Received(1)
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-CCCCCC"),
+                new ProgramExerciseUpdate(
+                    DurationSeconds: 30,
+                    Weight: 45,
+                    Sets: 3,
+                    RestSeconds: 60,
+                    Side: ProgramExerciseSide.Right
+                ),
+                CancellationToken.None
+            );
+    }
+
+    [Fact]
+    public async Task DuplicateProgramExercise_TwoExistingRows_NewRowAppendedAtEndNotNextToSource()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var first = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            45,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        var second = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-BBBBBB"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            8,
+            20,
+            new SetPrescription(4, 30),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([first, second]);
+        var created = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-CCCCCC"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            )
+            .Returns(new CreateProgramExerciseSucceeded(created));
+        _programExercisesApiClient
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-CCCCCC"),
+                Arg.Any<ProgramExerciseUpdate>(),
+                CancellationToken.None
+            )
+            .Returns(new UpdateProgramExerciseSucceeded(created));
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-duplicate-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        var rows = cut.FindAll("[data-testid^='program-exercise-name-']");
+        Assert.Equal(3, rows.Count);
+        Assert.Equal("program-exercise-name-PGX-CCCCCC", rows[2].GetAttribute("data-testid"));
+    }
+
+    [Fact]
+    public async Task DuplicateProgramExercise_SourceRowIsDirty_ClonesLastSavedValuesNotWorkingValues()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            45,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        var created = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-CCCCCC"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            )
+            .Returns(new CreateProgramExerciseSucceeded(created));
+        _programExercisesApiClient
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-CCCCCC"),
+                new ProgramExerciseUpdate(
+                    Reps: 10,
+                    Weight: 45,
+                    Sets: 3,
+                    RestSeconds: 60,
+                    Side: ProgramExerciseSide.Both
+                ),
+                CancellationToken.None
+            )
+            .Returns(new UpdateProgramExerciseSucceeded(created));
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").Input("99")
+        );
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-duplicate-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        await _programExercisesApiClient
+            .Received(1)
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            );
+        Assert.Equal(
+            "99",
+            cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").GetAttribute("value")
+        );
+    }
+
+    [Fact]
+    public async Task DuplicateProgramExercise_CreateFails_ShowsErrorOnSourceRowMakesNoUpdateCallAndAddsNoRow()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            45,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        _programExercisesApiClient
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            )
+            .Returns(
+                new CreateProgramExerciseFailed("Could not add exercise to phase. Try again.")
+            );
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-duplicate-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        Assert.Equal(
+            "Could not add exercise to phase. Try again.",
+            cut.Find("[data-testid='program-exercise-error-PGX-AAAAAA']").TextContent.Trim()
+        );
+        await _programExercisesApiClient
+            .DidNotReceive()
+            .UpdateProgramExerciseAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<SessionId>(),
+                Arg.Any<SessionPhaseId>(),
+                Arg.Any<ProgramExerciseId>(),
+                Arg.Any<ProgramExerciseUpdate>(),
+                Arg.Any<CancellationToken>()
+            );
+        Assert.Single(cut.FindAll("[data-testid^='program-exercise-name-']"));
+    }
+
+    [Fact]
+    public async Task DuplicateProgramExercise_UpdateFails_AppendsRowWithDefaultsAndShowsErrorOnNewRow()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            45,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Left
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        var created = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-CCCCCC"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            )
+            .Returns(new CreateProgramExerciseSucceeded(created));
+        _programExercisesApiClient
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-CCCCCC"),
+                Arg.Any<ProgramExerciseUpdate>(),
+                CancellationToken.None
+            )
+            .Returns(new UpdateProgramExerciseFailed("Request failed with status 500."));
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-duplicate-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='program-exercise-error-PGX-AAAAAA']"));
+        Assert.Equal(
+            "Request failed with status 500.",
+            cut.Find("[data-testid='program-exercise-error-PGX-CCCCCC']").TextContent.Trim()
+        );
+        Assert.Equal(
+            "–",
+            cut.Find("[data-testid='program-exercise-weight-PGX-CCCCCC']").GetAttribute("value")
+        );
+        var sideSelect = cut.Find("[data-testid='program-exercise-side-PGX-CCCCCC']");
+        var selectedOption = sideSelect.Children.Single(option => option.HasAttribute("selected"));
+        Assert.Equal("Both", selectedOption.TextContent);
+    }
 }

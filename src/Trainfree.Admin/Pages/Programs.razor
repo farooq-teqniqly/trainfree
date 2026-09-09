@@ -574,6 +574,16 @@
                                                         </button>
                                                     }
                                                     <button
+                                                        class="btn btn-sm btn-icon btn-outline-dark"
+                                                        data-testid="program-exercise-duplicate-@programExercise.Id"
+                                                        title="Duplicate"
+                                                        disabled="@programExercise.IsSaving"
+                                                        @onclick="() => DuplicateProgramExerciseAsync(session, phase, programExercise)"
+                                                    >
+                                                        <i class="bi bi-copy" aria-hidden="true"></i>
+                                                        <span class="visually-hidden">Duplicate</span>
+                                                    </button>
+                                                    <button
                                                         class="btn btn-sm btn-icon btn-outline-danger"
                                                         data-testid="program-exercise-delete-@programExercise.Id"
                                                         title="Delete"
@@ -1052,6 +1062,100 @@
         }
     }
 
+    private async Task DuplicateProgramExerciseAsync(
+        SessionRow session,
+        SessionPhaseRow phase,
+        ProgramExerciseRow row
+    )
+    {
+        var prescription = new SetPrescription(row.SavedSets, row.SavedRestSeconds);
+        CreateProgramExerciseOutcome createOutcome;
+        try
+        {
+            createOutcome = row.IsTimed
+                ? await ProgramExercisesApi.CreateTimedProgramExerciseAsync(
+                    session.ProgramId,
+                    session.Id,
+                    phase.Id,
+                    row.ExerciseId,
+                    row.SavedCount,
+                    prescription
+                )
+                : await ProgramExercisesApi.CreateRepsProgramExerciseAsync(
+                    session.ProgramId,
+                    session.Id,
+                    phase.Id,
+                    row.ExerciseId,
+                    row.SavedCount,
+                    prescription
+                );
+        }
+        catch (Exception ex)
+            when (ex
+                is HttpRequestException
+                    or JsonException
+                    or InvalidOperationException
+                    or NotSupportedException
+                    or OperationCanceledException
+            )
+        {
+            row.Error = "Could not duplicate exercise. Try again.";
+            LogDuplicateProgramExerciseCreateFailed(Logger, row.Id, ex);
+            return;
+        }
+
+        if (createOutcome is CreateProgramExerciseFailed createFailed)
+        {
+            row.Error = createFailed.Error;
+            return;
+        }
+
+        var created = ((CreateProgramExerciseSucceeded)createOutcome).ProgramExercise;
+        var newRow = new ProgramExerciseRow(created, ResolveExerciseName(created.ExerciseId));
+        phase.ProgramExercises.Add(newRow);
+
+        var update = new ProgramExerciseUpdate(
+            Reps: row.IsTimed ? null : row.SavedCount,
+            DurationSeconds: row.IsTimed ? row.SavedCount : null,
+            Weight: row.SavedWeight,
+            Sets: row.SavedSets,
+            RestSeconds: row.SavedRestSeconds,
+            Side: row.SavedSide
+        );
+
+        try
+        {
+            var updateOutcome = await ProgramExercisesApi.UpdateProgramExerciseAsync(
+                session.ProgramId,
+                session.Id,
+                phase.Id,
+                newRow.Id,
+                update
+            );
+            switch (updateOutcome)
+            {
+                case UpdateProgramExerciseSucceeded succeeded:
+                    newRow.ApplySaved(succeeded.ProgramExercise);
+                    break;
+                case UpdateProgramExerciseFailed failed:
+                    newRow.Error = failed.Error;
+                    break;
+            }
+        }
+        catch (Exception ex)
+            when (ex
+                is HttpRequestException
+                    or JsonException
+                    or InvalidOperationException
+                    or NotSupportedException
+                    or OperationCanceledException
+            )
+        {
+            newRow.Error = "Could not duplicate exercise. Try again.";
+            LogDuplicateProgramExerciseUpdateFailed(Logger, newRow.Id, ex);
+        }
+    }
+
     private static void RevertProgramExercise(ProgramExerciseRow row)
     {
         row.Count = row.SavedCount;
@@ -1408,12 +1512,14 @@
         public ProgramExerciseRow(IProgramExercise programExercise, string exerciseName)
         {
             Id = programExercise.Id;
+            ExerciseId = programExercise.ExerciseId;
             ExerciseName = exerciseName;
             IsTimed = programExercise is TimedProgramExercise;
             ApplySaved(programExercise);
         }
 
         public ProgramExerciseId Id { get; }
+        public ExerciseId ExerciseId { get; }
         public string ExerciseName { get; }
         public bool IsTimed { get; }
         public int Count { get; set; }
