@@ -338,6 +338,7 @@
                                                     class="btn btn-sm btn-icon btn-outline-dark"
                                                     data-testid="add-exercise-@phase.Id"
                                                     title="Add Exercise"
+                                                    disabled="@(_submittingAddExercisePhaseId is not null && _submittingAddExercisePhaseId != phase.Id)"
                                                     @onclick="() => ShowAddExercisePicker(phase)"
                                                 >
                                                     <i class="bi bi-plus-circle" aria-hidden="true"></i>
@@ -608,6 +609,7 @@
     private SessionId? _editingSessionId;
     private SessionId? _addingPhaseSessionId;
     private SessionPhaseId? _addingExerciseSessionPhaseId;
+    private SessionPhaseId? _submittingAddExercisePhaseId;
     private string _addExerciseExerciseId = "";
     private string _addExerciseType = "Reps";
     private int? _addExerciseCount;
@@ -842,6 +844,11 @@
 
     private void ShowAddExercisePicker(SessionPhaseRow phase)
     {
+        if (_submittingAddExercisePhaseId is not null)
+        {
+            return;
+        }
+
         _addingExerciseSessionPhaseId = phase.Id;
         _addExerciseExerciseId = "";
         _addExerciseType = "Reps";
@@ -913,6 +920,7 @@
         }
 
         phase.IsAddingExercise = true;
+        _submittingAddExercisePhaseId = phase.Id;
         try
         {
             var outcome =
@@ -949,7 +957,11 @@
                             ResolveExerciseName(succeeded.ProgramExercise.ExerciseId)
                         )
                     );
-                    _addingExerciseSessionPhaseId = null;
+                    if (_addingExerciseSessionPhaseId == phase.Id)
+                    {
+                        _addingExerciseSessionPhaseId = null;
+                    }
+
                     phase.AddExerciseError = null;
                     _collapsedSessionPhaseIds.Remove(phase.Id);
                     break;
@@ -961,6 +973,10 @@
         finally
         {
             phase.IsAddingExercise = false;
+            if (_submittingAddExercisePhaseId == phase.Id)
+            {
+                _submittingAddExercisePhaseId = null;
+            }
         }
     }
 

@@ -2170,6 +2170,105 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public async Task AddProgramExercise_CreateInFlightOnOnePhase_BlocksOpeningAnotherPhasesForm()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([
+                new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up"),
+                new PhaseSummary(PhaseId.Parse("PHS-BBBBBB"), "Cool Down"),
+            ]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns([
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-AAAAAA"),
+                    SessionId.Parse("SNN-AAAAAA"),
+                    PhaseId.Parse("PHS-AAAAAA")
+                ),
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-BBBBBB"),
+                    SessionId.Parse("SNN-AAAAAA"),
+                    PhaseId.Parse("PHS-BBBBBB")
+                ),
+            ]);
+        _exercisesApiClient
+            .GetExercisesAsync(CancellationToken.None)
+            .Returns([new ExerciseSummary(ExerciseId.Parse("EXR-AAAAAA"), "Bodyweight Squat")]);
+        var tcs = new TaskCompletionSource<CreateProgramExerciseOutcome>();
+        _programExercisesApiClient
+            .CreateRepsProgramExerciseAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                SessionPhaseId.Parse("SPH-AAAAAA"),
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            )
+            .Returns(tcs.Task);
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-picker-SPH-AAAAAA']").Change("EXR-AAAAAA")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-sets-SPH-AAAAAA']").Input("3")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-restseconds-SPH-AAAAAA']").Input("60")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-count-SPH-AAAAAA']").Input("10")
+        );
+
+        // Act: submit phase A's form, leaving its create call pending, then try to
+        // open phase B's add-exercise picker while phase A's is still in flight
+        var createTask = cut.InvokeAsync(() =>
+            cut.Find("[data-testid='add-exercise-submit-SPH-AAAAAA']").Click()
+        );
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-BBBBBB']").Click());
+
+        // Assert: phase B's form did not open -- the shared form fields are still
+        // scoped to phase A's pending submission, so opening phase B would let its
+        // completion clear them out from under phase A (or vice versa)
+        Assert.Empty(cut.FindAll("[data-testid='exercise-picker-SPH-BBBBBB']"));
+        Assert.True(cut.Find("[data-testid='add-exercise-SPH-BBBBBB']").HasAttribute("disabled"));
+
+        await cut.InvokeAsync(() =>
+            tcs.SetResult(
+                new CreateProgramExerciseSucceeded(
+                    new RepsProgramExercise(
+                        ProgramExerciseId.Parse("PGX-CCCCCC"),
+                        SessionPhaseId.Parse("SPH-AAAAAA"),
+                        ExerciseId.Parse("EXR-AAAAAA"),
+                        10,
+                        0,
+                        new SetPrescription(3, 60),
+                        ProgramExerciseSide.Both
+                    )
+                )
+            )
+        );
+        await createTask;
+    }
+
+    [Fact]
     public async Task AddProgramExercise_CreateInFlight_DisablesFormSoLaterEditsAreNotSilentlyLost()
     {
         // Arrange
