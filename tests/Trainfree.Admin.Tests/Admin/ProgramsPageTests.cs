@@ -3775,4 +3775,76 @@ public sealed class ProgramsPageTests : BunitContext
                 .HasAttribute("disabled")
         );
     }
+
+    [Fact]
+    public async Task DuplicateProgramExercise_RetryAfterCreateFailed_ClearsStaleSourceErrorOnceCreateSucceeds()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            45,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Left
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        var created = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-CCCCCC"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            )
+            .Returns(
+                new CreateProgramExerciseFailed("Could not add exercise to phase. Try again."),
+                new CreateProgramExerciseSucceeded(created)
+            );
+        _programExercisesApiClient
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-CCCCCC"),
+                Arg.Any<ProgramExerciseUpdate>(),
+                CancellationToken.None
+            )
+            .Returns(new UpdateProgramExerciseFailed("Request failed with status 500."));
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-duplicate-PGX-AAAAAA']").Click()
+        );
+        Assert.Equal(
+            "Could not add exercise to phase. Try again.",
+            cut.Find("[data-testid='program-exercise-error-PGX-AAAAAA']").TextContent.Trim()
+        );
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-duplicate-PGX-AAAAAA']").Click()
+        );
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='program-exercise-error-PGX-AAAAAA']"));
+        Assert.Equal(
+            "Request failed with status 500.",
+            cut.Find("[data-testid='program-exercise-error-PGX-CCCCCC']").TextContent.Trim()
+        );
+    }
 }

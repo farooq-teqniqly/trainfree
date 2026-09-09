@@ -1101,6 +1101,7 @@
                 return;
             }
 
+            row.Error = null;
             var created = ((CreateProgramExerciseSucceeded)createOutcome).ProgramExercise;
             var newRow = new ProgramExerciseRow(created, ResolveExerciseName(created.ExerciseId));
             phase.ProgramExercises.Add(newRow);
@@ -1128,7 +1129,6 @@
                 {
                     case UpdateProgramExerciseSucceeded succeeded:
                         newRow.ApplySaved(succeeded.ProgramExercise);
-                        row.Error = null;
                         break;
                     case UpdateProgramExerciseFailed failed:
                         newRow.Error = failed.Error;
