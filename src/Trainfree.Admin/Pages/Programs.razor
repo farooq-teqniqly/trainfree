@@ -110,7 +110,8 @@
                                 data-testid="name-input-@row.Id"
                                 value="@row.Name"
                                 autofocus="@(row.Id == _editingId)"
-                                @oninput="e => row.Name = (string)e.Value!" />
+                                @oninput="e => row.Name = (string)e.Value!"
+                                @onkeydown="e => OnProgramNameKeyDownAsync(e, row)" />
                             <div class="name-actions">
                                 @if (row.IsDirty)
                                 {
@@ -200,7 +201,8 @@
                                         data-testid="session-name-input-@session.Id"
                                         value="@session.Name"
                                         autofocus="@(session.Id == _editingSessionId)"
-                                        @oninput="e => session.Name = (string)e.Value!" />
+                                        @oninput="e => session.Name = (string)e.Value!"
+                                        @onkeydown="e => OnSessionNameKeyDownAsync(e, session)" />
                                     <div class="name-actions">
                                         @if (session.IsDirty)
                                         {
@@ -412,19 +414,22 @@
                                                         class="form-control form-control-sm w-auto"
                                                         placeholder="@(_addExerciseType == "Timed" ? "Duration (s)" : "Reps")"
                                                         data-testid="exercise-count-@phase.Id"
-                                                        @oninput="e => _addExerciseCount = ParseNullableInt(e.Value)" />
+                                                        @oninput="e => _addExerciseCount = ParseNullableInt(e.Value)"
+                                                        @onkeydown="e => OnAddExerciseKeyDownAsync(e, session, phase)" />
                                                     <input
                                                         type="number"
                                                         class="form-control form-control-sm w-auto"
                                                         placeholder="Sets"
                                                         data-testid="exercise-sets-@phase.Id"
-                                                        @oninput="e => _addExerciseSets = ParseNullableInt(e.Value)" />
+                                                        @oninput="e => _addExerciseSets = ParseNullableInt(e.Value)"
+                                                        @onkeydown="e => OnAddExerciseKeyDownAsync(e, session, phase)" />
                                                     <input
                                                         type="number"
                                                         class="form-control form-control-sm w-auto"
                                                         placeholder="Rest (s)"
                                                         data-testid="exercise-restseconds-@phase.Id"
-                                                        @oninput="e => _addExerciseRestSeconds = ParseNullableInt(e.Value)" />
+                                                        @oninput="e => _addExerciseRestSeconds = ParseNullableInt(e.Value)"
+                                                        @onkeydown="e => OnAddExerciseKeyDownAsync(e, session, phase)" />
                                                     <button
                                                         class="btn btn-sm btn-dark"
                                                         data-testid="add-exercise-submit-@phase.Id"
@@ -484,7 +489,8 @@
                                                     class="cell-input"
                                                     data-testid="program-exercise-count-@programExercise.Id"
                                                     value="@programExercise.Count"
-                                                    @oninput="e => programExercise.Count = ParseInt(e.Value)" />
+                                                    @oninput="e => programExercise.Count = ParseInt(e.Value)"
+                                                    @onkeydown="e => OnProgramExerciseKeyDownAsync(e, session, phase, programExercise)" />
                                             </td>
                                             <td>
                                                 <input
@@ -492,7 +498,8 @@
                                                     class="cell-input"
                                                     data-testid="program-exercise-weight-@programExercise.Id"
                                                     value="@programExercise.WeightText"
-                                                    @oninput="e => SetWeight(programExercise, (string?)e.Value)" />
+                                                    @oninput="e => SetWeight(programExercise, (string?)e.Value)"
+                                                    @onkeydown="e => OnProgramExerciseKeyDownAsync(e, session, phase, programExercise)" />
                                             </td>
                                             <td>
                                                 <input
@@ -500,7 +507,8 @@
                                                     class="cell-input"
                                                     data-testid="program-exercise-sets-@programExercise.Id"
                                                     value="@programExercise.Sets"
-                                                    @oninput="e => programExercise.Sets = ParseInt(e.Value)" />
+                                                    @oninput="e => programExercise.Sets = ParseInt(e.Value)"
+                                                    @onkeydown="e => OnProgramExerciseKeyDownAsync(e, session, phase, programExercise)" />
                                             </td>
                                             <td>
                                                 <input
@@ -508,7 +516,8 @@
                                                     class="cell-input"
                                                     data-testid="program-exercise-rest-@programExercise.Id"
                                                     value="@programExercise.RestSeconds"
-                                                    @oninput="e => programExercise.RestSeconds = ParseInt(e.Value)" />
+                                                    @oninput="e => programExercise.RestSeconds = ParseInt(e.Value)"
+                                                    @onkeydown="e => OnProgramExerciseKeyDownAsync(e, session, phase, programExercise)" />
                                             </td>
                                             <td>
                                                 <select
@@ -853,6 +862,27 @@
         }
     }
 
+    private async Task OnAddExerciseKeyDownAsync(KeyboardEventArgs e, SessionRow session, SessionPhaseRow phase)
+    {
+        if (e.Key == "Enter" && CanSubmitAddExercise)
+        {
+            await AddProgramExerciseAsync(session, phase);
+        }
+    }
+
+    private async Task OnProgramExerciseKeyDownAsync(
+        KeyboardEventArgs e,
+        SessionRow session,
+        SessionPhaseRow phase,
+        ProgramExerciseRow row
+    )
+    {
+        if (e.Key == "Enter" && row.IsDirty)
+        {
+            await SaveProgramExerciseAsync(session, phase, row);
+        }
+    }
+
     private async Task AddProgramExerciseAsync(SessionRow session, SessionPhaseRow phase)
     {
         if (
@@ -1116,6 +1146,14 @@
         }
     }
 
+    private async Task OnProgramNameKeyDownAsync(KeyboardEventArgs e, ProgramRow row)
+    {
+        if (e.Key == "Enter" && row.IsDirty)
+        {
+            await RenameAsync(row);
+        }
+    }
+
     private static void Revert(ProgramRow row)
     {
         row.Name = row.SavedName;
@@ -1181,6 +1219,14 @@
             case RenameSessionFailed failed:
                 session.Error = failed.Error;
                 break;
+        }
+    }
+
+    private async Task OnSessionNameKeyDownAsync(KeyboardEventArgs e, SessionRow session)
+    {
+        if (e.Key == "Enter" && session.IsDirty)
+        {
+            await RenameSessionAsync(session);
         }
     }
 

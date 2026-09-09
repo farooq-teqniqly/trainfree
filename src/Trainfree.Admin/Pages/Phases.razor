@@ -77,7 +77,8 @@ else
                                     data-testid="name-input-@row.Id"
                                     value="@row.Name"
                                     autofocus="@(row.Id == _editingId)"
-                                    @oninput="e => row.Name = (string)e.Value!" />
+                                    @oninput="e => row.Name = (string)e.Value!"
+                                    @onkeydown="e => OnNameKeyDownAsync(e, row)" />
                                 <div class="name-actions">
                                     @if (row.IsDirty)
                                     {
@@ -195,6 +196,14 @@ else
             case RenamePhaseFailed failed:
                 row.Error = failed.Error;
                 break;
+        }
+    }
+
+    private async Task OnNameKeyDownAsync(KeyboardEventArgs e, PhaseRow row)
+    {
+        if (e.Key == "Enter" && row.IsDirty)
+        {
+            await RenameAsync(row);
         }
     }
 
