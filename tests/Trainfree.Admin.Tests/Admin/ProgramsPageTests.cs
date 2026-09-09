@@ -2576,13 +2576,20 @@ public sealed class ProgramsPageTests : BunitContext
         _programExercisesApiClient
             .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
             .Returns([reps]);
+        var expectedUpdate = new ProgramExerciseUpdate(
+            Reps: 12,
+            Weight: 45,
+            Sets: 3,
+            RestSeconds: 60,
+            Side: ProgramExerciseSide.Both
+        );
         _programExercisesApiClient
             .UpdateProgramExerciseAsync(
                 programId,
                 sessionId,
                 sessionPhaseId,
                 ProgramExerciseId.Parse("PGX-AAAAAA"),
-                Arg.Any<ProgramExerciseUpdate>(),
+                expectedUpdate,
                 CancellationToken.None
             )
             .Returns(
@@ -2616,7 +2623,7 @@ public sealed class ProgramsPageTests : BunitContext
                 sessionId,
                 sessionPhaseId,
                 ProgramExerciseId.Parse("PGX-AAAAAA"),
-                Arg.Any<ProgramExerciseUpdate>(),
+                expectedUpdate,
                 CancellationToken.None
             );
         Assert.Equal(
