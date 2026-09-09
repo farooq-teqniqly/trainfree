@@ -3187,7 +3187,19 @@ public sealed class ProgramsPageTests : BunitContext
                 ),
                 CancellationToken.None
             )
-            .Returns(new UpdateProgramExerciseSucceeded(created));
+            .Returns(
+                new UpdateProgramExerciseSucceeded(
+                    new TimedProgramExercise(
+                        ProgramExerciseId.Parse("PGX-CCCCCC"),
+                        sessionPhaseId,
+                        ExerciseId.Parse("EXR-AAAAAA"),
+                        30,
+                        45,
+                        new SetPrescription(3, 60),
+                        ProgramExerciseSide.Right
+                    )
+                )
+            );
         var cut = Render<Programs>();
 
         // Act
@@ -3280,7 +3292,19 @@ public sealed class ProgramsPageTests : BunitContext
                 Arg.Any<ProgramExerciseUpdate>(),
                 CancellationToken.None
             )
-            .Returns(new UpdateProgramExerciseSucceeded(created));
+            .Returns(
+                new UpdateProgramExerciseSucceeded(
+                    new RepsProgramExercise(
+                        ProgramExerciseId.Parse("PGX-CCCCCC"),
+                        sessionPhaseId,
+                        ExerciseId.Parse("EXR-AAAAAA"),
+                        10,
+                        45,
+                        new SetPrescription(3, 60),
+                        ProgramExerciseSide.Both
+                    )
+                )
+            );
         var cut = Render<Programs>();
 
         // Act
@@ -3346,7 +3370,19 @@ public sealed class ProgramsPageTests : BunitContext
                 ),
                 CancellationToken.None
             )
-            .Returns(new UpdateProgramExerciseSucceeded(created));
+            .Returns(
+                new UpdateProgramExerciseSucceeded(
+                    new RepsProgramExercise(
+                        ProgramExerciseId.Parse("PGX-CCCCCC"),
+                        sessionPhaseId,
+                        ExerciseId.Parse("EXR-AAAAAA"),
+                        10,
+                        45,
+                        new SetPrescription(3, 60),
+                        ProgramExerciseSide.Both
+                    )
+                )
+            );
         var cut = Render<Programs>();
         await cut.InvokeAsync(() =>
             cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").Input("99")
