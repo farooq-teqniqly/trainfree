@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Bunit;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Trainfree.Admin.Admin;
@@ -242,6 +243,98 @@ public sealed class ProgramsPageTests : BunitContext
             cut.Markup,
             StringComparison.Ordinal
         );
+    }
+
+    [Fact]
+    public async Task RenameProgram_EnterKeyOnDirtyRow_CallsRenameAndUpdatesDisplayedName()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var renamed = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Renamed Workout");
+        _apiClient
+            .RenameProgramAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                "Renamed Workout",
+                CancellationToken.None
+            )
+            .Returns(new RenameProgramSucceeded(renamed));
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Renamed Workout"));
+
+        // Act
+        await cut.InvokeAsync(() => input.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+
+        // Assert
+        await _apiClient
+            .Received(1)
+            .RenameProgramAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                "Renamed Workout",
+                CancellationToken.None
+            );
+        Assert.Contains("Renamed Workout", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='save-PRG-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task RenameProgram_EnterKeyOnCleanRow_DoesNotCallApi()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
+
+        // Act
+        await cut.InvokeAsync(() => input.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+
+        // Assert
+        await _apiClient
+            .DidNotReceive()
+            .RenameProgramAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task RenameProgram_EnterKeyRepeatedWhileSaveInFlight_CallsRenameOnlyOnce()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var renamed = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Renamed Workout");
+        var tcs = new TaskCompletionSource<RenameProgramOutcome>();
+        _apiClient
+            .RenameProgramAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                "Renamed Workout",
+                CancellationToken.None
+            )
+            .Returns(tcs.Task);
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Renamed Workout"));
+
+        // Act
+        var firstKeyDown = cut.InvokeAsync(() =>
+            input.KeyDown(new KeyboardEventArgs { Key = "Enter" })
+        );
+        await cut.InvokeAsync(() => input.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+        tcs.SetResult(new RenameProgramSucceeded(renamed));
+        await firstKeyDown;
+
+        // Assert
+        await _apiClient
+            .Received(1)
+            .RenameProgramAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                "Renamed Workout",
+                CancellationToken.None
+            );
     }
 
     [Fact]
@@ -635,6 +728,135 @@ public sealed class ProgramsPageTests : BunitContext
             cut.Markup,
             StringComparison.Ordinal
         );
+    }
+
+    [Fact]
+    public async Task RenameSession_EnterKeyOnDirtyRow_CallsRenameAndUpdatesDisplayedName()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        var renamed = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Renamed Session"
+        );
+        _sessionsApiClient
+            .RenameSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                "Renamed Session",
+                CancellationToken.None
+            )
+            .Returns(new RenameSessionSucceeded(renamed));
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='session-name-input-SNN-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Renamed Session"));
+
+        // Act
+        await cut.InvokeAsync(() => input.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+
+        // Assert
+        await _sessionsApiClient
+            .Received(1)
+            .RenameSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                "Renamed Session",
+                CancellationToken.None
+            );
+        Assert.Contains("Renamed Session", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='session-save-SNN-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task RenameSession_EnterKeyOnCleanRow_DoesNotCallApi()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='session-name-input-SNN-AAAAAA']");
+
+        // Act
+        await cut.InvokeAsync(() => input.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+
+        // Assert
+        await _sessionsApiClient
+            .DidNotReceive()
+            .RenameSessionAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<SessionId>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task RenameSession_EnterKeyRepeatedWhileSaveInFlight_CallsRenameOnlyOnce()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        var renamed = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Renamed Session"
+        );
+        var tcs = new TaskCompletionSource<RenameSessionOutcome>();
+        _sessionsApiClient
+            .RenameSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                "Renamed Session",
+                CancellationToken.None
+            )
+            .Returns(tcs.Task);
+        var cut = Render<Programs>();
+        var input = cut.Find("[data-testid='session-name-input-SNN-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Renamed Session"));
+
+        // Act
+        var firstKeyDown = cut.InvokeAsync(() =>
+            input.KeyDown(new KeyboardEventArgs { Key = "Enter" })
+        );
+        await cut.InvokeAsync(() => input.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+        tcs.SetResult(new RenameSessionSucceeded(renamed));
+        await firstKeyDown;
+
+        // Assert
+        await _sessionsApiClient
+            .Received(1)
+            .RenameSessionAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                "Renamed Session",
+                CancellationToken.None
+            );
     }
 
     [Fact]
@@ -1718,6 +1940,157 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public async Task AddProgramExercise_EnterKeyWithValidFields_CallsCreateAndAppendsRow()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        _programExercisesApiClient
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            )
+            .Returns(
+                new CreateProgramExerciseSucceeded(
+                    new RepsProgramExercise(
+                        ProgramExerciseId.Parse("PGX-CCCCCC"),
+                        sessionPhaseId,
+                        ExerciseId.Parse("EXR-AAAAAA"),
+                        10,
+                        0,
+                        new SetPrescription(3, 60),
+                        ProgramExerciseSide.Both
+                    )
+                )
+            );
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-picker-SPH-AAAAAA']").Change("EXR-AAAAAA")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-sets-SPH-AAAAAA']").Input("3")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-restseconds-SPH-AAAAAA']").Input("60")
+        );
+        var countInput = cut.Find("[data-testid='exercise-count-SPH-AAAAAA']");
+        await cut.InvokeAsync(() => countInput.Input("10"));
+
+        // Act
+        await cut.InvokeAsync(() => countInput.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+
+        // Assert
+        await _programExercisesApiClient
+            .Received(1)
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            );
+        Assert.NotEmpty(cut.FindAll("[data-testid='program-exercise-name-PGX-CCCCCC']"));
+    }
+
+    [Fact]
+    public async Task AddProgramExercise_EnterKeyWithMissingFields_DoesNotCallApi()
+    {
+        // Arrange
+        SetUpProgramSessionPhase();
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+        var countInput = cut.Find("[data-testid='exercise-count-SPH-AAAAAA']");
+
+        // Act
+        await cut.InvokeAsync(() => countInput.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+
+        // Assert
+        await _programExercisesApiClient
+            .DidNotReceive()
+            .CreateRepsProgramExerciseAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<SessionId>(),
+                Arg.Any<SessionPhaseId>(),
+                Arg.Any<ExerciseId>(),
+                Arg.Any<int>(),
+                Arg.Any<SetPrescription>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task AddProgramExercise_EnterKeyRepeatedWhileCreateInFlight_CallsCreateOnlyOnce()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var tcs = new TaskCompletionSource<CreateProgramExerciseOutcome>();
+        _programExercisesApiClient
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            )
+            .Returns(tcs.Task);
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-picker-SPH-AAAAAA']").Change("EXR-AAAAAA")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-sets-SPH-AAAAAA']").Input("3")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-restseconds-SPH-AAAAAA']").Input("60")
+        );
+        var countInput = cut.Find("[data-testid='exercise-count-SPH-AAAAAA']");
+        await cut.InvokeAsync(() => countInput.Input("10"));
+
+        // Act
+        var firstKeyDown = cut.InvokeAsync(() =>
+            countInput.KeyDown(new KeyboardEventArgs { Key = "Enter" })
+        );
+        await cut.InvokeAsync(() => countInput.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+        tcs.SetResult(
+            new CreateProgramExerciseSucceeded(
+                new RepsProgramExercise(
+                    ProgramExerciseId.Parse("PGX-CCCCCC"),
+                    sessionPhaseId,
+                    ExerciseId.Parse("EXR-AAAAAA"),
+                    10,
+                    0,
+                    new SetPrescription(3, 60),
+                    ProgramExerciseSide.Both
+                )
+            )
+        );
+        await firstKeyDown;
+
+        // Assert
+        await _programExercisesApiClient
+            .Received(1)
+            .CreateRepsProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ExerciseId.Parse("EXR-AAAAAA"),
+                10,
+                new SetPrescription(3, 60),
+                CancellationToken.None
+            );
+    }
+
+    [Fact]
     public void ProgramExerciseRow_WeightIsZero_RendersWeightAsEnDash()
     {
         // Arrange
@@ -1947,6 +2320,164 @@ public sealed class ProgramsPageTests : BunitContext
             cut.Find("[data-testid='program-exercise-weight-PGX-AAAAAA']").GetAttribute("value")
         );
         Assert.Empty(cut.FindAll("[data-testid='program-exercise-save-PGX-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task SaveProgramExercise_EnterKeyOnDirtyRow_CallsUpdateAndAppliesResult()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        _programExercisesApiClient
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-AAAAAA"),
+                Arg.Any<ProgramExerciseUpdate>(),
+                CancellationToken.None
+            )
+            .Returns(
+                new UpdateProgramExerciseSucceeded(
+                    new RepsProgramExercise(
+                        ProgramExerciseId.Parse("PGX-AAAAAA"),
+                        sessionPhaseId,
+                        ExerciseId.Parse("EXR-AAAAAA"),
+                        12,
+                        45,
+                        new SetPrescription(3, 60),
+                        ProgramExerciseSide.Both
+                    )
+                )
+            );
+        var cut = Render<Programs>();
+        var countInput = cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']");
+        await cut.InvokeAsync(() => countInput.Input("12"));
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='program-exercise-weight-PGX-AAAAAA']").Input("45")
+        );
+
+        // Act
+        await cut.InvokeAsync(() => countInput.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+
+        // Assert
+        Assert.Equal(
+            "12",
+            cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").GetAttribute("value")
+        );
+        Assert.Empty(cut.FindAll("[data-testid='program-exercise-save-PGX-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task SaveProgramExercise_EnterKeyOnCleanRow_DoesNotCallApi()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        var cut = Render<Programs>();
+        var countInput = cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']");
+
+        // Act
+        await cut.InvokeAsync(() => countInput.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+
+        // Assert
+        await _programExercisesApiClient
+            .DidNotReceive()
+            .UpdateProgramExerciseAsync(
+                Arg.Any<ProgramId>(),
+                Arg.Any<SessionId>(),
+                Arg.Any<SessionPhaseId>(),
+                Arg.Any<ProgramExerciseId>(),
+                Arg.Any<ProgramExerciseUpdate>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task SaveProgramExercise_EnterKeyRepeatedWhileSaveInFlight_CallsUpdateOnlyOnce()
+    {
+        // Arrange
+        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var reps = new RepsProgramExercise(
+            ProgramExerciseId.Parse("PGX-AAAAAA"),
+            sessionPhaseId,
+            ExerciseId.Parse("EXR-AAAAAA"),
+            10,
+            0,
+            new SetPrescription(3, 60),
+            ProgramExerciseSide.Both
+        );
+        _programExercisesApiClient
+            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
+            .Returns([reps]);
+        var tcs = new TaskCompletionSource<UpdateProgramExerciseOutcome>();
+        _programExercisesApiClient
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-AAAAAA"),
+                Arg.Any<ProgramExerciseUpdate>(),
+                CancellationToken.None
+            )
+            .Returns(tcs.Task);
+        var cut = Render<Programs>();
+        var countInput = cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']");
+        await cut.InvokeAsync(() => countInput.Input("12"));
+
+        // Act
+        var firstKeyDown = cut.InvokeAsync(() =>
+            countInput.KeyDown(new KeyboardEventArgs { Key = "Enter" })
+        );
+        await cut.InvokeAsync(() => countInput.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+        tcs.SetResult(
+            new UpdateProgramExerciseSucceeded(
+                new RepsProgramExercise(
+                    ProgramExerciseId.Parse("PGX-AAAAAA"),
+                    sessionPhaseId,
+                    ExerciseId.Parse("EXR-AAAAAA"),
+                    12,
+                    0,
+                    new SetPrescription(3, 60),
+                    ProgramExerciseSide.Both
+                )
+            )
+        );
+        await firstKeyDown;
+
+        // Assert
+        await _programExercisesApiClient
+            .Received(1)
+            .UpdateProgramExerciseAsync(
+                programId,
+                sessionId,
+                sessionPhaseId,
+                ProgramExerciseId.Parse("PGX-AAAAAA"),
+                Arg.Any<ProgramExerciseUpdate>(),
+                CancellationToken.None
+            );
     }
 
     [Fact]

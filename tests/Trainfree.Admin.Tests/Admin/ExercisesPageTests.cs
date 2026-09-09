@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Bunit;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Trainfree.Admin.Admin;
@@ -212,6 +213,98 @@ public sealed class ExercisesPageTests : BunitContext
             cut.Markup,
             StringComparison.Ordinal
         );
+    }
+
+    [Fact]
+    public async Task RenameExercise_EnterKeyOnDirtyRow_CallsRenameAndUpdatesDisplayedName()
+    {
+        // Arrange
+        var exercise = new ExerciseSummary(ExerciseId.Parse("EXR-AAAAAA"), "Bodyweight Squat");
+        _apiClient.GetExercisesAsync(CancellationToken.None).Returns([exercise]);
+        var renamed = new ExerciseSummary(ExerciseId.Parse("EXR-AAAAAA"), "Skater Jump");
+        _apiClient
+            .RenameExerciseAsync(
+                ExerciseId.Parse("EXR-AAAAAA"),
+                "Skater Jump",
+                CancellationToken.None
+            )
+            .Returns(new RenameExerciseSucceeded(renamed));
+        var cut = Render<Exercises>();
+        var input = cut.Find("[data-testid='name-input-EXR-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Skater Jump"));
+
+        // Act
+        await cut.InvokeAsync(() => input.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+
+        // Assert
+        await _apiClient
+            .Received(1)
+            .RenameExerciseAsync(
+                ExerciseId.Parse("EXR-AAAAAA"),
+                "Skater Jump",
+                CancellationToken.None
+            );
+        Assert.Contains("Skater Jump", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='save-EXR-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task RenameExercise_EnterKeyOnCleanRow_DoesNotCallApi()
+    {
+        // Arrange
+        var exercise = new ExerciseSummary(ExerciseId.Parse("EXR-AAAAAA"), "Bodyweight Squat");
+        _apiClient.GetExercisesAsync(CancellationToken.None).Returns([exercise]);
+        var cut = Render<Exercises>();
+        var input = cut.Find("[data-testid='name-input-EXR-AAAAAA']");
+
+        // Act
+        await cut.InvokeAsync(() => input.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+
+        // Assert
+        await _apiClient
+            .DidNotReceive()
+            .RenameExerciseAsync(
+                Arg.Any<ExerciseId>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task RenameExercise_EnterKeyRepeatedWhileSaveInFlight_CallsRenameOnlyOnce()
+    {
+        // Arrange
+        var exercise = new ExerciseSummary(ExerciseId.Parse("EXR-AAAAAA"), "Bodyweight Squat");
+        _apiClient.GetExercisesAsync(CancellationToken.None).Returns([exercise]);
+        var renamed = new ExerciseSummary(ExerciseId.Parse("EXR-AAAAAA"), "Skater Jump");
+        var tcs = new TaskCompletionSource<RenameExerciseOutcome>();
+        _apiClient
+            .RenameExerciseAsync(
+                ExerciseId.Parse("EXR-AAAAAA"),
+                "Skater Jump",
+                CancellationToken.None
+            )
+            .Returns(tcs.Task);
+        var cut = Render<Exercises>();
+        var input = cut.Find("[data-testid='name-input-EXR-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Skater Jump"));
+
+        // Act
+        var firstKeyDown = cut.InvokeAsync(() =>
+            input.KeyDown(new KeyboardEventArgs { Key = "Enter" })
+        );
+        await cut.InvokeAsync(() => input.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+        tcs.SetResult(new RenameExerciseSucceeded(renamed));
+        await firstKeyDown;
+
+        // Assert
+        await _apiClient
+            .Received(1)
+            .RenameExerciseAsync(
+                ExerciseId.Parse("EXR-AAAAAA"),
+                "Skater Jump",
+                CancellationToken.None
+            );
     }
 
     [Fact]

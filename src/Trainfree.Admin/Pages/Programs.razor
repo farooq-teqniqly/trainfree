@@ -886,48 +886,63 @@
     private async Task AddProgramExerciseAsync(SessionRow session, SessionPhaseRow phase)
     {
         if (
-            !CanSubmitAddExercise
+            phase.IsAddingExercise
+            || !CanSubmitAddExercise
             || !ExerciseId.TryParse(_addExerciseExerciseId, out var exerciseId)
         )
         {
             return;
         }
 
-        var outcome =
-            _addExerciseType == "Timed"
-                ? await ProgramExercisesApi.CreateTimedProgramExerciseAsync(
-                    session.ProgramId,
-                    session.Id,
-                    phase.Id,
-                    exerciseId,
-                    _addExerciseCount!.Value,
-                    new SetPrescription(_addExerciseSets!.Value, _addExerciseRestSeconds!.Value)
-                )
-                : await ProgramExercisesApi.CreateRepsProgramExerciseAsync(
-                    session.ProgramId,
-                    session.Id,
-                    phase.Id,
-                    exerciseId,
-                    _addExerciseCount!.Value,
-                    new SetPrescription(_addExerciseSets!.Value, _addExerciseRestSeconds!.Value)
-                );
-
-        switch (outcome)
+        phase.IsAddingExercise = true;
+        try
         {
-            case CreateProgramExerciseSucceeded succeeded:
-                phase.ProgramExercises.Add(
-                    new ProgramExerciseRow(
-                        succeeded.ProgramExercise,
-                        ResolveExerciseName(succeeded.ProgramExercise.ExerciseId)
+            var outcome =
+                _addExerciseType == "Timed"
+                    ? await ProgramExercisesApi.CreateTimedProgramExerciseAsync(
+                        session.ProgramId,
+                        session.Id,
+                        phase.Id,
+                        exerciseId,
+                        _addExerciseCount!.Value,
+                        new SetPrescription(
+                            _addExerciseSets!.Value,
+                            _addExerciseRestSeconds!.Value
+                        )
                     )
-                );
-                _addingExerciseSessionPhaseId = null;
-                phase.AddExerciseError = null;
-                _collapsedSessionPhaseIds.Remove(phase.Id);
-                break;
-            case CreateProgramExerciseFailed failed:
-                phase.AddExerciseError = failed.Error;
-                break;
+                    : await ProgramExercisesApi.CreateRepsProgramExerciseAsync(
+                        session.ProgramId,
+                        session.Id,
+                        phase.Id,
+                        exerciseId,
+                        _addExerciseCount!.Value,
+                        new SetPrescription(
+                            _addExerciseSets!.Value,
+                            _addExerciseRestSeconds!.Value
+                        )
+                    );
+
+            switch (outcome)
+            {
+                case CreateProgramExerciseSucceeded succeeded:
+                    phase.ProgramExercises.Add(
+                        new ProgramExerciseRow(
+                            succeeded.ProgramExercise,
+                            ResolveExerciseName(succeeded.ProgramExercise.ExerciseId)
+                        )
+                    );
+                    _addingExerciseSessionPhaseId = null;
+                    phase.AddExerciseError = null;
+                    _collapsedSessionPhaseIds.Remove(phase.Id);
+                    break;
+                case CreateProgramExerciseFailed failed:
+                    phase.AddExerciseError = failed.Error;
+                    break;
+            }
+        }
+        finally
+        {
+            phase.IsAddingExercise = false;
         }
     }
 
@@ -937,6 +952,11 @@
         ProgramExerciseRow row
     )
     {
+        if (row.IsSaving)
+        {
+            return;
+        }
+
         if (row.Count <= 0 || row.Sets <= 0 || row.RestSeconds <= 0)
         {
             row.Error = "Reps/duration, sets, and rest must be positive.";
@@ -971,22 +991,30 @@
                 Side: row.Side
             );
 
-        var outcome = await ProgramExercisesApi.UpdateProgramExerciseAsync(
-            session.ProgramId,
-            session.Id,
-            phase.Id,
-            row.Id,
-            update
-        );
-        switch (outcome)
+        row.IsSaving = true;
+        try
         {
-            case UpdateProgramExerciseSucceeded succeeded:
-                row.ApplySaved(succeeded.ProgramExercise);
-                row.Error = null;
-                break;
-            case UpdateProgramExerciseFailed failed:
-                row.Error = failed.Error;
-                break;
+            var outcome = await ProgramExercisesApi.UpdateProgramExerciseAsync(
+                session.ProgramId,
+                session.Id,
+                phase.Id,
+                row.Id,
+                update
+            );
+            switch (outcome)
+            {
+                case UpdateProgramExerciseSucceeded succeeded:
+                    row.ApplySaved(succeeded.ProgramExercise);
+                    row.Error = null;
+                    break;
+                case UpdateProgramExerciseFailed failed:
+                    row.Error = failed.Error;
+                    break;
+            }
+        }
+        finally
+        {
+            row.IsSaving = false;
         }
     }
 
@@ -1125,6 +1153,11 @@
 
     private async Task RenameAsync(ProgramRow row)
     {
+        if (row.IsSaving)
+        {
+            return;
+        }
+
         var trimmedLength = row.Name.Trim().Length;
         if (trimmedLength is < MinNameLength or > MaxNameLength)
         {
@@ -1132,17 +1165,25 @@
             return;
         }
 
-        var outcome = await Api.RenameProgramAsync(row.Id, row.Name);
-        switch (outcome)
+        row.IsSaving = true;
+        try
         {
-            case RenameProgramSucceeded succeeded:
-                row.Name = succeeded.Program.Name;
-                row.SavedName = succeeded.Program.Name;
-                row.Error = null;
-                break;
-            case RenameProgramFailed failed:
-                row.Error = failed.Error;
-                break;
+            var outcome = await Api.RenameProgramAsync(row.Id, row.Name);
+            switch (outcome)
+            {
+                case RenameProgramSucceeded succeeded:
+                    row.Name = succeeded.Program.Name;
+                    row.SavedName = succeeded.Program.Name;
+                    row.Error = null;
+                    break;
+                case RenameProgramFailed failed:
+                    row.Error = failed.Error;
+                    break;
+            }
+        }
+        finally
+        {
+            row.IsSaving = false;
         }
     }
 
@@ -1196,6 +1237,11 @@
 
     private async Task RenameSessionAsync(SessionRow session)
     {
+        if (session.IsSaving)
+        {
+            return;
+        }
+
         var trimmedLength = session.Name.Trim().Length;
         if (trimmedLength is < MinNameLength or > MaxNameLength)
         {
@@ -1204,21 +1250,29 @@
             return;
         }
 
-        var outcome = await SessionsApi.RenameSessionAsync(
-            session.ProgramId,
-            session.Id,
-            session.Name
-        );
-        switch (outcome)
+        session.IsSaving = true;
+        try
         {
-            case RenameSessionSucceeded succeeded:
-                session.Name = succeeded.Session.Name;
-                session.SavedName = succeeded.Session.Name;
-                session.Error = null;
-                break;
-            case RenameSessionFailed failed:
-                session.Error = failed.Error;
-                break;
+            var outcome = await SessionsApi.RenameSessionAsync(
+                session.ProgramId,
+                session.Id,
+                session.Name
+            );
+            switch (outcome)
+            {
+                case RenameSessionSucceeded succeeded:
+                    session.Name = succeeded.Session.Name;
+                    session.SavedName = succeeded.Session.Name;
+                    session.Error = null;
+                    break;
+                case RenameSessionFailed failed:
+                    session.Error = failed.Error;
+                    break;
+            }
+        }
+        finally
+        {
+            session.IsSaving = false;
         }
     }
 
@@ -1269,6 +1323,7 @@
         public string Name { get; set; }
         public string SavedName { get; set; }
         public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
+        public bool IsSaving { get; set; }
         public string? Error { get; set; }
         public string? SessionsLoadError { get; set; }
         public List<SessionRow> Sessions { get; } = [];
@@ -1289,6 +1344,7 @@
         public string Name { get; set; }
         public string SavedName { get; set; }
         public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
+        public bool IsSaving { get; set; }
         public string? Error { get; set; }
         public string? PhasesLoadError { get; set; }
         public List<SessionPhaseRow> Phases { get; } = [];
@@ -1309,6 +1365,7 @@
         public string? Error { get; set; }
         public string? ProgramExercisesLoadError { get; set; }
         public string? AddExerciseError { get; set; }
+        public bool IsAddingExercise { get; set; }
         public List<ProgramExerciseRow> ProgramExercises { get; } = [];
     }
 
@@ -1337,6 +1394,7 @@
         public int SavedRestSeconds { get; set; }
         public ProgramExerciseSide Side { get; set; }
         public ProgramExerciseSide SavedSide { get; set; }
+        public bool IsSaving { get; set; }
         public string? Error { get; set; }
 
         public bool IsDirty =>

@@ -182,6 +182,11 @@ else
 
     private async Task RenameAsync(ExerciseRow row)
     {
+        if (row.IsSaving)
+        {
+            return;
+        }
+
         var trimmedLength = row.Name.Trim().Length;
         if (trimmedLength is < MinNameLength or > MaxNameLength)
         {
@@ -189,17 +194,25 @@ else
             return;
         }
 
-        var outcome = await Api.RenameExerciseAsync(row.Id, row.Name);
-        switch (outcome)
+        row.IsSaving = true;
+        try
         {
-            case RenameExerciseSucceeded succeeded:
-                row.Name = succeeded.Exercise.Name;
-                row.SavedName = succeeded.Exercise.Name;
-                row.Error = null;
-                break;
-            case RenameExerciseFailed failed:
-                row.Error = failed.Error;
-                break;
+            var outcome = await Api.RenameExerciseAsync(row.Id, row.Name);
+            switch (outcome)
+            {
+                case RenameExerciseSucceeded succeeded:
+                    row.Name = succeeded.Exercise.Name;
+                    row.SavedName = succeeded.Exercise.Name;
+                    row.Error = null;
+                    break;
+                case RenameExerciseFailed failed:
+                    row.Error = failed.Error;
+                    break;
+            }
+        }
+        finally
+        {
+            row.IsSaving = false;
         }
     }
 
@@ -244,6 +257,7 @@ else
         public string Name { get; set; }
         public string SavedName { get; set; }
         public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
+        public bool IsSaving { get; set; }
         public string? Error { get; set; }
     }
 }

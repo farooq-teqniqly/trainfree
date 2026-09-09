@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Bunit;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Trainfree.Admin.Admin;
@@ -176,6 +177,78 @@ public sealed class PhasesPageTests : BunitContext
             cut.Markup,
             StringComparison.Ordinal
         );
+    }
+
+    [Fact]
+    public async Task RenamePhase_EnterKeyOnDirtyRow_CallsRenameAndUpdatesDisplayedName()
+    {
+        // Arrange
+        var phase = new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up");
+        _apiClient.GetPhasesAsync(CancellationToken.None).Returns([phase]);
+        var renamed = new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Cool Down");
+        _apiClient
+            .RenamePhaseAsync(PhaseId.Parse("PHS-AAAAAA"), "Cool Down", CancellationToken.None)
+            .Returns(new RenamePhaseSucceeded(renamed));
+        var cut = Render<Phases>();
+        var input = cut.Find("[data-testid='name-input-PHS-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Cool Down"));
+
+        // Act
+        await cut.InvokeAsync(() => input.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+
+        // Assert
+        await _apiClient
+            .Received(1)
+            .RenamePhaseAsync(PhaseId.Parse("PHS-AAAAAA"), "Cool Down", CancellationToken.None);
+        Assert.Contains("Cool Down", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid='save-PHS-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task RenamePhase_EnterKeyOnCleanRow_DoesNotCallApi()
+    {
+        // Arrange
+        var phase = new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up");
+        _apiClient.GetPhasesAsync(CancellationToken.None).Returns([phase]);
+        var cut = Render<Phases>();
+        var input = cut.Find("[data-testid='name-input-PHS-AAAAAA']");
+
+        // Act
+        await cut.InvokeAsync(() => input.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+
+        // Assert
+        await _apiClient
+            .DidNotReceive()
+            .RenamePhaseAsync(Arg.Any<PhaseId>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RenamePhase_EnterKeyRepeatedWhileSaveInFlight_CallsRenameOnlyOnce()
+    {
+        // Arrange
+        var phase = new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up");
+        _apiClient.GetPhasesAsync(CancellationToken.None).Returns([phase]);
+        var renamed = new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Cool Down");
+        var tcs = new TaskCompletionSource<RenamePhaseOutcome>();
+        _apiClient
+            .RenamePhaseAsync(PhaseId.Parse("PHS-AAAAAA"), "Cool Down", CancellationToken.None)
+            .Returns(tcs.Task);
+        var cut = Render<Phases>();
+        var input = cut.Find("[data-testid='name-input-PHS-AAAAAA']");
+        await cut.InvokeAsync(() => input.Input("Cool Down"));
+
+        // Act
+        var firstKeyDown = cut.InvokeAsync(() =>
+            input.KeyDown(new KeyboardEventArgs { Key = "Enter" })
+        );
+        await cut.InvokeAsync(() => input.KeyDown(new KeyboardEventArgs { Key = "Enter" }));
+        tcs.SetResult(new RenamePhaseSucceeded(renamed));
+        await firstKeyDown;
+
+        // Assert
+        await _apiClient
+            .Received(1)
+            .RenamePhaseAsync(PhaseId.Parse("PHS-AAAAAA"), "Cool Down", CancellationToken.None);
     }
 
     [Fact]
