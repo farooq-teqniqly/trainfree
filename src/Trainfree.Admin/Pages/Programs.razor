@@ -58,48 +58,18 @@
         <tbody>
             @foreach (var row in _rows)
             {
-                <tr class="row-depth-0">
-                    <td colspan="8">
-                        <div class="name-cell">
-                            <ChevronToggle
-                                TestId="@($"chevron-{row.Id}")"
-                                Title="@ChevronTitle(row)"
-                                HasContent="@HasToggleableContent(row)"
-                                IsCollapsed="@_collapsedIds.Contains(row.Id)"
-                                OnToggle="() => ToggleCollapsed(row)"
-                            />
-                            <input
-                                class="cell-input"
-                                data-testid="name-input-@row.Id"
-                                value="@row.Name"
-                                autofocus="@(row.Id == _editingId)"
-                                disabled="@row.IsSaving"
-                                @oninput="e => row.Name = (string)e.Value!"
-                                @onkeydown="e => OnProgramNameKeyDownAsync(e, row)" />
-                            <div class="name-actions">
-                                <SaveRevertButtons
-                                    SaveTestId="@($"save-{row.Id}")"
-                                    RevertTestId="@($"revert-{row.Id}")"
-                                    IsDirty="@row.IsDirty"
-                                    IsSaving="@row.IsSaving"
-                                    OnSave="() => RenameAsync(row)"
-                                    OnRevert="() => Revert(row)"
-                                />
-                                <button
-                                    class="btn btn-sm btn-icon btn-outline-dark"
-                                    data-testid="add-session-@row.Id"
-                                    title="Add Session"
-                                    @onclick="() => AddSessionAsync(row)"
-                                >
-                                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
-                                    <span class="visually-hidden">Add Session</span>
-                                </button>
-                                <DeleteButton TestId="@($"delete-{row.Id}")" OnClick="() => DeleteAsync(row)" />
-                            </div>
-                        </div>
-                        <InlineError Message="@row.Error" TestId="@($"name-error-{row.Id}")" />
-                    </td>
-                </tr>
+                <ProgramTableRow
+                    Row="row"
+                    IsCollapsed="@_collapsedIds.Contains(row.Id)"
+                    IsEditing="@(row.Id == _editingId)"
+                    ChevronTitle="@ChevronTitle(row)"
+                    HasToggleableContent="@HasToggleableContent(row)"
+                    OnToggle="() => ToggleCollapsed(row)"
+                    OnSave="() => RenameAsync(row)"
+                    OnRevert="() => Revert(row)"
+                    OnAddSession="() => AddSessionAsync(row)"
+                    OnDelete="() => DeleteAsync(row)"
+                />
                 @if (!_collapsedIds.Contains(row.Id))
                 {
                     @if (row.SessionsLoadError is not null)
@@ -986,14 +956,6 @@
         }
     }
 
-    private async Task OnProgramNameKeyDownAsync(KeyboardEventArgs e, ProgramRow row)
-    {
-        if (e.Key == "Enter" && row.IsDirty)
-        {
-            await RenameAsync(row);
-        }
-    }
-
     private static void Revert(ProgramRow row)
     {
         row.Name = row.SavedName;
@@ -1109,63 +1071,4 @@
         }
     }
 
-    private sealed class ProgramRow
-    {
-        public ProgramRow(ProgramId id, string name)
-        {
-            Id = id;
-            Name = name;
-            SavedName = name;
-        }
-
-        public ProgramId Id { get; }
-        public string Name { get; set; }
-        public string SavedName { get; set; }
-        public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
-        public bool IsSaving { get; set; }
-        public string? Error { get; set; }
-        public string? SessionsLoadError { get; set; }
-        public List<SessionRow> Sessions { get; } = [];
-    }
-
-    private sealed class SessionRow
-    {
-        public SessionRow(SessionId id, ProgramId programId, string name)
-        {
-            Id = id;
-            ProgramId = programId;
-            Name = name;
-            SavedName = name;
-        }
-
-        public SessionId Id { get; }
-        public ProgramId ProgramId { get; }
-        public string Name { get; set; }
-        public string SavedName { get; set; }
-        public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
-        public bool IsSaving { get; set; }
-        public string? Error { get; set; }
-        public string? PhasesLoadError { get; set; }
-        public List<SessionPhaseRow> Phases { get; } = [];
-    }
-
-    private sealed class SessionPhaseRow
-    {
-        public SessionPhaseRow(SessionPhaseId id, PhaseId phaseId, string displayName)
-        {
-            Id = id;
-            PhaseId = phaseId;
-            DisplayName = displayName;
-        }
-
-        public SessionPhaseId Id { get; }
-        public PhaseId PhaseId { get; }
-        public string DisplayName { get; }
-        public string? Error { get; set; }
-        public string? ProgramExercisesLoadError { get; set; }
-        public string? AddExerciseError { get; set; }
-        public bool IsAddingExercise { get; set; }
-        public int AddExerciseFormGeneration { get; set; }
-        public List<ProgramExerciseRow> ProgramExercises { get; } = [];
-    }
 }
