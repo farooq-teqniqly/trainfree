@@ -191,7 +191,7 @@ jobs:
         run: shellcheck .github/scripts/*.sh .githooks/*
 
       - name: Verify push/PR path allowlists are in sync
-        run: .github/scripts/verify-path-allowlists-sync.sh
+        run: bash .github/scripts/verify-path-allowlists-sync.sh
 
   sonarqube-analysis:
     runs-on: ubuntu-latest
