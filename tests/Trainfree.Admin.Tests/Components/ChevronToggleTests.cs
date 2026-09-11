@@ -19,6 +19,21 @@ public sealed class ChevronToggleTests : BunitContext
     }
 
     [Fact]
+    public void Render_HasContentIsFalseAndCollapsed_ChevronIsNotCollapsedClass()
+    {
+        // Arrange / Act
+        var cut = Render<ChevronToggle>(p =>
+            p.Add(c => c.TestId, "chevron")
+                .Add(c => c.HasContent, false)
+                .Add(c => c.IsCollapsed, true)
+        );
+
+        // Assert
+        var icon = cut.Find("i");
+        Assert.DoesNotContain("chevron-collapsed", icon.ClassList);
+    }
+
+    [Fact]
     public void Render_HasContentIsTrueAndNotCollapsed_ButtonIsExpanded()
     {
         // Arrange / Act
