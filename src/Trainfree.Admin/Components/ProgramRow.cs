@@ -61,5 +61,11 @@ public sealed class ProgramRow
 
     /// <summary>Removes a session from <see cref="Sessions" />.</summary>
     /// <param name="session">The session row to remove.</param>
-    internal void RemoveSession(SessionRow session) => _sessions.Remove(session);
+    /// <exception cref="ArgumentNullException"><paramref name="session" /> is <see langword="null" />.</exception>
+    internal void RemoveSession(SessionRow session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        _sessions.Remove(session);
+    }
 }

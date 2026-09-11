@@ -66,5 +66,11 @@ public sealed class SessionRow
 
     /// <summary>Removes a phase from <see cref="Phases" />.</summary>
     /// <param name="phase">The session phase row to remove.</param>
-    internal void RemovePhase(SessionPhaseRow phase) => _phases.Remove(phase);
+    /// <exception cref="ArgumentNullException"><paramref name="phase" /> is <see langword="null" />.</exception>
+    internal void RemovePhase(SessionPhaseRow phase)
+    {
+        ArgumentNullException.ThrowIfNull(phase);
+
+        _phases.Remove(phase);
+    }
 }

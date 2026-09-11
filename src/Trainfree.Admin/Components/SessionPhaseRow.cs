@@ -75,6 +75,11 @@ public sealed class SessionPhaseRow
 
     /// <summary>Removes a program exercise from <see cref="ProgramExercises" />.</summary>
     /// <param name="programExercise">The program exercise row to remove.</param>
-    internal void RemoveProgramExercise(ProgramExerciseRow programExercise) =>
+    /// <exception cref="ArgumentNullException"><paramref name="programExercise" /> is <see langword="null" />.</exception>
+    internal void RemoveProgramExercise(ProgramExerciseRow programExercise)
+    {
+        ArgumentNullException.ThrowIfNull(programExercise);
+
         _programExercises.Remove(programExercise);
+    }
 }
