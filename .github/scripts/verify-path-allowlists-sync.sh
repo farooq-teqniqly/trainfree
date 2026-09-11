@@ -18,10 +18,16 @@ if [[ ! -f "$workflow_file" ]]; then
   exit 1
 fi
 
-push_list=$(sed -n '/^    paths:/,/^  pull_request:/p' "$workflow_file" |
-  grep -E '^ *- "' | sed -E 's/^ *- "(.*)"$/\1/')
-filter_list=$(sed -n '/^            code:/,/^$/p' "$workflow_file" |
-  grep -E '^ *- "' | sed -E 's/^ *- "(.*)"$/\1/')
+# YAML list scalars may or may not be quoted ("src/**" vs src/**). Matching
+# only the quoted form would silently drop an unquoted entry added to just one
+# list from both extracted strings -- leaving them equal and reporting a false
+# match instead of the drift this script exists to catch.
+extract_list() {
+  grep -E '^ *- ' | sed -E 's/^ *- "?([^"]*)"?$/\1/'
+}
+
+push_list=$(sed -n '/^    paths:/,/^  pull_request:/p' "$workflow_file" | extract_list)
+filter_list=$(sed -n '/^            code:/,/^$/p' "$workflow_file" | extract_list)
 
 if [[ -z "$push_list" || -z "$filter_list" ]]; then
   echo "Failed to extract one or both allowlists from $workflow_file -- the line-range" >&2
