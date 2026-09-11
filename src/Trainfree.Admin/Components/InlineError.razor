@@ -1,6 +1,6 @@
 @if (Message is not null)
 {
-    <div class="text-danger small @Class" data-testid="@TestId">@Message</div>
+    <div class="@($"text-danger small {Class}".TrimEnd())" data-testid="@TestId">@Message</div>
 }
 
 @code {
