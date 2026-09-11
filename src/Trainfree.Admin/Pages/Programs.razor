@@ -116,71 +116,20 @@
                             }
                             @foreach (var phase in session.Phases)
                             {
-                                <tr class="row-depth-2">
-                                    <td colspan="8">
-                                        <div class="name-cell">
-                                            <ChevronToggle
-                                                TestId="@($"phase-chevron-{phase.Id}")"
-                                                Title="@PhaseChevronTitle(phase)"
-                                                HasContent="@HasToggleableExerciseContent(phase)"
-                                                IsCollapsed="@_collapsedSessionPhaseIds.Contains(phase.Id)"
-                                                OnToggle="() => ToggleCollapsedSessionPhase(phase)"
-                                            />
-                                            <span data-testid="phase-name-@phase.Id">@phase.DisplayName</span>
-                                            <div class="name-actions">
-                                                <button
-                                                    class="btn btn-sm btn-icon btn-outline-dark"
-                                                    data-testid="add-exercise-@phase.Id"
-                                                    title="Add Exercise"
-                                                    disabled="@(_submittingAddExercisePhaseId is not null)"
-                                                    @onclick="() => ShowAddExercisePicker(phase)"
-                                                >
-                                                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
-                                                    <span class="visually-hidden">Add Exercise</span>
-                                                </button>
-                                                <DeleteButton
-                                                    TestId="@($"phase-delete-{phase.Id}")"
-                                                    OnClick="() => DeleteSessionPhaseAsync(session, phase)"
-                                                />
-                                            </div>
-                                        </div>
-                                        <InlineError Message="@phase.Error" TestId="@($"phase-error-{phase.Id}")" />
-                                        <InlineError
-                                            Message="@phase.AddExerciseError"
-                                            TestId="@($"add-exercise-error-{phase.Id}")"
-                                        />
-                                        @if (_addingExerciseSessionPhaseId == phase.Id)
-                                        {
-                                            @if (_exerciseLibraryLoadError is not null)
-                                            {
-                                                <InlineError
-                                                    Message="@_exerciseLibraryLoadError"
-                                                    TestId="@($"exercise-library-load-error-{phase.Id}")"
-                                                />
-                                            }
-                                            else if (_exerciseLibrary.Count == 0)
-                                            {
-                                                <div
-                                                    class="text-muted small"
-                                                    data-testid="empty-exercise-library-@phase.Id"
-                                                >
-                                                    No exercises yet -- create one on the
-                                                    <NavLink href="exercises">Exercises</NavLink> page first.
-                                                </div>
-                                            }
-                                            else
-                                            {
-                                                <AddExerciseForm
-                                                    @key="@($"{phase.Id}-{phase.AddExerciseFormGeneration}")"
-                                                    PhaseId="phase.Id"
-                                                    Exercises="_exerciseLibrary"
-                                                    IsSubmitting="phase.IsAddingExercise"
-                                                    OnSubmit="submission => AddProgramExerciseAsync(session, phase, submission)"
-                                                />
-                                            }
-                                        }
-                                    </td>
-                                </tr>
+                                <SessionPhaseTableRow
+                                    Phase="phase"
+                                    IsCollapsed="@_collapsedSessionPhaseIds.Contains(phase.Id)"
+                                    ChevronTitle="@PhaseChevronTitle(phase)"
+                                    HasToggleableContent="@HasToggleableExerciseContent(phase)"
+                                    IsAddExerciseDisabled="@(_submittingAddExercisePhaseId is not null)"
+                                    IsAddingExercise="@(_addingExerciseSessionPhaseId == phase.Id)"
+                                    ExerciseLibraryLoadError="@_exerciseLibraryLoadError"
+                                    ExerciseLibrary="_exerciseLibrary"
+                                    OnToggle="() => ToggleCollapsedSessionPhase(phase)"
+                                    OnAddExercise="() => ShowAddExercisePicker(phase)"
+                                    OnDelete="() => DeleteSessionPhaseAsync(session, phase)"
+                                    OnSubmitExercise="submission => AddProgramExerciseAsync(session, phase, submission)"
+                                />
                                 @if (!_collapsedSessionPhaseIds.Contains(phase.Id))
                                 {
                                     @if (phase.ProgramExercisesLoadError is not null)
