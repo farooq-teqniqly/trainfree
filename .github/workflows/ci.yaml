@@ -190,6 +190,25 @@ jobs:
       - name: Lint shell scripts
         run: shellcheck .github/scripts/*.sh .githooks/*
 
+  # Deliberately its own job, not a step in workflow-lint: workflow-lint is gated by
+  # needs.changes.outputs.code, and the `code` filter is one of the two allowlists this
+  # guard compares. A PR that drops `.github/workflows/**` from only the `code` filter
+  # (the exact drift this guard exists to catch) would make workflow-lint itself skip,
+  # silently defeating the check -- so this job runs unconditionally on every push and
+  # pull_request, independent of the paths-filter result it is partly verifying.
+  verify-path-allowlists-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Verify push/PR path allowlists are in sync
+        run: bash .github/scripts/verify-path-allowlists-sync.sh
+
   sonarqube-analysis:
     runs-on: ubuntu-latest
     timeout-minutes: 30
