@@ -26,13 +26,13 @@
     /// <summary>
     /// Gets or sets the <c>data-testid</c> attribute value for the Save button.
     /// </summary>
-    [Parameter]
+    [Parameter, EditorRequired]
     public string SaveTestId { get; set; } = "";
 
     /// <summary>
     /// Gets or sets the <c>data-testid</c> attribute value for the Revert button.
     /// </summary>
-    [Parameter]
+    [Parameter, EditorRequired]
     public string RevertTestId { get; set; } = "";
 
     /// <summary>

@@ -16,36 +16,36 @@
     /// <summary>
     /// Gets or sets the route the card navigates to.
     /// </summary>
-    [Parameter]
+    [Parameter, EditorRequired]
     public string Href { get; set; } = "";
 
     /// <summary>
     /// Gets or sets the <c>data-testid</c> attribute value for the rendered card.
     /// </summary>
-    [Parameter]
+    [Parameter, EditorRequired]
     public string TestId { get; set; } = "";
 
     /// <summary>
     /// Gets or sets the Bootstrap Icons class (e.g. <c>bi-grid-3x3-gap-fill</c>) shown above the title.
     /// </summary>
-    [Parameter]
+    [Parameter, EditorRequired]
     public string IconClass { get; set; } = "";
 
     /// <summary>
     /// Gets or sets the card's title.
     /// </summary>
-    [Parameter]
+    [Parameter, EditorRequired]
     public string Title { get; set; } = "";
 
     /// <summary>
     /// Gets or sets the card's descriptive body text.
     /// </summary>
-    [Parameter]
+    [Parameter, EditorRequired]
     public string Description { get; set; } = "";
 
     /// <summary>
     /// Gets or sets the call-to-action text shown next to the trailing chevron.
     /// </summary>
-    [Parameter]
+    [Parameter, EditorRequired]
     public string LinkLabel { get; set; } = "";
 }

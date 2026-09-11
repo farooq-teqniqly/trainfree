@@ -7,13 +7,13 @@
     /// <summary>
     /// Gets or sets the <c>data-testid</c> attribute value for the rendered button.
     /// </summary>
-    [Parameter]
+    [Parameter, EditorRequired]
     public string TestId { get; set; } = "";
 
     /// <summary>
     /// Gets or sets the button's visible label text.
     /// </summary>
-    [Parameter]
+    [Parameter, EditorRequired]
     public string Label { get; set; } = "";
 
     /// <summary>
