@@ -21,45 +21,15 @@
             Build out programs and sessions for your workouts.
         </p>
     </div>
-    <button
-        class="btn btn-dark"
-        data-testid="add-program"
-        @onclick="AddProgramAsync"
-    >
-        <i class="bi bi-plus-circle" aria-hidden="true"></i>
-        Add Program
-    </button>
+    <AddButton TestId="add-program" Label="Add Program" OnClick="AddProgramAsync" />
 </div>
 
-@if (_addProgramError is not null)
-{
-    <div class="text-danger small mb-2" data-testid="add-program-error">@_addProgramError</div>
-}
-
-@if (_addSessionError is not null)
-{
-    <div class="text-danger small mb-2" data-testid="add-session-error">@_addSessionError</div>
-}
-
-@if (_deleteError is not null)
-{
-    <div class="text-danger small mb-2" data-testid="delete-program-error">@_deleteError</div>
-}
-
-@if (_deleteSessionError is not null)
-{
-    <div class="text-danger small mb-2" data-testid="delete-session-error">@_deleteSessionError</div>
-}
-
-@if (_addPhaseError is not null)
-{
-    <div class="text-danger small mb-2" data-testid="add-phase-error">@_addPhaseError</div>
-}
-
-@if (_loadError is not null)
-{
-    <div class="text-danger small mb-2" data-testid="load-programs-error">@_loadError</div>
-}
+<InlineError Message="@_addProgramError" TestId="add-program-error" Class="mb-2" />
+<InlineError Message="@_addSessionError" TestId="add-session-error" Class="mb-2" />
+<InlineError Message="@_deleteError" TestId="delete-program-error" Class="mb-2" />
+<InlineError Message="@_deleteSessionError" TestId="delete-session-error" Class="mb-2" />
+<InlineError Message="@_addPhaseError" TestId="add-phase-error" Class="mb-2" />
+<InlineError Message="@_loadError" TestId="load-programs-error" Class="mb-2" />
 
 <div class="sheet-wrap">
     <table class="table sheet">
@@ -91,20 +61,13 @@
                 <tr class="row-depth-0">
                     <td colspan="8">
                         <div class="name-cell">
-                            <button
-                                class="btn btn-sm btn-icon chevron-btn"
-                                data-testid="chevron-@row.Id"
-                                title="@ChevronTitle(row)"
-                                aria-expanded="@(HasToggleableContent(row) && !_collapsedIds.Contains(row.Id) ? "true" : "false")"
-                                disabled="@(!HasToggleableContent(row))"
-                                @onclick="() => ToggleCollapsed(row)"
-                            >
-                                <i
-                                    class="bi bi-chevron-down @(HasToggleableContent(row) && _collapsedIds.Contains(row.Id) ? "chevron-collapsed" : "")"
-                                    aria-hidden="true"
-                                ></i>
-                                <span class="visually-hidden">@ChevronTitle(row)</span>
-                            </button>
+                            <ChevronToggle
+                                TestId="@($"chevron-{row.Id}")"
+                                Title="@ChevronTitle(row)"
+                                HasContent="@HasToggleableContent(row)"
+                                IsCollapsed="@_collapsedIds.Contains(row.Id)"
+                                OnToggle="() => ToggleCollapsed(row)"
+                            />
                             <input
                                 class="cell-input"
                                 data-testid="name-input-@row.Id"
@@ -114,29 +77,14 @@
                                 @oninput="e => row.Name = (string)e.Value!"
                                 @onkeydown="e => OnProgramNameKeyDownAsync(e, row)" />
                             <div class="name-actions">
-                                @if (row.IsDirty)
-                                {
-                                    <button
-                                        class="btn btn-sm btn-icon btn-outline-dark"
-                                        data-testid="save-@row.Id"
-                                        title="Save"
-                                        disabled="@row.IsSaving"
-                                        @onclick="() => RenameAsync(row)"
-                                    >
-                                        <i class="bi bi-floppy" aria-hidden="true"></i>
-                                        <span class="visually-hidden">Save</span>
-                                    </button>
-                                    <button
-                                        class="btn btn-sm btn-icon btn-outline-secondary"
-                                        data-testid="revert-@row.Id"
-                                        title="Revert"
-                                        disabled="@row.IsSaving"
-                                        @onclick="() => Revert(row)"
-                                    >
-                                        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
-                                        <span class="visually-hidden">Revert</span>
-                                    </button>
-                                }
+                                <SaveRevertButtons
+                                    SaveTestId="@($"save-{row.Id}")"
+                                    RevertTestId="@($"revert-{row.Id}")"
+                                    IsDirty="@row.IsDirty"
+                                    IsSaving="@row.IsSaving"
+                                    OnSave="() => RenameAsync(row)"
+                                    OnRevert="() => Revert(row)"
+                                />
                                 <button
                                     class="btn btn-sm btn-icon btn-outline-dark"
                                     data-testid="add-session-@row.Id"
@@ -146,23 +94,10 @@
                                     <i class="bi bi-plus-circle" aria-hidden="true"></i>
                                     <span class="visually-hidden">Add Session</span>
                                 </button>
-                                <button
-                                    class="btn btn-sm btn-icon btn-outline-danger"
-                                    data-testid="delete-@row.Id"
-                                    title="Delete"
-                                    @onclick="() => DeleteAsync(row)"
-                                >
-                                    <i class="bi bi-trash" aria-hidden="true"></i>
-                                    <span class="visually-hidden">Delete</span>
-                                </button>
+                                <DeleteButton TestId="@($"delete-{row.Id}")" OnClick="() => DeleteAsync(row)" />
                             </div>
                         </div>
-                        @if (row.Error is not null)
-                        {
-                            <div class="text-danger small" data-testid="name-error-@row.Id">
-                                @row.Error
-                            </div>
-                        }
+                        <InlineError Message="@row.Error" TestId="@($"name-error-{row.Id}")" />
                     </td>
                 </tr>
                 @if (!_collapsedIds.Contains(row.Id))
@@ -171,12 +106,10 @@
                     {
                         <tr>
                             <td colspan="8">
-                                <div
-                                    class="text-danger small"
-                                    data-testid="sessions-load-error-@row.Id"
-                                >
-                                    @row.SessionsLoadError
-                                </div>
+                                <InlineError
+                                    Message="@row.SessionsLoadError"
+                                    TestId="@($"sessions-load-error-{row.Id}")"
+                                />
                             </td>
                         </tr>
                     }
@@ -185,20 +118,13 @@
                         <tr class="row-depth-1">
                             <td colspan="8">
                                 <div class="name-cell">
-                                    <button
-                                        class="btn btn-sm btn-icon chevron-btn"
-                                        data-testid="session-chevron-@session.Id"
-                                        title="@SessionChevronTitle(session)"
-                                        aria-expanded="@(HasToggleablePhaseContent(session) && !_collapsedSessionIds.Contains(session.Id) ? "true" : "false")"
-                                        disabled="@(!HasToggleablePhaseContent(session))"
-                                        @onclick="() => ToggleCollapsedSession(session)"
-                                    >
-                                        <i
-                                            class="bi bi-chevron-down @(HasToggleablePhaseContent(session) && _collapsedSessionIds.Contains(session.Id) ? "chevron-collapsed" : "")"
-                                            aria-hidden="true"
-                                        ></i>
-                                        <span class="visually-hidden">@SessionChevronTitle(session)</span>
-                                    </button>
+                                    <ChevronToggle
+                                        TestId="@($"session-chevron-{session.Id}")"
+                                        Title="@SessionChevronTitle(session)"
+                                        HasContent="@HasToggleablePhaseContent(session)"
+                                        IsCollapsed="@_collapsedSessionIds.Contains(session.Id)"
+                                        OnToggle="() => ToggleCollapsedSession(session)"
+                                    />
                                     <input
                                         class="cell-input"
                                         data-testid="session-name-input-@session.Id"
@@ -208,29 +134,14 @@
                                         @oninput="e => session.Name = (string)e.Value!"
                                         @onkeydown="e => OnSessionNameKeyDownAsync(e, session)" />
                                     <div class="name-actions">
-                                        @if (session.IsDirty)
-                                        {
-                                            <button
-                                                class="btn btn-sm btn-icon btn-outline-dark"
-                                                data-testid="session-save-@session.Id"
-                                                title="Save"
-                                                disabled="@session.IsSaving"
-                                                @onclick="() => RenameSessionAsync(session)"
-                                            >
-                                                <i class="bi bi-floppy" aria-hidden="true"></i>
-                                                <span class="visually-hidden">Save</span>
-                                            </button>
-                                            <button
-                                                class="btn btn-sm btn-icon btn-outline-secondary"
-                                                data-testid="session-revert-@session.Id"
-                                                title="Revert"
-                                                disabled="@session.IsSaving"
-                                                @onclick="() => RevertSession(session)"
-                                            >
-                                                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
-                                                <span class="visually-hidden">Revert</span>
-                                            </button>
-                                        }
+                                        <SaveRevertButtons
+                                            SaveTestId="@($"session-save-{session.Id}")"
+                                            RevertTestId="@($"session-revert-{session.Id}")"
+                                            IsDirty="@session.IsDirty"
+                                            IsSaving="@session.IsSaving"
+                                            OnSave="() => RenameSessionAsync(session)"
+                                            OnRevert="() => RevertSession(session)"
+                                        />
                                         <button
                                             class="btn btn-sm btn-icon btn-outline-dark"
                                             data-testid="add-phase-@session.Id"
@@ -240,36 +151,24 @@
                                             <i class="bi bi-plus-circle" aria-hidden="true"></i>
                                             <span class="visually-hidden">Add Phase</span>
                                         </button>
-                                        <button
-                                            class="btn btn-sm btn-icon btn-outline-danger"
-                                            data-testid="session-delete-@session.Id"
-                                            title="Delete"
-                                            @onclick="() => DeleteSessionAsync(row, session)"
-                                        >
-                                            <i class="bi bi-trash" aria-hidden="true"></i>
-                                            <span class="visually-hidden">Delete</span>
-                                        </button>
+                                        <DeleteButton
+                                            TestId="@($"session-delete-{session.Id}")"
+                                            OnClick="() => DeleteSessionAsync(row, session)"
+                                        />
                                     </div>
                                 </div>
-                                @if (session.Error is not null)
-                                {
-                                    <div
-                                        class="text-danger small"
-                                        data-testid="session-name-error-@session.Id"
-                                    >
-                                        @session.Error
-                                    </div>
-                                }
+                                <InlineError
+                                    Message="@session.Error"
+                                    TestId="@($"session-name-error-{session.Id}")"
+                                />
                                 @if (_addingPhaseSessionId == session.Id)
                                 {
                                     @if (_phaseLibraryLoadError is not null)
                                     {
-                                        <div
-                                            class="text-danger small"
-                                            data-testid="phase-library-load-error-@session.Id"
-                                        >
-                                            @_phaseLibraryLoadError
-                                        </div>
+                                        <InlineError
+                                            Message="@_phaseLibraryLoadError"
+                                            TestId="@($"phase-library-load-error-{session.Id}")"
+                                        />
                                     }
                                     else if (_phaseLibrary.Count == 0)
                                     {
@@ -304,12 +203,10 @@
                             {
                                 <tr>
                                     <td colspan="8">
-                                        <div
-                                            class="text-danger small"
-                                            data-testid="phases-load-error-@session.Id"
-                                        >
-                                            @session.PhasesLoadError
-                                        </div>
+                                        <InlineError
+                                            Message="@session.PhasesLoadError"
+                                            TestId="@($"phases-load-error-{session.Id}")"
+                                        />
                                     </td>
                                 </tr>
                             }
@@ -318,20 +215,13 @@
                                 <tr class="row-depth-2">
                                     <td colspan="8">
                                         <div class="name-cell">
-                                            <button
-                                                class="btn btn-sm btn-icon chevron-btn"
-                                                data-testid="phase-chevron-@phase.Id"
-                                                title="@PhaseChevronTitle(phase)"
-                                                aria-expanded="@(HasToggleableExerciseContent(phase) && !_collapsedSessionPhaseIds.Contains(phase.Id) ? "true" : "false")"
-                                                disabled="@(!HasToggleableExerciseContent(phase))"
-                                                @onclick="() => ToggleCollapsedSessionPhase(phase)"
-                                            >
-                                                <i
-                                                    class="bi bi-chevron-down @(HasToggleableExerciseContent(phase) && _collapsedSessionPhaseIds.Contains(phase.Id) ? "chevron-collapsed" : "")"
-                                                    aria-hidden="true"
-                                                ></i>
-                                                <span class="visually-hidden">@PhaseChevronTitle(phase)</span>
-                                            </button>
+                                            <ChevronToggle
+                                                TestId="@($"phase-chevron-{phase.Id}")"
+                                                Title="@PhaseChevronTitle(phase)"
+                                                HasContent="@HasToggleableExerciseContent(phase)"
+                                                IsCollapsed="@_collapsedSessionPhaseIds.Contains(phase.Id)"
+                                                OnToggle="() => ToggleCollapsedSessionPhase(phase)"
+                                            />
                                             <span data-testid="phase-name-@phase.Id">@phase.DisplayName</span>
                                             <div class="name-actions">
                                                 <button
@@ -344,45 +234,25 @@
                                                     <i class="bi bi-plus-circle" aria-hidden="true"></i>
                                                     <span class="visually-hidden">Add Exercise</span>
                                                 </button>
-                                                <button
-                                                    class="btn btn-sm btn-icon btn-outline-danger"
-                                                    data-testid="phase-delete-@phase.Id"
-                                                    title="Delete"
-                                                    @onclick="() => DeleteSessionPhaseAsync(session, phase)"
-                                                >
-                                                    <i class="bi bi-trash" aria-hidden="true"></i>
-                                                    <span class="visually-hidden">Delete</span>
-                                                </button>
+                                                <DeleteButton
+                                                    TestId="@($"phase-delete-{phase.Id}")"
+                                                    OnClick="() => DeleteSessionPhaseAsync(session, phase)"
+                                                />
                                             </div>
                                         </div>
-                                        @if (phase.Error is not null)
-                                        {
-                                            <div
-                                                class="text-danger small"
-                                                data-testid="phase-error-@phase.Id"
-                                            >
-                                                @phase.Error
-                                            </div>
-                                        }
-                                        @if (phase.AddExerciseError is not null)
-                                        {
-                                            <div
-                                                class="text-danger small"
-                                                data-testid="add-exercise-error-@phase.Id"
-                                            >
-                                                @phase.AddExerciseError
-                                            </div>
-                                        }
+                                        <InlineError Message="@phase.Error" TestId="@($"phase-error-{phase.Id}")" />
+                                        <InlineError
+                                            Message="@phase.AddExerciseError"
+                                            TestId="@($"add-exercise-error-{phase.Id}")"
+                                        />
                                         @if (_addingExerciseSessionPhaseId == phase.Id)
                                         {
                                             @if (_exerciseLibraryLoadError is not null)
                                             {
-                                                <div
-                                                    class="text-danger small"
-                                                    data-testid="exercise-library-load-error-@phase.Id"
-                                                >
-                                                    @_exerciseLibraryLoadError
-                                                </div>
+                                                <InlineError
+                                                    Message="@_exerciseLibraryLoadError"
+                                                    TestId="@($"exercise-library-load-error-{phase.Id}")"
+                                                />
                                             }
                                             else if (_exerciseLibrary.Count == 0)
                                             {
@@ -461,12 +331,10 @@
                                     {
                                         <tr>
                                             <td colspan="8">
-                                                <div
-                                                    class="text-danger small"
-                                                    data-testid="program-exercises-load-error-@phase.Id"
-                                                >
-                                                    @phase.ProgramExercisesLoadError
-                                                </div>
+                                                <InlineError
+                                                    Message="@phase.ProgramExercisesLoadError"
+                                                    TestId="@($"program-exercises-load-error-{phase.Id}")"
+                                                />
                                             </td>
                                         </tr>
                                     }
@@ -480,15 +348,10 @@
                                                         @programExercise.ExerciseName
                                                     </span>
                                                 </div>
-                                                @if (programExercise.Error is not null)
-                                                {
-                                                    <div
-                                                        class="text-danger small"
-                                                        data-testid="program-exercise-error-@programExercise.Id"
-                                                    >
-                                                        @programExercise.Error
-                                                    </div>
-                                                }
+                                                <InlineError
+                                                    Message="@programExercise.Error"
+                                                    TestId="@($"program-exercise-error-{programExercise.Id}")"
+                                                />
                                             </td>
                                             <td>
                                                 <span class="badge text-bg-secondary" data-testid="program-exercise-type-@programExercise.Id">
@@ -550,29 +413,14 @@
                                             </td>
                                             <td>
                                                 <div class="name-actions">
-                                                    @if (programExercise.IsDirty)
-                                                    {
-                                                        <button
-                                                            class="btn btn-sm btn-icon btn-outline-dark"
-                                                            data-testid="program-exercise-save-@programExercise.Id"
-                                                            title="Save"
-                                                            disabled="@programExercise.IsSaving"
-                                                            @onclick="() => SaveProgramExerciseAsync(session, phase, programExercise)"
-                                                        >
-                                                            <i class="bi bi-floppy" aria-hidden="true"></i>
-                                                            <span class="visually-hidden">Save</span>
-                                                        </button>
-                                                        <button
-                                                            class="btn btn-sm btn-icon btn-outline-secondary"
-                                                            data-testid="program-exercise-revert-@programExercise.Id"
-                                                            title="Revert"
-                                                            disabled="@programExercise.IsSaving"
-                                                            @onclick="() => RevertProgramExercise(programExercise)"
-                                                        >
-                                                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
-                                                            <span class="visually-hidden">Revert</span>
-                                                        </button>
-                                                    }
+                                                    <SaveRevertButtons
+                                                        SaveTestId="@($"program-exercise-save-{programExercise.Id}")"
+                                                        RevertTestId="@($"program-exercise-revert-{programExercise.Id}")"
+                                                        IsDirty="@programExercise.IsDirty"
+                                                        IsSaving="@programExercise.IsSaving"
+                                                        OnSave="() => SaveProgramExerciseAsync(session, phase, programExercise)"
+                                                        OnRevert="() => RevertProgramExercise(programExercise)"
+                                                    />
                                                     <button
                                                         class="btn btn-sm btn-icon btn-outline-dark"
                                                         data-testid="program-exercise-duplicate-@programExercise.Id"
@@ -583,16 +431,11 @@
                                                         <i class="bi bi-copy" aria-hidden="true"></i>
                                                         <span class="visually-hidden">Duplicate</span>
                                                     </button>
-                                                    <button
-                                                        class="btn btn-sm btn-icon btn-outline-danger"
-                                                        data-testid="program-exercise-delete-@programExercise.Id"
-                                                        title="Delete"
-                                                        disabled="@programExercise.IsSaving"
-                                                        @onclick="() => DeleteProgramExerciseAsync(session, phase, programExercise)"
-                                                    >
-                                                        <i class="bi bi-trash" aria-hidden="true"></i>
-                                                        <span class="visually-hidden">Delete</span>
-                                                    </button>
+                                                    <DeleteButton
+                                                        TestId="@($"program-exercise-delete-{programExercise.Id}")"
+                                                        Disabled="@programExercise.IsSaving"
+                                                        OnClick="() => DeleteProgramExerciseAsync(session, phase, programExercise)"
+                                                    />
                                                 </div>
                                             </td>
                                         </tr>

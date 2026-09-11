@@ -38,6 +38,17 @@ consuming repo's `CLAUDE.md`.
   element repeated per row, suffix the id with the row's identifier
   (`data-testid="save-@row.Id"`) so tests can address one row without ambiguity.
 
+## Component accessibility and required parameters
+
+- A Razor component's generated class is always `public` -- the Razor SDK's code
+  generator provides no directive to make it `internal`, so components are exempt from
+  the baseline's `internal sealed`-by-default rule (a framework constraint, not an
+  oversight to flag in review).
+- Mark a `[Parameter]` `[EditorRequired]` whenever the component has no sensible default
+  for it (e.g. a `href`, a `data-testid`, a label) -- especially when the component
+  wraps `NavLink`, whose own required-`href` compile-time safety a wrapping component
+  would otherwise silently lose.
+
 ## Editable rows
 
 - A row with local unsaved edits is a working-value/saved-value pair: a mutable working

@@ -1,0 +1,30 @@
+<button
+    class="btn btn-sm btn-icon btn-outline-danger"
+    data-testid="@TestId"
+    title="Delete"
+    disabled="@Disabled"
+    @onclick="OnClick"
+>
+    <i class="bi bi-trash" aria-hidden="true"></i>
+    <span class="visually-hidden">Delete</span>
+</button>
+
+@code {
+    /// <summary>
+    /// Gets or sets the <c>data-testid</c> attribute value for the rendered button.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string TestId { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets whether the button is disabled.
+    /// </summary>
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnClick { get; set; }
+}
