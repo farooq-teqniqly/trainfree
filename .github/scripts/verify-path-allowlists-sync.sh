@@ -6,8 +6,8 @@
 # the push trigger repeats the filter's allowlist instead of referencing it --
 # and both PR #117 and PR #118 shipped with the two lists silently out of
 # sync. Extracts each list by line range (the `paths:` block ends at
-# `pull_request:`; the `code:` block ends at the blank line before `build:`)
-# and fails if they differ.
+# `pull_request:`; the `code:` block ends at the `build:` job) and fails if
+# they differ.
 #
 set -euo pipefail
 
@@ -32,13 +32,18 @@ extract_list() {
   { grep -E '^ *- ' || true; } | sed -E 's/^ *- "?([^"]*)"?$/\1/'
 }
 
+# The `code:` block's range ends at the `build:` job (a structural boundary),
+# not the first blank line -- a blank line is only formatting inside the
+# `filters: |` block and would truncate the extraction early if one were ever
+# inserted between entries, silently dropping any entries that follow it from
+# this comparison.
 push_list=$(sed -n '/^    paths:/,/^  pull_request:/p' "$workflow_file" | extract_list)
-filter_list=$(sed -n '/^            code:/,/^$/p' "$workflow_file" | extract_list)
+filter_list=$(sed -n '/^            code:/,/^  build:/p' "$workflow_file" | extract_list)
 
 if [[ -z "$push_list" || -z "$filter_list" ]]; then
   echo "Failed to extract one or both allowlists from $workflow_file -- the line-range" >&2
-  echo "markers this script depends on ('    paths:', '  pull_request:', '            code:')" >&2
-  echo "may have moved or been reformatted." >&2
+  echo "markers this script depends on ('    paths:', '  pull_request:', '            code:'," >&2
+  echo "'  build:') may have moved or been reformatted." >&2
   exit 1
 fi
 
