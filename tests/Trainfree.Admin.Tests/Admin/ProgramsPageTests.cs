@@ -1511,6 +1511,37 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public async Task AddPhase_ClickAddPhase_ShowsDropdownSortedByName()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([
+                new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up"),
+                new PhaseSummary(PhaseId.Parse("PHS-BBBBBB"), "Cool Down"),
+            ]);
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-phase-SNN-AAAAAA']").Click());
+
+        // Assert
+        var picker = cut.Find("[data-testid='phase-picker-SNN-AAAAAA']");
+        var names = picker.QuerySelectorAll("option").Select(o => o.TextContent).Skip(1).ToList();
+        Assert.Equal(["Cool Down", "Warm Up"], names);
+    }
+
+    [Fact]
     public async Task AddPhase_SelectPhase_CallsCreateAndAppendsRow()
     {
         // Arrange
@@ -1843,6 +1874,53 @@ public sealed class ProgramsPageTests : BunitContext
         // Assert
         var picker = cut.Find("[data-testid='exercise-picker-SPH-AAAAAA']");
         Assert.Contains("Bodyweight Squat", picker.InnerHtml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AddProgramExercise_ClickAddExercise_ShowsDropdownSortedByName()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns([
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-AAAAAA"),
+                    SessionId.Parse("SNN-AAAAAA"),
+                    PhaseId.Parse("PHS-AAAAAA")
+                ),
+            ]);
+        _exercisesApiClient
+            .GetExercisesAsync(CancellationToken.None)
+            .Returns([
+                new ExerciseSummary(ExerciseId.Parse("EXR-AAAAAA"), "Zercher Squat"),
+                new ExerciseSummary(ExerciseId.Parse("EXR-BBBBBB"), "Bodyweight Squat"),
+            ]);
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+
+        // Assert
+        var picker = cut.Find("[data-testid='exercise-picker-SPH-AAAAAA']");
+        var names = picker.QuerySelectorAll("option").Select(o => o.TextContent).Skip(1).ToList();
+        Assert.Equal(["Bodyweight Squat", "Zercher Squat"], names);
     }
 
     [Fact]
