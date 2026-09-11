@@ -1,0 +1,170 @@
+@using Trainfree.Admin.Admin
+
+<tr class="row-depth-1">
+    <td colspan="8">
+        <div class="name-cell">
+            <ChevronToggle
+                TestId="@($"session-chevron-{Session.Id}")"
+                Title="@ChevronTitle"
+                HasContent="@HasToggleableContent"
+                IsCollapsed="@IsCollapsed"
+                OnToggle="OnToggle"
+            />
+            <input
+                class="cell-input"
+                data-testid="session-name-input-@Session.Id"
+                value="@Session.Name"
+                autofocus="@IsEditing"
+                disabled="@Session.IsSaving"
+                @oninput="e => Session.Name = (string)e.Value!"
+                @onkeydown="OnNameKeyDownAsync" />
+            <div class="name-actions">
+                <SaveRevertButtons
+                    SaveTestId="@($"session-save-{Session.Id}")"
+                    RevertTestId="@($"session-revert-{Session.Id}")"
+                    IsDirty="@Session.IsDirty"
+                    IsSaving="@Session.IsSaving"
+                    OnSave="OnSave"
+                    OnRevert="OnRevert"
+                />
+                <button
+                    class="btn btn-sm btn-icon btn-outline-dark"
+                    data-testid="add-phase-@Session.Id"
+                    title="Add Phase"
+                    @onclick="OnAddPhase"
+                >
+                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                    <span class="visually-hidden">Add Phase</span>
+                </button>
+                <DeleteButton TestId="@($"session-delete-{Session.Id}")" OnClick="OnDelete" />
+            </div>
+        </div>
+        <InlineError Message="@Session.Error" TestId="@($"session-name-error-{Session.Id}")" />
+        @if (IsAddingPhase)
+        {
+            @if (PhaseLibraryLoadError is not null)
+            {
+                <InlineError
+                    Message="@PhaseLibraryLoadError"
+                    TestId="@($"phase-library-load-error-{Session.Id}")"
+                />
+            }
+            else if (PhaseLibrary.Count == 0)
+            {
+                <div class="text-muted small" data-testid="empty-phase-library-@Session.Id">
+                    No phases yet -- create one on the
+                    <NavLink href="phases">Phases</NavLink> page first.
+                </div>
+            }
+            else
+            {
+                <select
+                    class="form-select form-select-sm w-auto d-inline-block"
+                    data-testid="phase-picker-@Session.Id"
+                    @onchange="e => OnPhaseSelected.InvokeAsync((string)e.Value!)"
+                >
+                    <option value="">-- Select a phase --</option>
+                    @foreach (var phase in PhaseLibrary)
+                    {
+                        <option value="@phase.Id">@phase.Name</option>
+                    }
+                </select>
+            }
+        }
+    </td>
+</tr>
+
+@code {
+    /// <summary>
+    /// Gets or sets the row's editable state.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public SessionRow Session { get; set; } = null!;
+
+    /// <summary>
+    /// Gets or sets whether the row's phases are currently collapsed.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public bool IsCollapsed { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the name input should receive focus, because this row was just added.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public bool IsEditing { get; set; }
+
+    /// <summary>
+    /// Gets or sets the chevron button's title and accessible name.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string ChevronTitle { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets whether the row has phases (or a phases-load error) to expand or collapse.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public bool HasToggleableContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the add-phase picker is currently open for this row.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public bool IsAddingPhase { get; set; }
+
+    /// <summary>
+    /// Gets or sets the error message from the last failed phase library load, if any.
+    /// </summary>
+    [Parameter]
+    public string? PhaseLibraryLoadError { get; set; }
+
+    /// <summary>
+    /// Gets or sets the phase library offered in the add-phase picker.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<PhaseSummary> PhaseLibrary { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the chevron button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnToggle { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Save button is clicked, or Enter is pressed
+    /// in the dirty name input.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnSave { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Revert button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnRevert { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Add Phase button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnAddPhase { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Delete button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnDelete { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked with the selected phase id when a phase is picked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback<string> OnPhaseSelected { get; set; }
+
+    private async Task OnNameKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && Session.IsDirty)
+        {
+            await OnSave.InvokeAsync();
+        }
+    }
+}

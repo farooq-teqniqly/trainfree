@@ -85,88 +85,22 @@
                     }
                     @foreach (var session in row.Sessions)
                     {
-                        <tr class="row-depth-1">
-                            <td colspan="8">
-                                <div class="name-cell">
-                                    <ChevronToggle
-                                        TestId="@($"session-chevron-{session.Id}")"
-                                        Title="@SessionChevronTitle(session)"
-                                        HasContent="@HasToggleablePhaseContent(session)"
-                                        IsCollapsed="@_collapsedSessionIds.Contains(session.Id)"
-                                        OnToggle="() => ToggleCollapsedSession(session)"
-                                    />
-                                    <input
-                                        class="cell-input"
-                                        data-testid="session-name-input-@session.Id"
-                                        value="@session.Name"
-                                        autofocus="@(session.Id == _editingSessionId)"
-                                        disabled="@session.IsSaving"
-                                        @oninput="e => session.Name = (string)e.Value!"
-                                        @onkeydown="e => OnSessionNameKeyDownAsync(e, session)" />
-                                    <div class="name-actions">
-                                        <SaveRevertButtons
-                                            SaveTestId="@($"session-save-{session.Id}")"
-                                            RevertTestId="@($"session-revert-{session.Id}")"
-                                            IsDirty="@session.IsDirty"
-                                            IsSaving="@session.IsSaving"
-                                            OnSave="() => RenameSessionAsync(session)"
-                                            OnRevert="() => RevertSession(session)"
-                                        />
-                                        <button
-                                            class="btn btn-sm btn-icon btn-outline-dark"
-                                            data-testid="add-phase-@session.Id"
-                                            title="Add Phase"
-                                            @onclick="() => ShowAddPhasePicker(session)"
-                                        >
-                                            <i class="bi bi-plus-circle" aria-hidden="true"></i>
-                                            <span class="visually-hidden">Add Phase</span>
-                                        </button>
-                                        <DeleteButton
-                                            TestId="@($"session-delete-{session.Id}")"
-                                            OnClick="() => DeleteSessionAsync(row, session)"
-                                        />
-                                    </div>
-                                </div>
-                                <InlineError
-                                    Message="@session.Error"
-                                    TestId="@($"session-name-error-{session.Id}")"
-                                />
-                                @if (_addingPhaseSessionId == session.Id)
-                                {
-                                    @if (_phaseLibraryLoadError is not null)
-                                    {
-                                        <InlineError
-                                            Message="@_phaseLibraryLoadError"
-                                            TestId="@($"phase-library-load-error-{session.Id}")"
-                                        />
-                                    }
-                                    else if (_phaseLibrary.Count == 0)
-                                    {
-                                        <div
-                                            class="text-muted small"
-                                            data-testid="empty-phase-library-@session.Id"
-                                        >
-                                            No phases yet -- create one on the
-                                            <NavLink href="phases">Phases</NavLink> page first.
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <select
-                                            class="form-select form-select-sm w-auto d-inline-block"
-                                            data-testid="phase-picker-@session.Id"
-                                            @onchange="e => AddPhaseAsync(session, (string)e.Value!)"
-                                        >
-                                            <option value="">-- Select a phase --</option>
-                                            @foreach (var phase in _phaseLibrary)
-                                            {
-                                                <option value="@phase.Id">@phase.Name</option>
-                                            }
-                                        </select>
-                                    }
-                                }
-                            </td>
-                        </tr>
+                        <SessionTableRow
+                            Session="session"
+                            IsCollapsed="@_collapsedSessionIds.Contains(session.Id)"
+                            IsEditing="@(session.Id == _editingSessionId)"
+                            ChevronTitle="@SessionChevronTitle(session)"
+                            HasToggleableContent="@HasToggleablePhaseContent(session)"
+                            IsAddingPhase="@(_addingPhaseSessionId == session.Id)"
+                            PhaseLibraryLoadError="@_phaseLibraryLoadError"
+                            PhaseLibrary="_phaseLibrary"
+                            OnToggle="() => ToggleCollapsedSession(session)"
+                            OnSave="() => RenameSessionAsync(session)"
+                            OnRevert="() => RevertSession(session)"
+                            OnAddPhase="() => ShowAddPhasePicker(session)"
+                            OnDelete="() => DeleteSessionAsync(row, session)"
+                            OnPhaseSelected="phaseId => AddPhaseAsync(session, phaseId)"
+                        />
                         @if (!_collapsedSessionIds.Contains(session.Id))
                         {
                             @if (session.PhasesLoadError is not null)
@@ -1034,14 +968,6 @@
         finally
         {
             session.IsSaving = false;
-        }
-    }
-
-    private async Task OnSessionNameKeyDownAsync(KeyboardEventArgs e, SessionRow session)
-    {
-        if (e.Key == "Enter" && session.IsDirty)
-        {
-            await RenameSessionAsync(session);
         }
     }
 
