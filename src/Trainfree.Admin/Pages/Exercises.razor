@@ -19,26 +19,12 @@
     </div>
     @if (_rows.Count > 0)
     {
-        <button
-            class="btn btn-dark"
-            data-testid="add-exercise"
-            @onclick="AddExerciseAsync"
-        >
-            <i class="bi bi-plus-circle" aria-hidden="true"></i>
-            Add Exercise
-        </button>
+        <AddButton TestId="add-exercise" Label="Add Exercise" OnClick="AddExerciseAsync" />
     }
 </div>
 
-@if (_addExerciseError is not null)
-{
-    <div class="text-danger small mb-2" data-testid="add-exercise-error">@_addExerciseError</div>
-}
-
-@if (_loadError is not null)
-{
-    <div class="text-danger small mb-2" data-testid="load-exercises-error">@_loadError</div>
-}
+<InlineError Message="@_addExerciseError" TestId="add-exercise-error" Class="mb-2" />
+<InlineError Message="@_loadError" TestId="load-exercises-error" Class="mb-2" />
 
 @if (_rows.Count == 0)
 {
@@ -52,10 +38,7 @@
             things like "Bodyweight Squat" or "Skater Jump". Add your first one, then
             pick it from any program instead of typing it out.
         </p>
-        <button class="btn btn-dark" data-testid="add-exercise-empty" @onclick="AddExerciseAsync">
-            <i class="bi bi-plus-circle" aria-hidden="true"></i>
-            Add Exercise
-        </button>
+        <AddButton TestId="add-exercise-empty" Label="Add Exercise" OnClick="AddExerciseAsync" />
     </div>
 }
 else
@@ -82,46 +65,18 @@ else
                                     @oninput="e => row.Name = (string)e.Value!"
                                     @onkeydown="e => OnNameKeyDownAsync(e, row)" />
                                 <div class="name-actions">
-                                    @if (row.IsDirty)
-                                    {
-                                        <button
-                                            class="btn btn-sm btn-icon btn-outline-dark"
-                                            data-testid="save-@row.Id"
-                                            title="Save"
-                                            disabled="@row.IsSaving"
-                                            @onclick="() => RenameAsync(row)"
-                                        >
-                                            <i class="bi bi-floppy" aria-hidden="true"></i>
-                                            <span class="visually-hidden">Save</span>
-                                        </button>
-                                        <button
-                                            class="btn btn-sm btn-icon btn-outline-secondary"
-                                            data-testid="revert-@row.Id"
-                                            title="Revert"
-                                            disabled="@row.IsSaving"
-                                            @onclick="() => Revert(row)"
-                                        >
-                                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
-                                            <span class="visually-hidden">Revert</span>
-                                        </button>
-                                    }
-                                    <button
-                                        class="btn btn-sm btn-icon btn-outline-danger"
-                                        data-testid="delete-@row.Id"
-                                        title="Delete"
-                                        @onclick="() => DeleteAsync(row)"
-                                    >
-                                        <i class="bi bi-trash" aria-hidden="true"></i>
-                                        <span class="visually-hidden">Delete</span>
-                                    </button>
+                                    <SaveRevertButtons
+                                        SaveTestId="@($"save-{row.Id}")"
+                                        RevertTestId="@($"revert-{row.Id}")"
+                                        IsDirty="@row.IsDirty"
+                                        IsSaving="@row.IsSaving"
+                                        OnSave="() => RenameAsync(row)"
+                                        OnRevert="() => Revert(row)"
+                                    />
+                                    <DeleteButton TestId="@($"delete-{row.Id}")" OnClick="() => DeleteAsync(row)" />
                                 </div>
                             </div>
-                            @if (row.Error is not null)
-                            {
-                                <div class="text-danger small" data-testid="name-error-@row.Id">
-                                    @row.Error
-                                </div>
-                            }
+                            <InlineError Message="@row.Error" TestId="@($"name-error-{row.Id}")" />
                         </td>
                     </tr>
                 }

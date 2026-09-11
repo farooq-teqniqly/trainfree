@@ -1,0 +1,61 @@
+@if (IsDirty)
+{
+    <button
+        class="btn btn-sm btn-icon btn-outline-dark"
+        data-testid="@SaveTestId"
+        title="Save"
+        disabled="@IsSaving"
+        @onclick="OnSave"
+    >
+        <i class="bi bi-floppy" aria-hidden="true"></i>
+        <span class="visually-hidden">Save</span>
+    </button>
+    <button
+        class="btn btn-sm btn-icon btn-outline-secondary"
+        data-testid="@RevertTestId"
+        title="Revert"
+        disabled="@IsSaving"
+        @onclick="OnRevert"
+    >
+        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+        <span class="visually-hidden">Revert</span>
+    </button>
+}
+
+@code {
+    /// <summary>
+    /// Gets or sets the <c>data-testid</c> attribute value for the Save button.
+    /// </summary>
+    [Parameter]
+    public string SaveTestId { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the <c>data-testid</c> attribute value for the Revert button.
+    /// </summary>
+    [Parameter]
+    public string RevertTestId { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets whether the row has unsaved changes. Nothing renders when <see langword="false" />.
+    /// </summary>
+    [Parameter]
+    public bool IsDirty { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether a save is in progress, disabling both buttons.
+    /// </summary>
+    [Parameter]
+    public bool IsSaving { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Save button is clicked.
+    /// </summary>
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Revert button is clicked.
+    /// </summary>
+    [Parameter]
+    public EventCallback OnRevert { get; set; }
+}

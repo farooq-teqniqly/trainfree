@@ -1,0 +1,25 @@
+@if (Message is not null)
+{
+    <div class="text-danger small @Class" data-testid="@TestId">@Message</div>
+}
+
+@code {
+    /// <summary>
+    /// Gets or sets the error text to display. Nothing renders when this is <see langword="null" />.
+    /// </summary>
+    [Parameter]
+    public string? Message { get; set; }
+
+    /// <summary>
+    /// Gets or sets the <c>data-testid</c> attribute value for the rendered error element.
+    /// </summary>
+    [Parameter]
+    public string TestId { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets an additional CSS class appended to the rendered element, such as <c>mb-2</c>
+    /// for page-level errors.
+    /// </summary>
+    [Parameter]
+    public string? Class { get; set; }
+}

@@ -1,0 +1,47 @@
+<button
+    class="btn btn-sm btn-icon chevron-btn"
+    data-testid="@TestId"
+    title="@Title"
+    aria-expanded="@(HasContent && !IsCollapsed ? "true" : "false")"
+    disabled="@(!HasContent)"
+    @onclick="OnToggle"
+>
+    <i
+        class="bi bi-chevron-down @(HasContent && IsCollapsed ? "chevron-collapsed" : "")"
+        aria-hidden="true"
+    ></i>
+    <span class="visually-hidden">@Title</span>
+</button>
+
+@code {
+    /// <summary>
+    /// Gets or sets the <c>data-testid</c> attribute value for the rendered button.
+    /// </summary>
+    [Parameter]
+    public string TestId { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the button's title and accessible name.
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets whether the row has content to expand or collapse. When <see langword="false" />,
+    /// the button is disabled.
+    /// </summary>
+    [Parameter]
+    public bool HasContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the row's content is currently collapsed.
+    /// </summary>
+    [Parameter]
+    public bool IsCollapsed { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the button is clicked.
+    /// </summary>
+    [Parameter]
+    public EventCallback OnToggle { get; set; }
+}

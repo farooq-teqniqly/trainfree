@@ -1,0 +1,24 @@
+<button class="btn btn-dark" data-testid="@TestId" @onclick="OnClick">
+    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+    @Label
+</button>
+
+@code {
+    /// <summary>
+    /// Gets or sets the <c>data-testid</c> attribute value for the rendered button.
+    /// </summary>
+    [Parameter]
+    public string TestId { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the button's visible label text.
+    /// </summary>
+    [Parameter]
+    public string Label { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the button is clicked.
+    /// </summary>
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+}

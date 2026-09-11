@@ -1,0 +1,51 @@
+<NavLink class="card h-100 text-decoration-none text-body tile" href="@Href" data-testid="@TestId">
+    <div class="card-body">
+        <div class="tile-icon" aria-hidden="true">
+            <i class="bi @IconClass"></i>
+        </div>
+        <h2 class="h5 card-title">@Title</h2>
+        <p class="card-text">@Description</p>
+        <span class="tile-link">
+            @LinkLabel
+            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+        </span>
+    </div>
+</NavLink>
+
+@code {
+    /// <summary>
+    /// Gets or sets the route the card navigates to.
+    /// </summary>
+    [Parameter]
+    public string Href { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the <c>data-testid</c> attribute value for the rendered card.
+    /// </summary>
+    [Parameter]
+    public string TestId { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the Bootstrap Icons class (e.g. <c>bi-grid-3x3-gap-fill</c>) shown above the title.
+    /// </summary>
+    [Parameter]
+    public string IconClass { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the card's title.
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the card's descriptive body text.
+    /// </summary>
+    [Parameter]
+    public string Description { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the call-to-action text shown next to the trailing chevron.
+    /// </summary>
+    [Parameter]
+    public string LinkLabel { get; set; } = "";
+}
