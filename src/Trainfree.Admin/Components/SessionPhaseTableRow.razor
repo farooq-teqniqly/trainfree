@@ -1,0 +1,138 @@
+@using Trainfree.Admin.Admin
+
+<tr class="row-depth-2">
+    <td colspan="8">
+        <div class="name-cell">
+            <ChevronToggle
+                TestId="@($"phase-chevron-{Phase.Id}")"
+                Title="@ChevronTitle"
+                HasContent="@HasToggleableContent"
+                IsCollapsed="@IsCollapsed"
+                OnToggle="OnToggle"
+            />
+            <span data-testid="phase-name-@Phase.Id">@Phase.DisplayName</span>
+            <div class="name-actions">
+                <button
+                    class="btn btn-sm btn-icon btn-outline-dark"
+                    data-testid="add-exercise-@Phase.Id"
+                    title="Add Exercise"
+                    disabled="@IsAddExerciseDisabled"
+                    @onclick="OnAddExercise"
+                >
+                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                    <span class="visually-hidden">Add Exercise</span>
+                </button>
+                <DeleteButton TestId="@($"phase-delete-{Phase.Id}")" OnClick="OnDelete" />
+            </div>
+        </div>
+        <InlineError Message="@Phase.Error" TestId="@($"phase-error-{Phase.Id}")" />
+        <InlineError
+            Message="@Phase.AddExerciseError"
+            TestId="@($"add-exercise-error-{Phase.Id}")"
+        />
+        @if (IsAddingExercise)
+        {
+            @if (ExerciseLibraryLoadError is not null)
+            {
+                <InlineError
+                    Message="@ExerciseLibraryLoadError"
+                    TestId="@($"exercise-library-load-error-{Phase.Id}")"
+                />
+            }
+            else if (ExerciseLibrary.Count == 0)
+            {
+                <div class="text-muted small" data-testid="empty-exercise-library-@Phase.Id">
+                    No exercises yet -- create one on the
+                    <NavLink href="exercises">Exercises</NavLink> page first.
+                </div>
+            }
+            else
+            {
+                <AddExerciseForm
+                    @key="@($"{Phase.Id}-{Phase.AddExerciseFormGeneration}")"
+                    PhaseId="Phase.Id"
+                    Exercises="ExerciseLibrary"
+                    IsSubmitting="Phase.IsAddingExercise"
+                    OnSubmit="OnSubmitExercise"
+                />
+            }
+        }
+    </td>
+</tr>
+
+@code {
+    /// <summary>
+    /// Gets or sets the row's state.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public SessionPhaseRow Phase { get; set; } = null!;
+
+    /// <summary>
+    /// Gets or sets whether the row's exercises are currently collapsed.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public bool IsCollapsed { get; set; }
+
+    /// <summary>
+    /// Gets or sets the chevron button's title and accessible name.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string ChevronTitle { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets whether the row has exercises (or an exercises-load error) to expand or
+    /// collapse.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public bool HasToggleableContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the Add Exercise button is disabled, because another phase's
+    /// add-exercise submission is in flight.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public bool IsAddExerciseDisabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the add-exercise form is currently open for this row.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public bool IsAddingExercise { get; set; }
+
+    /// <summary>
+    /// Gets or sets the error message from the last failed exercise library load, if any.
+    /// </summary>
+    [Parameter]
+    public string? ExerciseLibraryLoadError { get; set; }
+
+    /// <summary>
+    /// Gets or sets the exercise library offered in the add-exercise form.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ExerciseSummary> ExerciseLibrary { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the chevron button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnToggle { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Add Exercise button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnAddExercise { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Delete button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnDelete { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked with the entered values when the add-exercise form is
+    /// submitted.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback<AddProgramExerciseFormSubmission> OnSubmitExercise { get; set; }
+}

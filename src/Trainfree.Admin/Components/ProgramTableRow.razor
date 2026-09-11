@@ -1,0 +1,113 @@
+<tr class="row-depth-0">
+    <td colspan="8">
+        <div class="name-cell">
+            <ChevronToggle
+                TestId="@($"chevron-{Row.Id}")"
+                Title="@ChevronTitle"
+                HasContent="@HasToggleableContent"
+                IsCollapsed="@IsCollapsed"
+                OnToggle="OnToggle"
+            />
+            <input
+                class="cell-input"
+                data-testid="name-input-@Row.Id"
+                value="@Row.Name"
+                autofocus="@IsEditing"
+                disabled="@Row.IsSaving"
+                @oninput="e => Row.Name = (string)e.Value!"
+                @onkeydown="OnNameKeyDownAsync" />
+            <div class="name-actions">
+                <SaveRevertButtons
+                    SaveTestId="@($"save-{Row.Id}")"
+                    RevertTestId="@($"revert-{Row.Id}")"
+                    IsDirty="@Row.IsDirty"
+                    IsSaving="@Row.IsSaving"
+                    OnSave="OnSave"
+                    OnRevert="OnRevert"
+                />
+                <button
+                    class="btn btn-sm btn-icon btn-outline-dark"
+                    data-testid="add-session-@Row.Id"
+                    title="Add Session"
+                    @onclick="OnAddSession"
+                >
+                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                    <span class="visually-hidden">Add Session</span>
+                </button>
+                <DeleteButton TestId="@($"delete-{Row.Id}")" OnClick="OnDelete" />
+            </div>
+        </div>
+        <InlineError Message="@Row.Error" TestId="@($"name-error-{Row.Id}")" />
+    </td>
+</tr>
+
+@code {
+    /// <summary>
+    /// Gets or sets the row's editable state.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public ProgramRow Row { get; set; } = null!;
+
+    /// <summary>
+    /// Gets or sets whether the row's sessions are currently collapsed.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public bool IsCollapsed { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the name input should receive focus, because this row was just added.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public bool IsEditing { get; set; }
+
+    /// <summary>
+    /// Gets or sets the chevron button's title and accessible name.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string ChevronTitle { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets whether the row has sessions (or a sessions-load error) to expand or collapse.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public bool HasToggleableContent { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the chevron button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnToggle { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Save button is clicked, or Enter is pressed
+    /// in the dirty name input.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnSave { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Revert button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnRevert { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Add Session button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnAddSession { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Delete button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnDelete { get; set; }
+
+    private async Task OnNameKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && Row.IsDirty)
+        {
+            await OnSave.InvokeAsync();
+        }
+    }
+}

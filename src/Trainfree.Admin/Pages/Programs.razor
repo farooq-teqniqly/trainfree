@@ -58,48 +58,18 @@
         <tbody>
             @foreach (var row in _rows)
             {
-                <tr class="row-depth-0">
-                    <td colspan="8">
-                        <div class="name-cell">
-                            <ChevronToggle
-                                TestId="@($"chevron-{row.Id}")"
-                                Title="@ChevronTitle(row)"
-                                HasContent="@HasToggleableContent(row)"
-                                IsCollapsed="@_collapsedIds.Contains(row.Id)"
-                                OnToggle="() => ToggleCollapsed(row)"
-                            />
-                            <input
-                                class="cell-input"
-                                data-testid="name-input-@row.Id"
-                                value="@row.Name"
-                                autofocus="@(row.Id == _editingId)"
-                                disabled="@row.IsSaving"
-                                @oninput="e => row.Name = (string)e.Value!"
-                                @onkeydown="e => OnProgramNameKeyDownAsync(e, row)" />
-                            <div class="name-actions">
-                                <SaveRevertButtons
-                                    SaveTestId="@($"save-{row.Id}")"
-                                    RevertTestId="@($"revert-{row.Id}")"
-                                    IsDirty="@row.IsDirty"
-                                    IsSaving="@row.IsSaving"
-                                    OnSave="() => RenameAsync(row)"
-                                    OnRevert="() => Revert(row)"
-                                />
-                                <button
-                                    class="btn btn-sm btn-icon btn-outline-dark"
-                                    data-testid="add-session-@row.Id"
-                                    title="Add Session"
-                                    @onclick="() => AddSessionAsync(row)"
-                                >
-                                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
-                                    <span class="visually-hidden">Add Session</span>
-                                </button>
-                                <DeleteButton TestId="@($"delete-{row.Id}")" OnClick="() => DeleteAsync(row)" />
-                            </div>
-                        </div>
-                        <InlineError Message="@row.Error" TestId="@($"name-error-{row.Id}")" />
-                    </td>
-                </tr>
+                <ProgramTableRow
+                    Row="row"
+                    IsCollapsed="@_collapsedIds.Contains(row.Id)"
+                    IsEditing="@(row.Id == _editingId)"
+                    ChevronTitle="@ChevronTitle(row)"
+                    HasToggleableContent="@HasToggleableContent(row)"
+                    OnToggle="() => ToggleCollapsed(row)"
+                    OnSave="() => RenameAsync(row)"
+                    OnRevert="() => Revert(row)"
+                    OnAddSession="() => AddSessionAsync(row)"
+                    OnDelete="() => DeleteAsync(row)"
+                />
                 @if (!_collapsedIds.Contains(row.Id))
                 {
                     @if (row.SessionsLoadError is not null)
@@ -115,88 +85,22 @@
                     }
                     @foreach (var session in row.Sessions)
                     {
-                        <tr class="row-depth-1">
-                            <td colspan="8">
-                                <div class="name-cell">
-                                    <ChevronToggle
-                                        TestId="@($"session-chevron-{session.Id}")"
-                                        Title="@SessionChevronTitle(session)"
-                                        HasContent="@HasToggleablePhaseContent(session)"
-                                        IsCollapsed="@_collapsedSessionIds.Contains(session.Id)"
-                                        OnToggle="() => ToggleCollapsedSession(session)"
-                                    />
-                                    <input
-                                        class="cell-input"
-                                        data-testid="session-name-input-@session.Id"
-                                        value="@session.Name"
-                                        autofocus="@(session.Id == _editingSessionId)"
-                                        disabled="@session.IsSaving"
-                                        @oninput="e => session.Name = (string)e.Value!"
-                                        @onkeydown="e => OnSessionNameKeyDownAsync(e, session)" />
-                                    <div class="name-actions">
-                                        <SaveRevertButtons
-                                            SaveTestId="@($"session-save-{session.Id}")"
-                                            RevertTestId="@($"session-revert-{session.Id}")"
-                                            IsDirty="@session.IsDirty"
-                                            IsSaving="@session.IsSaving"
-                                            OnSave="() => RenameSessionAsync(session)"
-                                            OnRevert="() => RevertSession(session)"
-                                        />
-                                        <button
-                                            class="btn btn-sm btn-icon btn-outline-dark"
-                                            data-testid="add-phase-@session.Id"
-                                            title="Add Phase"
-                                            @onclick="() => ShowAddPhasePicker(session)"
-                                        >
-                                            <i class="bi bi-plus-circle" aria-hidden="true"></i>
-                                            <span class="visually-hidden">Add Phase</span>
-                                        </button>
-                                        <DeleteButton
-                                            TestId="@($"session-delete-{session.Id}")"
-                                            OnClick="() => DeleteSessionAsync(row, session)"
-                                        />
-                                    </div>
-                                </div>
-                                <InlineError
-                                    Message="@session.Error"
-                                    TestId="@($"session-name-error-{session.Id}")"
-                                />
-                                @if (_addingPhaseSessionId == session.Id)
-                                {
-                                    @if (_phaseLibraryLoadError is not null)
-                                    {
-                                        <InlineError
-                                            Message="@_phaseLibraryLoadError"
-                                            TestId="@($"phase-library-load-error-{session.Id}")"
-                                        />
-                                    }
-                                    else if (_phaseLibrary.Count == 0)
-                                    {
-                                        <div
-                                            class="text-muted small"
-                                            data-testid="empty-phase-library-@session.Id"
-                                        >
-                                            No phases yet -- create one on the
-                                            <NavLink href="phases">Phases</NavLink> page first.
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <select
-                                            class="form-select form-select-sm w-auto d-inline-block"
-                                            data-testid="phase-picker-@session.Id"
-                                            @onchange="e => AddPhaseAsync(session, (string)e.Value!)"
-                                        >
-                                            <option value="">-- Select a phase --</option>
-                                            @foreach (var phase in _phaseLibrary)
-                                            {
-                                                <option value="@phase.Id">@phase.Name</option>
-                                            }
-                                        </select>
-                                    }
-                                }
-                            </td>
-                        </tr>
+                        <SessionTableRow
+                            Session="session"
+                            IsCollapsed="@_collapsedSessionIds.Contains(session.Id)"
+                            IsEditing="@(session.Id == _editingSessionId)"
+                            ChevronTitle="@SessionChevronTitle(session)"
+                            HasToggleableContent="@HasToggleablePhaseContent(session)"
+                            IsAddingPhase="@(_addingPhaseSessionId == session.Id)"
+                            PhaseLibraryLoadError="@_phaseLibraryLoadError"
+                            PhaseLibrary="_phaseLibrary"
+                            OnToggle="() => ToggleCollapsedSession(session)"
+                            OnSave="() => RenameSessionAsync(session)"
+                            OnRevert="() => RevertSession(session)"
+                            OnAddPhase="() => ShowAddPhasePicker(session)"
+                            OnDelete="() => DeleteSessionAsync(row, session)"
+                            OnPhaseSelected="phaseId => AddPhaseAsync(session, phaseId)"
+                        />
                         @if (!_collapsedSessionIds.Contains(session.Id))
                         {
                             @if (session.PhasesLoadError is not null)
@@ -212,71 +116,20 @@
                             }
                             @foreach (var phase in session.Phases)
                             {
-                                <tr class="row-depth-2">
-                                    <td colspan="8">
-                                        <div class="name-cell">
-                                            <ChevronToggle
-                                                TestId="@($"phase-chevron-{phase.Id}")"
-                                                Title="@PhaseChevronTitle(phase)"
-                                                HasContent="@HasToggleableExerciseContent(phase)"
-                                                IsCollapsed="@_collapsedSessionPhaseIds.Contains(phase.Id)"
-                                                OnToggle="() => ToggleCollapsedSessionPhase(phase)"
-                                            />
-                                            <span data-testid="phase-name-@phase.Id">@phase.DisplayName</span>
-                                            <div class="name-actions">
-                                                <button
-                                                    class="btn btn-sm btn-icon btn-outline-dark"
-                                                    data-testid="add-exercise-@phase.Id"
-                                                    title="Add Exercise"
-                                                    disabled="@(_submittingAddExercisePhaseId is not null)"
-                                                    @onclick="() => ShowAddExercisePicker(phase)"
-                                                >
-                                                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
-                                                    <span class="visually-hidden">Add Exercise</span>
-                                                </button>
-                                                <DeleteButton
-                                                    TestId="@($"phase-delete-{phase.Id}")"
-                                                    OnClick="() => DeleteSessionPhaseAsync(session, phase)"
-                                                />
-                                            </div>
-                                        </div>
-                                        <InlineError Message="@phase.Error" TestId="@($"phase-error-{phase.Id}")" />
-                                        <InlineError
-                                            Message="@phase.AddExerciseError"
-                                            TestId="@($"add-exercise-error-{phase.Id}")"
-                                        />
-                                        @if (_addingExerciseSessionPhaseId == phase.Id)
-                                        {
-                                            @if (_exerciseLibraryLoadError is not null)
-                                            {
-                                                <InlineError
-                                                    Message="@_exerciseLibraryLoadError"
-                                                    TestId="@($"exercise-library-load-error-{phase.Id}")"
-                                                />
-                                            }
-                                            else if (_exerciseLibrary.Count == 0)
-                                            {
-                                                <div
-                                                    class="text-muted small"
-                                                    data-testid="empty-exercise-library-@phase.Id"
-                                                >
-                                                    No exercises yet -- create one on the
-                                                    <NavLink href="exercises">Exercises</NavLink> page first.
-                                                </div>
-                                            }
-                                            else
-                                            {
-                                                <AddExerciseForm
-                                                    @key="@($"{phase.Id}-{phase.AddExerciseFormGeneration}")"
-                                                    PhaseId="phase.Id"
-                                                    Exercises="_exerciseLibrary"
-                                                    IsSubmitting="phase.IsAddingExercise"
-                                                    OnSubmit="submission => AddProgramExerciseAsync(session, phase, submission)"
-                                                />
-                                            }
-                                        }
-                                    </td>
-                                </tr>
+                                <SessionPhaseTableRow
+                                    Phase="phase"
+                                    IsCollapsed="@_collapsedSessionPhaseIds.Contains(phase.Id)"
+                                    ChevronTitle="@PhaseChevronTitle(phase)"
+                                    HasToggleableContent="@HasToggleableExerciseContent(phase)"
+                                    IsAddExerciseDisabled="@(_submittingAddExercisePhaseId is not null)"
+                                    IsAddingExercise="@(_addingExerciseSessionPhaseId == phase.Id)"
+                                    ExerciseLibraryLoadError="@_exerciseLibraryLoadError"
+                                    ExerciseLibrary="_exerciseLibrary"
+                                    OnToggle="() => ToggleCollapsedSessionPhase(phase)"
+                                    OnAddExercise="() => ShowAddExercisePicker(phase)"
+                                    OnDelete="() => DeleteSessionPhaseAsync(session, phase)"
+                                    OnSubmitExercise="submission => AddProgramExerciseAsync(session, phase, submission)"
+                                />
                                 @if (!_collapsedSessionPhaseIds.Contains(phase.Id))
                                 {
                                     @if (phase.ProgramExercisesLoadError is not null)
@@ -406,7 +259,7 @@
             foreach (var session in sessions)
             {
                 var sessionRow = new SessionRow(session.Id, programId, session.Name);
-                row.Sessions.Add(sessionRow);
+                row.AddSession(sessionRow);
                 await LoadSessionPhasesAsync(sessionRow, programId, session.Id);
             }
         }
@@ -440,7 +293,7 @@
                     sessionPhase.PhaseId,
                     ResolvePhaseName(sessionPhase.PhaseId)
                 );
-                sessionRow.Phases.Add(sessionPhaseRow);
+                sessionRow.AddPhase(sessionPhaseRow);
                 await LoadProgramExercisesAsync(sessionPhaseRow, programId, sessionId, sessionPhase.Id);
             }
         }
@@ -472,7 +325,7 @@
                 sessionId,
                 sessionPhaseId
             );
-            sessionPhaseRow.ProgramExercises.AddRange(
+            sessionPhaseRow.AddProgramExercises(
                 programExercises.Select(pe => new ProgramExerciseRow(
                     pe,
                     ResolveExerciseName(pe.ExerciseId)
@@ -621,7 +474,7 @@
             switch (outcome)
             {
                 case CreateProgramExerciseSucceeded succeeded:
-                    phase.ProgramExercises.Add(
+                    phase.AddProgramExercise(
                         new ProgramExerciseRow(
                             succeeded.ProgramExercise,
                             ResolveExerciseName(succeeded.ProgramExercise.ExerciseId)
@@ -764,7 +617,7 @@
             row.Error = null;
             var created = ((CreateProgramExerciseSucceeded)createOutcome).ProgramExercise;
             var newRow = new ProgramExerciseRow(created, ResolveExerciseName(created.ExerciseId));
-            phase.ProgramExercises.Add(newRow);
+            phase.AddProgramExercise(newRow);
 
             var update = new ProgramExerciseUpdate(
                 Reps: row.IsTimed ? null : row.SavedCount,
@@ -829,7 +682,7 @@
             switch (outcome)
             {
                 case DeleteProgramExerciseSucceeded:
-                    phase.ProgramExercises.Remove(row);
+                    phase.RemoveProgramExercise(row);
                     break;
                 case DeleteProgramExerciseFailed failed:
                     row.Error = failed.Error;
@@ -895,7 +748,7 @@
         switch (outcome)
         {
             case CreateSessionPhaseSucceeded succeeded:
-                session.Phases.Add(
+                session.AddPhase(
                     new SessionPhaseRow(
                         succeeded.SessionPhase.Id,
                         succeeded.SessionPhase.PhaseId,
@@ -923,7 +776,7 @@
         switch (outcome)
         {
             case DeleteSessionPhaseSucceeded:
-                session.Phases.Remove(phase);
+                session.RemovePhase(phase);
                 break;
             case DeleteSessionPhaseFailed failed:
                 phase.Error = failed.Error;
@@ -986,14 +839,6 @@
         }
     }
 
-    private async Task OnProgramNameKeyDownAsync(KeyboardEventArgs e, ProgramRow row)
-    {
-        if (e.Key == "Enter" && row.IsDirty)
-        {
-            await RenameAsync(row);
-        }
-    }
-
     private static void Revert(ProgramRow row)
     {
         row.Name = row.SavedName;
@@ -1021,7 +866,7 @@
         switch (outcome)
         {
             case CreateSessionSucceeded succeeded:
-                row.Sessions.Add(
+                row.AddSession(
                     new SessionRow(succeeded.Session.Id, row.Id, succeeded.Session.Name)
                 );
                 _editingSessionId = succeeded.Session.Id;
@@ -1075,14 +920,6 @@
         }
     }
 
-    private async Task OnSessionNameKeyDownAsync(KeyboardEventArgs e, SessionRow session)
-    {
-        if (e.Key == "Enter" && session.IsDirty)
-        {
-            await RenameSessionAsync(session);
-        }
-    }
-
     private static void RevertSession(SessionRow session)
     {
         session.Name = session.SavedName;
@@ -1095,7 +932,7 @@
         switch (outcome)
         {
             case DeleteSessionSucceeded:
-                row.Sessions.Remove(session);
+                row.RemoveSession(session);
                 if (!HasToggleableContent(row))
                 {
                     _collapsedIds.Remove(row.Id);
@@ -1109,63 +946,4 @@
         }
     }
 
-    private sealed class ProgramRow
-    {
-        public ProgramRow(ProgramId id, string name)
-        {
-            Id = id;
-            Name = name;
-            SavedName = name;
-        }
-
-        public ProgramId Id { get; }
-        public string Name { get; set; }
-        public string SavedName { get; set; }
-        public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
-        public bool IsSaving { get; set; }
-        public string? Error { get; set; }
-        public string? SessionsLoadError { get; set; }
-        public List<SessionRow> Sessions { get; } = [];
-    }
-
-    private sealed class SessionRow
-    {
-        public SessionRow(SessionId id, ProgramId programId, string name)
-        {
-            Id = id;
-            ProgramId = programId;
-            Name = name;
-            SavedName = name;
-        }
-
-        public SessionId Id { get; }
-        public ProgramId ProgramId { get; }
-        public string Name { get; set; }
-        public string SavedName { get; set; }
-        public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
-        public bool IsSaving { get; set; }
-        public string? Error { get; set; }
-        public string? PhasesLoadError { get; set; }
-        public List<SessionPhaseRow> Phases { get; } = [];
-    }
-
-    private sealed class SessionPhaseRow
-    {
-        public SessionPhaseRow(SessionPhaseId id, PhaseId phaseId, string displayName)
-        {
-            Id = id;
-            PhaseId = phaseId;
-            DisplayName = displayName;
-        }
-
-        public SessionPhaseId Id { get; }
-        public PhaseId PhaseId { get; }
-        public string DisplayName { get; }
-        public string? Error { get; set; }
-        public string? ProgramExercisesLoadError { get; set; }
-        public string? AddExerciseError { get; set; }
-        public bool IsAddingExercise { get; set; }
-        public int AddExerciseFormGeneration { get; set; }
-        public List<ProgramExerciseRow> ProgramExercises { get; } = [];
-    }
 }
