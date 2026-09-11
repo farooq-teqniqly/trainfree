@@ -23,13 +23,20 @@ fi
 # list from both extracted strings -- leaving them equal and reporting a false
 # match instead of the drift this script exists to catch.
 extract_list() {
-  # `grep` exits 1 when a marker moved and its range yields no list lines. Under
-  # `set -o pipefail` that failure would propagate through this pipeline and trip
-  # `set -e` right here, aborting before the emptiness check below ever runs --
-  # silently skipping the actionable "markers may have moved" diagnostic that
-  # check exists to print. Neutralize grep's own exit status; sed still sees
-  # (and passes through) an empty match as empty output either way.
-  { grep -E '^ *- ' || true; } | sed -E 's/^ *- "?([^"]*)"?$/\1/'
+  # `grep` exits 1 when a marker moved and its range yields no list lines --
+  # that's an expected outcome the emptiness check below already turns into
+  # an actionable diagnostic. It exits >1 on a genuine failure (bad regex,
+  # read error). Blanket-suppressing every non-zero status with `|| true`
+  # would hide that distinction and misreport a real grep failure as
+  # "markers may have moved." Use the `&&`/`||` form (exempt from `set -e`
+  # for its first command) to capture the real status, then only swallow 1.
+  local raw status
+  raw=$(grep -E '^ *- ') && status=0 || status=$?
+  if ((status > 1)); then
+    echo "grep failed while extracting a list (exit $status)" >&2
+    return "$status"
+  fi
+  printf '%s\n' "$raw" | sed -E 's/^ *- "?([^"]*)"?$/\1/'
 }
 
 # The `code:` block's range ends at the `build:` job (a structural boundary),
