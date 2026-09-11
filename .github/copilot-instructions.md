@@ -20,7 +20,11 @@ Respect these deliberate baseline conventions and do not flag them as defects:
 - *.Logging.cs partial void Log... methods are [LoggerMessage] source-generated;
   the generator supplies the bodies, so they are not unimplemented partials.
 - Classes and structs use explicit constructors with _field backing fields, not
-  primary constructors (IDE0290 is off). Do not suggest converting them. This
+  primary constructors (IDE0290 is off). Do not suggest converting them. Exception:
+  when a constructor parameter's only destination is a public mutable auto-property
+  with no additional accessor logic (a working-value view-model, e.g. an editable-row
+  type like `Name { get; set; }` seeded from the constructor), assigning directly to
+  the property is correct -- do not flag it for missing a `_field` backing field. This
   rule does NOT apply to records (sealed record, readonly record struct):
   CLAUDE-baseline.md and CLAUDE-domain-driven-design.md explicitly call for
   record positional syntax for pure data carriers with no validation and
