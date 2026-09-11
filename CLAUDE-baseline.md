@@ -103,6 +103,16 @@ double-braced PROJECT_NAME token when the baseline copy is synced.
   widening to `public`.
 - **No primary constructors** for classes and structs. Use explicit constructors with
   `_field` backing fields (`IDE0290` set to `none`; enforced by convention and review).
+  Exception: when a constructor parameter's only destination is a public mutable
+  auto-property with no additional accessor logic (a working-value view-model, e.g. an
+  editable-row type like `Name { get; set; }` seeded from the constructor), assign
+  directly to the property -- the auto-property's own compiler-generated field already
+  satisfies "no primary constructor, explicit constructor assigns state," and a separate
+  `_field` would only back that same auto-property a second time with no invariant to
+  protect. Reserve `_field` backing fields for state that is never exposed as a plain
+  settable property as-is: injected dependencies (an `ApiClient`'s `_httpClient`),
+  computed/derived state, or a property whose accessor does more than return/set the
+  field.
 - **Null-guard public/internal entry points.** Every reference-type parameter of a public
   or internal constructor or method (including `this` on extension methods) is guarded
   before use: `ArgumentNullException.ThrowIfNull(x)` for objects,
