@@ -4,15 +4,26 @@ on:
   push:
     branches: [main]
     # The changes job below cannot filter push events (see its comment), so the
-    # docs-only skip for main is expressed at the trigger instead. GitHub skips
-    # the run only when EVERY changed path matches, which is the same semantics
-    # the filter gives PRs. Keep this list in sync with the filter's exclusions.
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "openspec/**"
-      - "LICENSE"
-      - ".gitignore"
+    # docs-only skip for main is expressed at the trigger instead. GitHub runs
+    # the workflow when ANY changed path matches -- an allowlist of the paths
+    # that can affect the build/tests, mirroring CLAUDE-baseline.md's pre-push
+    # skip-list. Keep this list in sync with the `changes` job's filter below.
+    paths:
+      - "src/**"
+      - "tests/**"
+      - ".githooks/**"
+      - ".github/workflows/**"
+      - ".github/scripts/**"
+      - "**/*.csproj"
+      - "**/*.props"
+      - "**/*.targets"
+      - "**/*.sln"
+      - "**/*.slnx"
+      - "global.json"
+      - "nuget.config"
+      - ".editorconfig"
+      - "coverlet.runsettings"
+      - "Directory.Build.rsp"
   pull_request:
   workflow_dispatch:
 
@@ -27,39 +38,49 @@ jobs:
       code: ${{ github.event_name != 'pull_request' && 'true' || steps.filter.outputs.code }}
 
     steps:
-      # Docs- and spec-only PRs skip the build entirely. The filter still runs
-      # (and still reports a status), so a required check never hangs.
+      # PRs that touch nothing build/test-relevant skip the build entirely. The
+      # filter still runs (and still reports a status), so a required check
+      # never hangs.
       #
-      # Markdown is excluded wherever it lives, not just under docs/: README.md,
-      # CLAUDE.md, DEVELOPER.md and per-directory notes cannot change build or
-      # test output. Config that does affect the build (.editorconfig, props,
-      # global.json, the hooks) is deliberately NOT excluded.
+      # This is an allowlist, not a denylist: a file matches "code" only if it
+      # falls under one of the patterns below, mirroring CLAUDE-baseline.md's
+      # pre-push skip-list (src/, tests/, .githooks/, project/solution files,
+      # and the root global.json/nuget.config/.editorconfig), plus this
+      # workflow's own directory -- a workflow edit must run itself to prove it
+      # didn't break, so it is deliberately NOT treated as docs even though it
+      # isn't in the pre-push list. Anything else -- docs, OpenSpec artifacts,
+      # README, tool config like .pr_agent.toml, .github/copilot-instructions.md
+      # -- cannot change build or test output, so it is implicitly excluded by
+      # not appearing here. A denylist of known-safe paths was tried first and
+      # missed exactly this case (#117): a config file outside src/tests still
+      # tripped the build.
       #
       # PR-only: on pull_request the action diffs via the GitHub API and needs no
       # working tree. On push/workflow_dispatch it would shell out to git (no
       # checkout here) and, on main, diff the default branch against itself and
       # report no changes -- so those events skip the filter and always build.
-      - name: Detect non-docs changes
+      - name: Detect build-relevant changes
         id: filter
         if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3
         with:
-          # Required. The action defaults to 'some' (a file matches the rule if
-          # it matches ANY pattern), under which the leading "**" below matches
-          # everything and every "!" line becomes dead code -- the filter then
-          # reports code=true for docs-only PRs. 'every' requires a file to
-          # match all patterns, which is what makes the exclusions bite.
-          # Note: this pin only accepts 'every' or 'some'; the newer
-          # 'some-with-excludes' does not exist in v3 and would throw.
-          predicate-quantifier: "every"
           filters: |
             code:
-              - "**"
-              - "!**/*.md"
-              - "!docs/**"
-              - "!openspec/**"
-              - "!LICENSE"
-              - "!.gitignore"
+              - "src/**"
+              - "tests/**"
+              - ".githooks/**"
+              - ".github/workflows/**"
+              - ".github/scripts/**"
+              - "**/*.csproj"
+              - "**/*.props"
+              - "**/*.targets"
+              - "**/*.sln"
+              - "**/*.slnx"
+              - "global.json"
+              - "nuget.config"
+              - ".editorconfig"
+              - "coverlet.runsettings"
+              - "Directory.Build.rsp"
 
   build:
     needs: changes
