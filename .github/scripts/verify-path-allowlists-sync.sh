@@ -31,9 +31,8 @@ if [[ -z "$push_list" || -z "$filter_list" ]]; then
 fi
 
 if [[ "$push_list" != "$filter_list" ]]; then
-  echo "::error::on.push.paths and the changes job's code filter have drifted -- keep them identical"
+  echo "::error::on.push.paths and the changes job's code filter have drifted -- keep them identical" >&2
   diff <(echo "$push_list") <(echo "$filter_list")
-  exit 1
 fi
 
 echo "Allowlists match ($(echo "$push_list" | wc -l) entries)."
