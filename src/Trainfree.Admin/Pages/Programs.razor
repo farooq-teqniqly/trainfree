@@ -501,6 +501,8 @@
 
     private bool HasOpenAddExerciseForm(SessionRow session) =>
         _addingExerciseSessionPhaseId is not null
+        && _exerciseLibraryLoadError is null
+        && _exerciseLibrary.Count > 0
         && session.Phases.Any(phase => phase.Id == _addingExerciseSessionPhaseId);
 
     private bool HasOpenAddExerciseForm(ProgramRow row) => row.Sessions.Any(HasOpenAddExerciseForm);

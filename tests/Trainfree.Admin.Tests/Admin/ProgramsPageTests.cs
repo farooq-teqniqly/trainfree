@@ -2050,6 +2050,46 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public async Task AddProgramExercise_CollapseSessionWithEmptyExerciseLibraryPickerOpen_Collapses()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns([
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-AAAAAA"),
+                    SessionId.Parse("SNN-AAAAAA"),
+                    PhaseId.Parse("PHS-AAAAAA")
+                ),
+            ]);
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='session-chevron-SNN-AAAAAA']").Click());
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='empty-exercise-library-SPH-AAAAAA']"));
+    }
+
+    [Fact]
     public async Task AddProgramExercise_SubmitValidReps_CallsCreateAndAppendsRow()
     {
         // Arrange
