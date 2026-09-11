@@ -259,7 +259,7 @@
             foreach (var session in sessions)
             {
                 var sessionRow = new SessionRow(session.Id, programId, session.Name);
-                row.Sessions.Add(sessionRow);
+                row.AddSession(sessionRow);
                 await LoadSessionPhasesAsync(sessionRow, programId, session.Id);
             }
         }
@@ -293,7 +293,7 @@
                     sessionPhase.PhaseId,
                     ResolvePhaseName(sessionPhase.PhaseId)
                 );
-                sessionRow.Phases.Add(sessionPhaseRow);
+                sessionRow.AddPhase(sessionPhaseRow);
                 await LoadProgramExercisesAsync(sessionPhaseRow, programId, sessionId, sessionPhase.Id);
             }
         }
@@ -325,7 +325,7 @@
                 sessionId,
                 sessionPhaseId
             );
-            sessionPhaseRow.ProgramExercises.AddRange(
+            sessionPhaseRow.AddProgramExercises(
                 programExercises.Select(pe => new ProgramExerciseRow(
                     pe,
                     ResolveExerciseName(pe.ExerciseId)
@@ -474,7 +474,7 @@
             switch (outcome)
             {
                 case CreateProgramExerciseSucceeded succeeded:
-                    phase.ProgramExercises.Add(
+                    phase.AddProgramExercise(
                         new ProgramExerciseRow(
                             succeeded.ProgramExercise,
                             ResolveExerciseName(succeeded.ProgramExercise.ExerciseId)
@@ -617,7 +617,7 @@
             row.Error = null;
             var created = ((CreateProgramExerciseSucceeded)createOutcome).ProgramExercise;
             var newRow = new ProgramExerciseRow(created, ResolveExerciseName(created.ExerciseId));
-            phase.ProgramExercises.Add(newRow);
+            phase.AddProgramExercise(newRow);
 
             var update = new ProgramExerciseUpdate(
                 Reps: row.IsTimed ? null : row.SavedCount,
@@ -682,7 +682,7 @@
             switch (outcome)
             {
                 case DeleteProgramExerciseSucceeded:
-                    phase.ProgramExercises.Remove(row);
+                    phase.RemoveProgramExercise(row);
                     break;
                 case DeleteProgramExerciseFailed failed:
                     row.Error = failed.Error;
@@ -748,7 +748,7 @@
         switch (outcome)
         {
             case CreateSessionPhaseSucceeded succeeded:
-                session.Phases.Add(
+                session.AddPhase(
                     new SessionPhaseRow(
                         succeeded.SessionPhase.Id,
                         succeeded.SessionPhase.PhaseId,
@@ -776,7 +776,7 @@
         switch (outcome)
         {
             case DeleteSessionPhaseSucceeded:
-                session.Phases.Remove(phase);
+                session.RemovePhase(phase);
                 break;
             case DeleteSessionPhaseFailed failed:
                 phase.Error = failed.Error;
@@ -866,7 +866,7 @@
         switch (outcome)
         {
             case CreateSessionSucceeded succeeded:
-                row.Sessions.Add(
+                row.AddSession(
                     new SessionRow(succeeded.Session.Id, row.Id, succeeded.Session.Name)
                 );
                 _editingSessionId = succeeded.Session.Id;
@@ -932,7 +932,7 @@
         switch (outcome)
         {
             case DeleteSessionSucceeded:
-                row.Sessions.Remove(session);
+                row.RemoveSession(session);
                 if (!HasToggleableContent(row))
                 {
                     _collapsedIds.Remove(row.Id);

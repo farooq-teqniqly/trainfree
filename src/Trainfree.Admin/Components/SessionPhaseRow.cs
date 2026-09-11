@@ -14,8 +14,11 @@ public sealed class SessionPhaseRow
     /// <param name="id">The identifier of the session phase.</param>
     /// <param name="phaseId">The identifier of the phase.</param>
     /// <param name="displayName">The display name of the phase.</param>
+    /// <exception cref="ArgumentException"><paramref name="displayName" /> is null, empty, or whitespace.</exception>
     public SessionPhaseRow(SessionPhaseId id, PhaseId phaseId, string displayName)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+
         Id = id;
         PhaseId = phaseId;
         DisplayName = displayName;
@@ -46,5 +49,32 @@ public sealed class SessionPhaseRow
     public int AddExerciseFormGeneration { get; set; }
 
     /// <summary>The program exercises prescribed under this phase.</summary>
-    public List<ProgramExerciseRow> ProgramExercises { get; } = [];
+    public IReadOnlyList<ProgramExerciseRow> ProgramExercises => _programExercises;
+
+    private readonly List<ProgramExerciseRow> _programExercises = [];
+
+    /// <summary>Adds a program exercise to <see cref="ProgramExercises" />.</summary>
+    /// <param name="programExercise">The program exercise row to add.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="programExercise" /> is <see langword="null" />.</exception>
+    internal void AddProgramExercise(ProgramExerciseRow programExercise)
+    {
+        ArgumentNullException.ThrowIfNull(programExercise);
+
+        _programExercises.Add(programExercise);
+    }
+
+    /// <summary>Adds a range of program exercises to <see cref="ProgramExercises" />.</summary>
+    /// <param name="programExercises">The program exercise rows to add.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="programExercises" /> is <see langword="null" />.</exception>
+    internal void AddProgramExercises(IEnumerable<ProgramExerciseRow> programExercises)
+    {
+        ArgumentNullException.ThrowIfNull(programExercises);
+
+        _programExercises.AddRange(programExercises);
+    }
+
+    /// <summary>Removes a program exercise from <see cref="ProgramExercises" />.</summary>
+    /// <param name="programExercise">The program exercise row to remove.</param>
+    internal void RemoveProgramExercise(ProgramExerciseRow programExercise) =>
+        _programExercises.Remove(programExercise);
 }

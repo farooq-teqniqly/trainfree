@@ -13,8 +13,11 @@ public sealed class ProgramRow
     /// </summary>
     /// <param name="id">The identifier of the program.</param>
     /// <param name="name">The saved name of the program.</param>
+    /// <exception cref="ArgumentException"><paramref name="name" /> is null, empty, or whitespace.</exception>
     public ProgramRow(ProgramId id, string name)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         Id = id;
         Name = name;
         SavedName = name;
@@ -42,5 +45,21 @@ public sealed class ProgramRow
     public string? SessionsLoadError { get; set; }
 
     /// <summary>The program's sessions.</summary>
-    public List<SessionRow> Sessions { get; } = [];
+    public IReadOnlyList<SessionRow> Sessions => _sessions;
+
+    private readonly List<SessionRow> _sessions = [];
+
+    /// <summary>Adds a session to <see cref="Sessions" />.</summary>
+    /// <param name="session">The session row to add.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="session" /> is <see langword="null" />.</exception>
+    internal void AddSession(SessionRow session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        _sessions.Add(session);
+    }
+
+    /// <summary>Removes a session from <see cref="Sessions" />.</summary>
+    /// <param name="session">The session row to remove.</param>
+    internal void RemoveSession(SessionRow session) => _sessions.Remove(session);
 }
