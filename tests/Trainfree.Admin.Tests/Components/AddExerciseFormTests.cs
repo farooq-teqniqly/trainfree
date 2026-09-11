@@ -126,13 +126,17 @@ public sealed class AddExerciseFormTests : BunitContext
     [Fact]
     public void Render_IsSubmittingIsTrue_DisablesEveryField()
     {
-        // Arrange / Act
+        // Arrange
         var cut = Render<AddExerciseForm>(p =>
             p.Add(c => c.PhaseId, SessionPhaseId.Parse("SPH-AAAAAA"))
                 .Add(c => c.Exercises, Exercises)
-                .Add(c => c.IsSubmitting, true)
+                .Add(c => c.IsSubmitting, false)
                 .Add(c => c.OnSubmit, _ => { })
         );
+        FillValidForm(cut);
+
+        // Act
+        cut.Render(p => p.Add(c => c.IsSubmitting, true));
 
         // Assert
         Assert.True(

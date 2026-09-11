@@ -267,6 +267,7 @@
                                             else
                                             {
                                                 <AddExerciseForm
+                                                    @key="@($"{phase.Id}-{phase.AddExerciseFormGeneration}")"
                                                     PhaseId="phase.Id"
                                                     Exercises="_exerciseLibrary"
                                                     IsSubmitting="phase.IsAddingExercise"
@@ -562,6 +563,7 @@
 
         _addingExerciseSessionPhaseId = phase.Id;
         phase.AddExerciseError = null;
+        phase.AddExerciseFormGeneration++;
     }
 
     private async Task AddProgramExerciseAsync(
@@ -1135,102 +1137,7 @@
         public string? ProgramExercisesLoadError { get; set; }
         public string? AddExerciseError { get; set; }
         public bool IsAddingExercise { get; set; }
+        public int AddExerciseFormGeneration { get; set; }
         public List<ProgramExerciseRow> ProgramExercises { get; } = [];
-    }
-
-    public sealed class ProgramExerciseRow
-    {
-        public ProgramExerciseRow(IProgramExercise programExercise, string exerciseName)
-        {
-            Id = programExercise.Id;
-            ExerciseId = programExercise.ExerciseId;
-            ExerciseName = exerciseName;
-            IsTimed = programExercise is TimedProgramExercise;
-            ApplySaved(programExercise);
-        }
-
-        public ProgramExerciseId Id { get; }
-        public ExerciseId ExerciseId { get; }
-        public string ExerciseName { get; }
-        public bool IsTimed { get; }
-        public int Count { get; set; }
-        public int SavedCount { get; set; }
-        public decimal Weight { get; set; }
-        public decimal SavedWeight { get; set; }
-        public string WeightText { get; set; } = "";
-        public bool WeightIsValid { get; set; } = true;
-        public int Sets { get; set; }
-        public int SavedSets { get; set; }
-        public int RestSeconds { get; set; }
-        public int SavedRestSeconds { get; set; }
-        public ProgramExerciseSide Side { get; set; }
-        public ProgramExerciseSide SavedSide { get; set; }
-        public bool IsSaving { get; set; }
-        public string? Error { get; set; }
-
-        public bool IsDirty =>
-            Count != SavedCount
-            || Weight != SavedWeight
-            || !WeightIsValid
-            || Sets != SavedSets
-            || RestSeconds != SavedRestSeconds
-            || Side != SavedSide;
-
-        public void ApplySaved(IProgramExercise programExercise)
-        {
-            Count = IsTimed
-                ? ((TimedProgramExercise)programExercise).DurationSeconds
-                : ((RepsProgramExercise)programExercise).Reps;
-            SavedCount = Count;
-            Weight = programExercise.Weight;
-            SavedWeight = Weight;
-            WeightText = DashIfZero(Weight);
-            WeightIsValid = true;
-            Sets = programExercise.Sets;
-            SavedSets = Sets;
-            RestSeconds = programExercise.RestSeconds;
-            SavedRestSeconds = RestSeconds;
-            Side = programExercise.Side;
-            SavedSide = Side;
-        }
-
-        public void SetCount(object? value) => Count = ParseInt(value);
-
-        public void SetSets(object? value) => Sets = ParseInt(value);
-
-        public void SetRestSeconds(object? value) => RestSeconds = ParseInt(value);
-
-        public void SetWeightText(string? text)
-        {
-            WeightText = text ?? "";
-            WeightIsValid = decimal.TryParse(
-                WeightText,
-                System.Globalization.NumberStyles.Number,
-                System.Globalization.CultureInfo.InvariantCulture,
-                out var parsed
-            );
-            if (WeightIsValid)
-            {
-                Weight = parsed;
-            }
-        }
-
-        public void RevertToSaved()
-        {
-            Count = SavedCount;
-            Weight = SavedWeight;
-            WeightText = DashIfZero(SavedWeight);
-            WeightIsValid = true;
-            Sets = SavedSets;
-            RestSeconds = SavedRestSeconds;
-            Side = SavedSide;
-            Error = null;
-        }
-
-        private static int ParseInt(object? value) =>
-            int.TryParse(value as string, out var parsed) ? parsed : 0;
-
-        private static string DashIfZero(decimal value) =>
-            value == 0 ? "–" : value.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AngleSharp.Html.Dom;
 using Bunit;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
@@ -1986,6 +1987,36 @@ public sealed class ProgramsPageTests : BunitContext
         // Assert
         var button = cut.Find("[data-testid='add-exercise-submit-SPH-AAAAAA']");
         Assert.True(button.HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task AddProgramExercise_ClickAddExerciseWhileFormAlreadyOpen_ResetsForm()
+    {
+        // Arrange
+        SetUpProgramSessionPhase();
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-picker-SPH-AAAAAA']").Change("EXR-AAAAAA")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-count-SPH-AAAAAA']").Input("10")
+        );
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+
+        // Assert
+        Assert.True(
+            string.IsNullOrEmpty(
+                ((IHtmlSelectElement)cut.Find("[data-testid='exercise-picker-SPH-AAAAAA']")).Value
+            )
+        );
+        Assert.True(
+            string.IsNullOrEmpty(
+                ((IHtmlInputElement)cut.Find("[data-testid='exercise-count-SPH-AAAAAA']")).Value
+            )
+        );
     }
 
     [Fact]

@@ -1,4 +1,3 @@
-@using Trainfree.Admin.Pages
 @using Trainfree.Domain.ProgramExercises
 
 <tr class="row-depth-3">
@@ -103,7 +102,7 @@
     /// Gets or sets the row's editable state.
     /// </summary>
     [Parameter, EditorRequired]
-    public Programs.ProgramExerciseRow Row { get; set; } = null!;
+    public ProgramExerciseRow Row { get; set; } = null!;
 
     /// <summary>
     /// Gets or sets the callback invoked when the Save button is clicked, or Enter is pressed

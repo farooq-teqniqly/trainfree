@@ -1,7 +1,6 @@
 using Bunit;
 using Microsoft.AspNetCore.Components.Web;
 using Trainfree.Admin.Components;
-using Trainfree.Admin.Pages;
 using Trainfree.Domain.Ids;
 using Trainfree.Domain.ProgramExercises;
 
@@ -9,7 +8,7 @@ namespace Trainfree.Admin.Tests.Components;
 
 public sealed class ProgramExerciseTableRowTests : BunitContext
 {
-    private static Programs.ProgramExerciseRow CreateRow() =>
+    private static ProgramExerciseRow CreateRow() =>
         new(
             new RepsProgramExercise(
                 ProgramExerciseId.Parse("PGX-AAAAAA"),
