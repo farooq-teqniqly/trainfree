@@ -23,6 +23,7 @@ on:
       - "nuget.config"
       - ".editorconfig"
       - "coverlet.runsettings"
+      - "Directory.Build.rsp"
   pull_request:
   workflow_dispatch:
 
@@ -79,6 +80,7 @@ jobs:
               - "nuget.config"
               - ".editorconfig"
               - "coverlet.runsettings"
+              - "Directory.Build.rsp"
 
   build:
     needs: changes
