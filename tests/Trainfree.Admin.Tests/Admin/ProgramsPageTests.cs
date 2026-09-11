@@ -2020,6 +2020,36 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public async Task AddProgramExercise_CollapseSessionWhileFormOpen_DoesNotCollapse()
+    {
+        // Arrange
+        SetUpProgramSessionPhase();
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='session-chevron-SNN-AAAAAA']").Click());
+
+        // Assert
+        Assert.Single(cut.FindAll("[data-testid='exercise-count-SPH-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task AddProgramExercise_CollapseProgramWhileFormOpen_DoesNotCollapse()
+    {
+        // Arrange
+        SetUpProgramSessionPhase();
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='chevron-PRG-AAAAAA']").Click());
+
+        // Assert
+        Assert.Single(cut.FindAll("[data-testid='exercise-count-SPH-AAAAAA']"));
+    }
+
+    [Fact]
     public async Task AddProgramExercise_SubmitValidReps_CallsCreateAndAppendsRow()
     {
         // Arrange

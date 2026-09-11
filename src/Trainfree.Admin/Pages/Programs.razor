@@ -499,11 +499,22 @@
     private static bool HasToggleableContent(ProgramRow row) =>
         row.Sessions.Count > 0 || row.SessionsLoadError is not null;
 
+    private bool HasOpenAddExerciseForm(SessionRow session) =>
+        _addingExerciseSessionPhaseId is not null
+        && session.Phases.Any(phase => phase.Id == _addingExerciseSessionPhaseId);
+
+    private bool HasOpenAddExerciseForm(ProgramRow row) => row.Sessions.Any(HasOpenAddExerciseForm);
+
     private string ChevronTitle(ProgramRow row)
     {
         if (!HasToggleableContent(row))
         {
             return "No sessions";
+        }
+
+        if (!_collapsedIds.Contains(row.Id) && HasOpenAddExerciseForm(row))
+        {
+            return "Finish adding the exercise before collapsing";
         }
 
         return _collapsedIds.Contains(row.Id) ? "Expand" : "Collapse";
@@ -512,6 +523,11 @@
     private void ToggleCollapsed(ProgramRow row)
     {
         if (!HasToggleableContent(row))
+        {
+            return;
+        }
+
+        if (!_collapsedIds.Contains(row.Id) && HasOpenAddExerciseForm(row))
         {
             return;
         }
@@ -834,12 +850,22 @@
             return "No phases";
         }
 
+        if (!_collapsedSessionIds.Contains(session.Id) && HasOpenAddExerciseForm(session))
+        {
+            return "Finish adding the exercise before collapsing";
+        }
+
         return _collapsedSessionIds.Contains(session.Id) ? "Expand" : "Collapse";
     }
 
     private void ToggleCollapsedSession(SessionRow session)
     {
         if (!HasToggleablePhaseContent(session))
+        {
+            return;
+        }
+
+        if (!_collapsedSessionIds.Contains(session.Id) && HasOpenAddExerciseForm(session))
         {
             return;
         }
