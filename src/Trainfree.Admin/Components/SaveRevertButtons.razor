@@ -50,12 +50,12 @@
     /// <summary>
     /// Gets or sets the callback invoked when the Save button is clicked.
     /// </summary>
-    [Parameter]
+    [Parameter, EditorRequired]
     public EventCallback OnSave { get; set; }
 
     /// <summary>
     /// Gets or sets the callback invoked when the Revert button is clicked.
     /// </summary>
-    [Parameter]
+    [Parameter, EditorRequired]
     public EventCallback OnRevert { get; set; }
 }
