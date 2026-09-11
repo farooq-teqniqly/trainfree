@@ -23,7 +23,13 @@ fi
 # list from both extracted strings -- leaving them equal and reporting a false
 # match instead of the drift this script exists to catch.
 extract_list() {
-  grep -E '^ *- ' | sed -E 's/^ *- "?([^"]*)"?$/\1/'
+  # `grep` exits 1 when a marker moved and its range yields no list lines. Under
+  # `set -o pipefail` that failure would propagate through this pipeline and trip
+  # `set -e` right here, aborting before the emptiness check below ever runs --
+  # silently skipping the actionable "markers may have moved" diagnostic that
+  # check exists to print. Neutralize grep's own exit status; sed still sees
+  # (and passes through) an empty match as empty output either way.
+  { grep -E '^ *- ' || true; } | sed -E 's/^ *- "?([^"]*)"?$/\1/'
 }
 
 push_list=$(sed -n '/^    paths:/,/^  pull_request:/p' "$workflow_file" | extract_list)
