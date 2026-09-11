@@ -1,0 +1,133 @@
+@using Trainfree.Domain.ProgramExercises
+
+<tr class="row-depth-3">
+    <td>
+        <div class="name-cell">
+            <span class="chevron-spacer"></span>
+            <span data-testid="program-exercise-name-@Row.Id">
+                @Row.ExerciseName
+            </span>
+        </div>
+        <InlineError Message="@Row.Error" TestId="@($"program-exercise-error-{Row.Id}")" />
+    </td>
+    <td>
+        <span class="badge text-bg-secondary" data-testid="program-exercise-type-@Row.Id">
+            @(Row.IsTimed ? "Timed" : "Reps")
+        </span>
+    </td>
+    <td>
+        <input
+            type="number"
+            class="cell-input"
+            data-testid="program-exercise-count-@Row.Id"
+            value="@Row.Count"
+            disabled="@Row.IsSaving"
+            @oninput="e => Row.SetCount(e.Value)"
+            @onkeydown="OnFieldKeyDownAsync" />
+    </td>
+    <td>
+        <input
+            type="text"
+            class="cell-input"
+            data-testid="program-exercise-weight-@Row.Id"
+            value="@Row.WeightText"
+            disabled="@Row.IsSaving"
+            @oninput="e => Row.SetWeightText((string?)e.Value)"
+            @onkeydown="OnFieldKeyDownAsync" />
+    </td>
+    <td>
+        <input
+            type="number"
+            class="cell-input"
+            data-testid="program-exercise-sets-@Row.Id"
+            value="@Row.Sets"
+            disabled="@Row.IsSaving"
+            @oninput="e => Row.SetSets(e.Value)"
+            @onkeydown="OnFieldKeyDownAsync" />
+    </td>
+    <td>
+        <input
+            type="number"
+            class="cell-input"
+            data-testid="program-exercise-rest-@Row.Id"
+            value="@Row.RestSeconds"
+            disabled="@Row.IsSaving"
+            @oninput="e => Row.SetRestSeconds(e.Value)"
+            @onkeydown="OnFieldKeyDownAsync" />
+    </td>
+    <td>
+        <select
+            class="form-select form-select-sm cell-input"
+            data-testid="program-exercise-side-@Row.Id"
+            disabled="@Row.IsSaving"
+            @onchange="e => Row.Side = Enum.Parse<ProgramExerciseSide>((string)e.Value!)"
+        >
+            @foreach (var side in Enum.GetValues<ProgramExerciseSide>())
+            {
+                <option value="@side" selected="@(side == Row.Side)">@side</option>
+            }
+        </select>
+    </td>
+    <td>
+        <div class="name-actions">
+            <SaveRevertButtons
+                SaveTestId="@($"program-exercise-save-{Row.Id}")"
+                RevertTestId="@($"program-exercise-revert-{Row.Id}")"
+                IsDirty="@Row.IsDirty"
+                IsSaving="@Row.IsSaving"
+                OnSave="OnSave"
+                OnRevert="() => Row.RevertToSaved()"
+            />
+            <button
+                class="btn btn-sm btn-icon btn-outline-dark"
+                data-testid="program-exercise-duplicate-@Row.Id"
+                title="Duplicate"
+                disabled="@Row.IsSaving"
+                @onclick="OnDuplicate"
+            >
+                <i class="bi bi-copy" aria-hidden="true"></i>
+                <span class="visually-hidden">Duplicate</span>
+            </button>
+            <DeleteButton
+                TestId="@($"program-exercise-delete-{Row.Id}")"
+                Disabled="@Row.IsSaving"
+                OnClick="OnDelete"
+            />
+        </div>
+    </td>
+</tr>
+
+@code {
+    /// <summary>
+    /// Gets or sets the row's editable state.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public ProgramExerciseRow Row { get; set; } = null!;
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Save button is clicked, or Enter is pressed
+    /// in a dirty field.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnSave { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Duplicate button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnDuplicate { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the Delete button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnDelete { get; set; }
+
+    private async Task OnFieldKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && Row.IsDirty)
+        {
+            await OnSave.InvokeAsync();
+        }
+    }
+}

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AngleSharp.Html.Dom;
 using Bunit;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
@@ -1986,6 +1987,106 @@ public sealed class ProgramsPageTests : BunitContext
         // Assert
         var button = cut.Find("[data-testid='add-exercise-submit-SPH-AAAAAA']");
         Assert.True(button.HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task AddProgramExercise_ClickAddExerciseWhileFormAlreadyOpen_ResetsForm()
+    {
+        // Arrange
+        SetUpProgramSessionPhase();
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-picker-SPH-AAAAAA']").Change("EXR-AAAAAA")
+        );
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='exercise-count-SPH-AAAAAA']").Input("10")
+        );
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+
+        // Assert
+        Assert.True(
+            string.IsNullOrEmpty(
+                ((IHtmlSelectElement)cut.Find("[data-testid='exercise-picker-SPH-AAAAAA']")).Value
+            )
+        );
+        Assert.True(
+            string.IsNullOrEmpty(
+                ((IHtmlInputElement)cut.Find("[data-testid='exercise-count-SPH-AAAAAA']")).Value
+            )
+        );
+    }
+
+    [Fact]
+    public async Task AddProgramExercise_CollapseSessionWhileFormOpen_DoesNotCollapse()
+    {
+        // Arrange
+        SetUpProgramSessionPhase();
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='session-chevron-SNN-AAAAAA']").Click());
+
+        // Assert
+        Assert.Single(cut.FindAll("[data-testid='exercise-count-SPH-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task AddProgramExercise_CollapseProgramWhileFormOpen_DoesNotCollapse()
+    {
+        // Arrange
+        SetUpProgramSessionPhase();
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='chevron-PRG-AAAAAA']").Click());
+
+        // Assert
+        Assert.Single(cut.FindAll("[data-testid='exercise-count-SPH-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task AddProgramExercise_CollapseSessionWithEmptyExerciseLibraryPickerOpen_Collapses()
+    {
+        // Arrange
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _sessionsApiClient
+            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+            .Returns([session]);
+        _phasesApiClient
+            .GetPhasesAsync(CancellationToken.None)
+            .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
+        _sessionPhasesApiClient
+            .GetSessionPhasesAsync(
+                ProgramId.Parse("PRG-AAAAAA"),
+                SessionId.Parse("SNN-AAAAAA"),
+                CancellationToken.None
+            )
+            .Returns([
+                new SessionPhaseSummary(
+                    SessionPhaseId.Parse("SPH-AAAAAA"),
+                    SessionId.Parse("SNN-AAAAAA"),
+                    PhaseId.Parse("PHS-AAAAAA")
+                ),
+            ]);
+        var cut = Render<Programs>();
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='session-chevron-SNN-AAAAAA']").Click());
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='empty-exercise-library-SPH-AAAAAA']"));
     }
 
     [Fact]

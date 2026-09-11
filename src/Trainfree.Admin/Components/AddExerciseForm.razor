@@ -1,0 +1,123 @@
+@using Trainfree.Admin.Admin
+@using Trainfree.Domain.Ids
+
+<div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+    <select
+        class="form-select form-select-sm w-auto"
+        data-testid="exercise-picker-@PhaseId"
+        disabled="@IsSubmitting"
+        @onchange="e => _exerciseId = (string)e.Value!"
+    >
+        <option value="">-- Select an exercise --</option>
+        @foreach (var exercise in Exercises)
+        {
+            <option value="@exercise.Id">@exercise.Name</option>
+        }
+    </select>
+    <select
+        class="form-select form-select-sm w-auto"
+        data-testid="exercise-type-@PhaseId"
+        disabled="@IsSubmitting"
+        @onchange="e => _type = (string)e.Value!"
+    >
+        <option value="Reps">Reps</option>
+        <option value="Timed">Timed</option>
+    </select>
+    <input
+        type="number"
+        class="form-control form-control-sm w-auto"
+        placeholder="@(_type == "Timed" ? "Duration (s)" : "Reps")"
+        data-testid="exercise-count-@PhaseId"
+        disabled="@IsSubmitting"
+        @oninput="e => _count = ParseNullableInt(e.Value)"
+        @onkeydown="OnFieldKeyDownAsync" />
+    <input
+        type="number"
+        class="form-control form-control-sm w-auto"
+        placeholder="Sets"
+        data-testid="exercise-sets-@PhaseId"
+        disabled="@IsSubmitting"
+        @oninput="e => _sets = ParseNullableInt(e.Value)"
+        @onkeydown="OnFieldKeyDownAsync" />
+    <input
+        type="number"
+        class="form-control form-control-sm w-auto"
+        placeholder="Rest (s)"
+        data-testid="exercise-restseconds-@PhaseId"
+        disabled="@IsSubmitting"
+        @oninput="e => _restSeconds = ParseNullableInt(e.Value)"
+        @onkeydown="OnFieldKeyDownAsync" />
+    <button
+        class="btn btn-sm btn-dark"
+        data-testid="add-exercise-submit-@PhaseId"
+        disabled="@(!CanSubmit || IsSubmitting)"
+        @onclick="SubmitAsync"
+    >
+        Add
+    </button>
+</div>
+
+@code {
+    private string _exerciseId = "";
+    private string _type = "Reps";
+    private int? _count;
+    private int? _sets;
+    private int? _restSeconds;
+
+    /// <summary>
+    /// Gets or sets the phase the exercise is being added to, used for the rendered elements'
+    /// <c>data-testid</c> attributes.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public SessionPhaseId PhaseId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the exercise library offered in the picker.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ExerciseSummary> Exercises { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets whether a submission is in progress, disabling every field.
+    /// </summary>
+    [Parameter]
+    public bool IsSubmitting { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked with the entered values when the form is submitted.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback<AddProgramExerciseFormSubmission> OnSubmit { get; set; }
+
+    private bool CanSubmit =>
+        !string.IsNullOrEmpty(_exerciseId) && _count is > 0 && _sets is > 0 && _restSeconds is > 0;
+
+    private static int? ParseNullableInt(object? value) =>
+        int.TryParse(value as string, out var parsed) ? parsed : null;
+
+    private async Task SubmitAsync()
+    {
+        if (IsSubmitting || !CanSubmit || !ExerciseId.TryParse(_exerciseId, out var exerciseId))
+        {
+            return;
+        }
+
+        await OnSubmit.InvokeAsync(
+            new AddProgramExerciseFormSubmission(
+                exerciseId,
+                _type == "Timed",
+                _count!.Value,
+                _sets!.Value,
+                _restSeconds!.Value
+            )
+        );
+    }
+
+    private async Task OnFieldKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SubmitAsync();
+        }
+    }
+}

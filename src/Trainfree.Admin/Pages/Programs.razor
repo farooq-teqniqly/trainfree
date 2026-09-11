@@ -266,61 +266,13 @@
                                             }
                                             else
                                             {
-                                                <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
-                                                    <select
-                                                        class="form-select form-select-sm w-auto"
-                                                        data-testid="exercise-picker-@phase.Id"
-                                                        disabled="@phase.IsAddingExercise"
-                                                        @onchange="e => _addExerciseExerciseId = (string)e.Value!"
-                                                    >
-                                                        <option value="">-- Select an exercise --</option>
-                                                        @foreach (var exercise in _exerciseLibrary)
-                                                        {
-                                                            <option value="@exercise.Id">@exercise.Name</option>
-                                                        }
-                                                    </select>
-                                                    <select
-                                                        class="form-select form-select-sm w-auto"
-                                                        data-testid="exercise-type-@phase.Id"
-                                                        disabled="@phase.IsAddingExercise"
-                                                        @onchange="e => _addExerciseType = (string)e.Value!"
-                                                    >
-                                                        <option value="Reps">Reps</option>
-                                                        <option value="Timed">Timed</option>
-                                                    </select>
-                                                    <input
-                                                        type="number"
-                                                        class="form-control form-control-sm w-auto"
-                                                        placeholder="@(_addExerciseType == "Timed" ? "Duration (s)" : "Reps")"
-                                                        data-testid="exercise-count-@phase.Id"
-                                                        disabled="@phase.IsAddingExercise"
-                                                        @oninput="e => _addExerciseCount = ParseNullableInt(e.Value)"
-                                                        @onkeydown="e => OnAddExerciseKeyDownAsync(e, session, phase)" />
-                                                    <input
-                                                        type="number"
-                                                        class="form-control form-control-sm w-auto"
-                                                        placeholder="Sets"
-                                                        data-testid="exercise-sets-@phase.Id"
-                                                        disabled="@phase.IsAddingExercise"
-                                                        @oninput="e => _addExerciseSets = ParseNullableInt(e.Value)"
-                                                        @onkeydown="e => OnAddExerciseKeyDownAsync(e, session, phase)" />
-                                                    <input
-                                                        type="number"
-                                                        class="form-control form-control-sm w-auto"
-                                                        placeholder="Rest (s)"
-                                                        data-testid="exercise-restseconds-@phase.Id"
-                                                        disabled="@phase.IsAddingExercise"
-                                                        @oninput="e => _addExerciseRestSeconds = ParseNullableInt(e.Value)"
-                                                        @onkeydown="e => OnAddExerciseKeyDownAsync(e, session, phase)" />
-                                                    <button
-                                                        class="btn btn-sm btn-dark"
-                                                        data-testid="add-exercise-submit-@phase.Id"
-                                                        disabled="@(!CanSubmitAddExercise || phase.IsAddingExercise)"
-                                                        @onclick="() => AddProgramExerciseAsync(session, phase)"
-                                                    >
-                                                        Add
-                                                    </button>
-                                                </div>
+                                                <AddExerciseForm
+                                                    @key="@($"{phase.Id}-{phase.AddExerciseFormGeneration}")"
+                                                    PhaseId="phase.Id"
+                                                    Exercises="_exerciseLibrary"
+                                                    IsSubmitting="phase.IsAddingExercise"
+                                                    OnSubmit="submission => AddProgramExerciseAsync(session, phase, submission)"
+                                                />
                                             }
                                         }
                                     </td>
@@ -340,105 +292,12 @@
                                     }
                                     @foreach (var programExercise in phase.ProgramExercises)
                                     {
-                                        <tr class="row-depth-3">
-                                            <td>
-                                                <div class="name-cell">
-                                                    <span class="chevron-spacer"></span>
-                                                    <span data-testid="program-exercise-name-@programExercise.Id">
-                                                        @programExercise.ExerciseName
-                                                    </span>
-                                                </div>
-                                                <InlineError
-                                                    Message="@programExercise.Error"
-                                                    TestId="@($"program-exercise-error-{programExercise.Id}")"
-                                                />
-                                            </td>
-                                            <td>
-                                                <span class="badge text-bg-secondary" data-testid="program-exercise-type-@programExercise.Id">
-                                                    @(programExercise.IsTimed ? "Timed" : "Reps")
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="number"
-                                                    class="cell-input"
-                                                    data-testid="program-exercise-count-@programExercise.Id"
-                                                    value="@programExercise.Count"
-                                                    disabled="@programExercise.IsSaving"
-                                                    @oninput="e => programExercise.Count = ParseInt(e.Value)"
-                                                    @onkeydown="e => OnProgramExerciseKeyDownAsync(e, session, phase, programExercise)" />
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="text"
-                                                    class="cell-input"
-                                                    data-testid="program-exercise-weight-@programExercise.Id"
-                                                    value="@programExercise.WeightText"
-                                                    disabled="@programExercise.IsSaving"
-                                                    @oninput="e => SetWeight(programExercise, (string?)e.Value)"
-                                                    @onkeydown="e => OnProgramExerciseKeyDownAsync(e, session, phase, programExercise)" />
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="number"
-                                                    class="cell-input"
-                                                    data-testid="program-exercise-sets-@programExercise.Id"
-                                                    value="@programExercise.Sets"
-                                                    disabled="@programExercise.IsSaving"
-                                                    @oninput="e => programExercise.Sets = ParseInt(e.Value)"
-                                                    @onkeydown="e => OnProgramExerciseKeyDownAsync(e, session, phase, programExercise)" />
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="number"
-                                                    class="cell-input"
-                                                    data-testid="program-exercise-rest-@programExercise.Id"
-                                                    value="@programExercise.RestSeconds"
-                                                    disabled="@programExercise.IsSaving"
-                                                    @oninput="e => programExercise.RestSeconds = ParseInt(e.Value)"
-                                                    @onkeydown="e => OnProgramExerciseKeyDownAsync(e, session, phase, programExercise)" />
-                                            </td>
-                                            <td>
-                                                <select
-                                                    class="form-select form-select-sm cell-input"
-                                                    data-testid="program-exercise-side-@programExercise.Id"
-                                                    disabled="@programExercise.IsSaving"
-                                                    @onchange="e => programExercise.Side = Enum.Parse<ProgramExerciseSide>((string)e.Value!)"
-                                                >
-                                                    @foreach (var side in Enum.GetValues<ProgramExerciseSide>())
-                                                    {
-                                                        <option value="@side" selected="@(side == programExercise.Side)">@side</option>
-                                                    }
-                                                </select>
-                                            </td>
-                                            <td>
-                                                <div class="name-actions">
-                                                    <SaveRevertButtons
-                                                        SaveTestId="@($"program-exercise-save-{programExercise.Id}")"
-                                                        RevertTestId="@($"program-exercise-revert-{programExercise.Id}")"
-                                                        IsDirty="@programExercise.IsDirty"
-                                                        IsSaving="@programExercise.IsSaving"
-                                                        OnSave="() => SaveProgramExerciseAsync(session, phase, programExercise)"
-                                                        OnRevert="() => RevertProgramExercise(programExercise)"
-                                                    />
-                                                    <button
-                                                        class="btn btn-sm btn-icon btn-outline-dark"
-                                                        data-testid="program-exercise-duplicate-@programExercise.Id"
-                                                        title="Duplicate"
-                                                        disabled="@programExercise.IsSaving"
-                                                        @onclick="() => DuplicateProgramExerciseAsync(session, phase, programExercise)"
-                                                    >
-                                                        <i class="bi bi-copy" aria-hidden="true"></i>
-                                                        <span class="visually-hidden">Duplicate</span>
-                                                    </button>
-                                                    <DeleteButton
-                                                        TestId="@($"program-exercise-delete-{programExercise.Id}")"
-                                                        Disabled="@programExercise.IsSaving"
-                                                        OnClick="() => DeleteProgramExerciseAsync(session, phase, programExercise)"
-                                                    />
-                                                </div>
-                                            </td>
-                                        </tr>
+                                        <ProgramExerciseTableRow
+                                            Row="programExercise"
+                                            OnSave="() => SaveProgramExerciseAsync(session, phase, programExercise)"
+                                            OnDuplicate="() => DuplicateProgramExerciseAsync(session, phase, programExercise)"
+                                            OnDelete="() => DeleteProgramExerciseAsync(session, phase, programExercise)"
+                                        />
                                     }
                                 }
                             }
@@ -464,11 +323,6 @@
     private SessionId? _addingPhaseSessionId;
     private SessionPhaseId? _addingExerciseSessionPhaseId;
     private SessionPhaseId? _submittingAddExercisePhaseId;
-    private string _addExerciseExerciseId = "";
-    private string _addExerciseType = "Reps";
-    private int? _addExerciseCount;
-    private int? _addExerciseSets;
-    private int? _addExerciseRestSeconds;
     private string? _addProgramError;
     private string? _addSessionError;
     private string? _addPhaseError;
@@ -645,11 +499,24 @@
     private static bool HasToggleableContent(ProgramRow row) =>
         row.Sessions.Count > 0 || row.SessionsLoadError is not null;
 
+    private bool HasOpenAddExerciseForm(SessionRow session) =>
+        _addingExerciseSessionPhaseId is not null
+        && _exerciseLibraryLoadError is null
+        && _exerciseLibrary.Count > 0
+        && session.Phases.Any(phase => phase.Id == _addingExerciseSessionPhaseId);
+
+    private bool HasOpenAddExerciseForm(ProgramRow row) => row.Sessions.Any(HasOpenAddExerciseForm);
+
     private string ChevronTitle(ProgramRow row)
     {
         if (!HasToggleableContent(row))
         {
             return "No sessions";
+        }
+
+        if (!_collapsedIds.Contains(row.Id) && HasOpenAddExerciseForm(row))
+        {
+            return "Finish adding the exercise before collapsing";
         }
 
         return _collapsedIds.Contains(row.Id) ? "Expand" : "Collapse";
@@ -658,6 +525,11 @@
     private void ToggleCollapsed(ProgramRow row)
     {
         if (!HasToggleableContent(row))
+        {
+            return;
+        }
+
+        if (!_collapsedIds.Contains(row.Id) && HasOpenAddExerciseForm(row))
         {
             return;
         }
@@ -708,71 +580,17 @@
         }
 
         _addingExerciseSessionPhaseId = phase.Id;
-        _addExerciseExerciseId = "";
-        _addExerciseType = "Reps";
-        _addExerciseCount = null;
-        _addExerciseSets = null;
-        _addExerciseRestSeconds = null;
         phase.AddExerciseError = null;
+        phase.AddExerciseFormGeneration++;
     }
 
-    private bool CanSubmitAddExercise =>
-        !string.IsNullOrEmpty(_addExerciseExerciseId)
-        && _addExerciseCount is > 0
-        && _addExerciseSets is > 0
-        && _addExerciseRestSeconds is > 0;
-
-    private static int? ParseNullableInt(object? value) =>
-        int.TryParse(value as string, out var parsed) ? parsed : null;
-
-    private static int ParseInt(object? value) => int.TryParse(value as string, out var parsed) ? parsed : 0;
-
-    private static string DashIfZero(decimal value) =>
-        value == 0 ? "–" : value.ToString(System.Globalization.CultureInfo.InvariantCulture);
-
-    private static void SetWeight(ProgramExerciseRow row, string? text)
-    {
-        row.WeightText = text ?? "";
-        row.WeightIsValid = decimal.TryParse(
-            row.WeightText,
-            System.Globalization.NumberStyles.Number,
-            System.Globalization.CultureInfo.InvariantCulture,
-            out var parsed
-        );
-        if (row.WeightIsValid)
-        {
-            row.Weight = parsed;
-        }
-    }
-
-    private async Task OnAddExerciseKeyDownAsync(KeyboardEventArgs e, SessionRow session, SessionPhaseRow phase)
-    {
-        if (e.Key == "Enter" && CanSubmitAddExercise)
-        {
-            await AddProgramExerciseAsync(session, phase);
-        }
-    }
-
-    private async Task OnProgramExerciseKeyDownAsync(
-        KeyboardEventArgs e,
+    private async Task AddProgramExerciseAsync(
         SessionRow session,
         SessionPhaseRow phase,
-        ProgramExerciseRow row
+        AddProgramExerciseFormSubmission submission
     )
     {
-        if (e.Key == "Enter" && row.IsDirty)
-        {
-            await SaveProgramExerciseAsync(session, phase, row);
-        }
-    }
-
-    private async Task AddProgramExerciseAsync(SessionRow session, SessionPhaseRow phase)
-    {
-        if (
-            phase.IsAddingExercise
-            || !CanSubmitAddExercise
-            || !ExerciseId.TryParse(_addExerciseExerciseId, out var exerciseId)
-        )
+        if (phase.IsAddingExercise)
         {
             return;
         }
@@ -781,30 +599,24 @@
         _submittingAddExercisePhaseId = phase.Id;
         try
         {
-            var outcome =
-                _addExerciseType == "Timed"
-                    ? await ProgramExercisesApi.CreateTimedProgramExerciseAsync(
-                        session.ProgramId,
-                        session.Id,
-                        phase.Id,
-                        exerciseId,
-                        _addExerciseCount!.Value,
-                        new SetPrescription(
-                            _addExerciseSets!.Value,
-                            _addExerciseRestSeconds!.Value
-                        )
-                    )
-                    : await ProgramExercisesApi.CreateRepsProgramExerciseAsync(
-                        session.ProgramId,
-                        session.Id,
-                        phase.Id,
-                        exerciseId,
-                        _addExerciseCount!.Value,
-                        new SetPrescription(
-                            _addExerciseSets!.Value,
-                            _addExerciseRestSeconds!.Value
-                        )
-                    );
+            var prescription = new SetPrescription(submission.Sets, submission.RestSeconds);
+            var outcome = submission.IsTimed
+                ? await ProgramExercisesApi.CreateTimedProgramExerciseAsync(
+                    session.ProgramId,
+                    session.Id,
+                    phase.Id,
+                    submission.ExerciseId,
+                    submission.Count,
+                    prescription
+                )
+                : await ProgramExercisesApi.CreateRepsProgramExerciseAsync(
+                    session.ProgramId,
+                    session.Id,
+                    phase.Id,
+                    submission.ExerciseId,
+                    submission.Count,
+                    prescription
+                );
 
             switch (outcome)
             {
@@ -994,18 +806,6 @@
         }
     }
 
-    private static void RevertProgramExercise(ProgramExerciseRow row)
-    {
-        row.Count = row.SavedCount;
-        row.Weight = row.SavedWeight;
-        row.WeightText = DashIfZero(row.SavedWeight);
-        row.WeightIsValid = true;
-        row.Sets = row.SavedSets;
-        row.RestSeconds = row.SavedRestSeconds;
-        row.Side = row.SavedSide;
-        row.Error = null;
-    }
-
     private async Task DeleteProgramExerciseAsync(
         SessionRow session,
         SessionPhaseRow phase,
@@ -1052,12 +852,22 @@
             return "No phases";
         }
 
+        if (!_collapsedSessionIds.Contains(session.Id) && HasOpenAddExerciseForm(session))
+        {
+            return "Finish adding the exercise before collapsing";
+        }
+
         return _collapsedSessionIds.Contains(session.Id) ? "Expand" : "Collapse";
     }
 
     private void ToggleCollapsedSession(SessionRow session)
     {
         if (!HasToggleablePhaseContent(session))
+        {
+            return;
+        }
+
+        if (!_collapsedSessionIds.Contains(session.Id) && HasOpenAddExerciseForm(session))
         {
             return;
         }
@@ -1355,63 +1165,7 @@
         public string? ProgramExercisesLoadError { get; set; }
         public string? AddExerciseError { get; set; }
         public bool IsAddingExercise { get; set; }
+        public int AddExerciseFormGeneration { get; set; }
         public List<ProgramExerciseRow> ProgramExercises { get; } = [];
-    }
-
-    private sealed class ProgramExerciseRow
-    {
-        public ProgramExerciseRow(IProgramExercise programExercise, string exerciseName)
-        {
-            Id = programExercise.Id;
-            ExerciseId = programExercise.ExerciseId;
-            ExerciseName = exerciseName;
-            IsTimed = programExercise is TimedProgramExercise;
-            ApplySaved(programExercise);
-        }
-
-        public ProgramExerciseId Id { get; }
-        public ExerciseId ExerciseId { get; }
-        public string ExerciseName { get; }
-        public bool IsTimed { get; }
-        public int Count { get; set; }
-        public int SavedCount { get; set; }
-        public decimal Weight { get; set; }
-        public decimal SavedWeight { get; set; }
-        public string WeightText { get; set; } = "";
-        public bool WeightIsValid { get; set; } = true;
-        public int Sets { get; set; }
-        public int SavedSets { get; set; }
-        public int RestSeconds { get; set; }
-        public int SavedRestSeconds { get; set; }
-        public ProgramExerciseSide Side { get; set; }
-        public ProgramExerciseSide SavedSide { get; set; }
-        public bool IsSaving { get; set; }
-        public string? Error { get; set; }
-
-        public bool IsDirty =>
-            Count != SavedCount
-            || Weight != SavedWeight
-            || !WeightIsValid
-            || Sets != SavedSets
-            || RestSeconds != SavedRestSeconds
-            || Side != SavedSide;
-
-        public void ApplySaved(IProgramExercise programExercise)
-        {
-            Count = IsTimed
-                ? ((TimedProgramExercise)programExercise).DurationSeconds
-                : ((RepsProgramExercise)programExercise).Reps;
-            SavedCount = Count;
-            Weight = programExercise.Weight;
-            SavedWeight = Weight;
-            WeightText = DashIfZero(Weight);
-            WeightIsValid = true;
-            Sets = programExercise.Sets;
-            SavedSets = Sets;
-            RestSeconds = programExercise.RestSeconds;
-            SavedRestSeconds = RestSeconds;
-            Side = programExercise.Side;
-            SavedSide = Side;
-        }
     }
 }
