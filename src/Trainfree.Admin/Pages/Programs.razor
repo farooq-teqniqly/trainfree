@@ -637,7 +637,9 @@
     {
         try
         {
-            _phaseLibrary.AddRange(await PhasesApi.GetPhasesAsync());
+            _phaseLibrary.AddRange(
+                (await PhasesApi.GetPhasesAsync()).OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+            );
         }
         catch (Exception ex)
             when (ex
@@ -654,7 +656,9 @@
 
         try
         {
-            _exerciseLibrary.AddRange(await ExercisesApi.GetExercisesAsync());
+            _exerciseLibrary.AddRange(
+                (await ExercisesApi.GetExercisesAsync()).OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+            );
         }
         catch (Exception ex)
             when (ex
