@@ -75,23 +75,63 @@ public sealed class ProgramsPageTests : BunitContext
         Assert.Empty(cut.FindAll("tbody tr"));
     }
 
-    [Fact]
-    public void OnInitialized_PhaseLibraryLoadNeverCompletes_ExerciseLibraryAndProgramTreeStillFetchButNoRowRenders()
+    [Theory]
+    [InlineData("phase")]
+    [InlineData("exercise")]
+    [InlineData("tree")]
+    public void OnInitialized_OneLoadNeverCompletes_OtherLoadsStillFetchButNoRowRenders(
+        string hangingLoad
+    )
     {
         // Arrange
-        var pendingPhases = new TaskCompletionSource<IReadOnlyList<PhaseSummary>>();
-        _phasesApiClient.GetPhasesAsync(CancellationToken.None).Returns(pendingPhases.Task);
-        _treeApiClient
-            .GetProgramTreeAsync(CancellationToken.None)
-            .Returns([Tree(new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A"))]);
+        var assertOtherLoadsFetched = SetUpHangingLoad(hangingLoad);
 
         // Act
         var cut = Render<Programs>();
 
         // Assert
-        _exercisesApiClient.Received(1).GetExercisesAsync(CancellationToken.None);
-        _treeApiClient.Received(1).GetProgramTreeAsync(CancellationToken.None);
+        assertOtherLoadsFetched();
         Assert.Empty(cut.FindAll("tbody tr"));
+    }
+
+    private Action SetUpHangingLoad(string hangingLoad)
+    {
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+
+        switch (hangingLoad)
+        {
+            case "phase":
+                _phasesApiClient
+                    .GetPhasesAsync(CancellationToken.None)
+                    .Returns(new TaskCompletionSource<IReadOnlyList<PhaseSummary>>().Task);
+                _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+                return () =>
+                {
+                    _exercisesApiClient.Received(1).GetExercisesAsync(CancellationToken.None);
+                    _treeApiClient.Received(1).GetProgramTreeAsync(CancellationToken.None);
+                };
+            case "exercise":
+                _exercisesApiClient
+                    .GetExercisesAsync(CancellationToken.None)
+                    .Returns(new TaskCompletionSource<IReadOnlyList<ExerciseSummary>>().Task);
+                _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+                return () =>
+                {
+                    _phasesApiClient.Received(1).GetPhasesAsync(CancellationToken.None);
+                    _treeApiClient.Received(1).GetProgramTreeAsync(CancellationToken.None);
+                };
+            case "tree":
+                _treeApiClient
+                    .GetProgramTreeAsync(CancellationToken.None)
+                    .Returns(new TaskCompletionSource<IReadOnlyList<ProgramTreeItem>>().Task);
+                return () =>
+                {
+                    _phasesApiClient.Received(1).GetPhasesAsync(CancellationToken.None);
+                    _exercisesApiClient.Received(1).GetExercisesAsync(CancellationToken.None);
+                };
+            default:
+                throw new ArgumentOutOfRangeException(nameof(hangingLoad));
+        }
     }
 
     [Fact]
