@@ -1895,7 +1895,16 @@ describe("GET /api/programs-tree", () => {
         ]);
     });
 
-    it("keeps a program with no sessions, and a session with no phases, as empty arrays", async () => {
+    it("keeps a program with no sessions as an empty array", async () => {
+        await createProgram("Workout A");
+
+        const response = await SELF.fetch("http://worker/api/programs-tree");
+        const tree = await response.json();
+
+        expect(tree[0].sessions).toEqual([]);
+    });
+
+    it("keeps a session with no phases as an empty array", async () => {
         const program = await (await createProgram("Workout A")).json();
         await createSession(program.id, "Monday Lower Body");
 
