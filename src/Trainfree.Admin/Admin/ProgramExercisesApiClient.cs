@@ -29,13 +29,11 @@ internal sealed class ProgramExercisesApiClient : ApiClientBase, IProgramExercis
         CancellationToken cancellationToken = default
     )
     {
-        var dtos = await _httpClient.GetFromJsonAsync<List<ProgramExerciseDto>>(
-            ExercisesUrl(programId, sessionId, sessionPhaseId),
-            JsonOptions,
-            cancellationToken
-        );
+        var dtos = await _httpClient.GetFromJsonAsync<
+            List<ProgramExerciseMapping.ProgramExerciseDto>
+        >(ExercisesUrl(programId, sessionId, sessionPhaseId), JsonOptions, cancellationToken);
 
-        return dtos?.ConvertAll(ToDomain) ?? [];
+        return dtos?.ConvertAll(ProgramExerciseMapping.ToDomain) ?? [];
     }
 
     /// <inheritdoc/>
@@ -121,13 +119,14 @@ internal sealed class ProgramExercisesApiClient : ApiClientBase, IProgramExercis
                     );
                 }
 
-                var dto = await response.Content.ReadFromJsonAsync<ProgramExerciseDto>(
-                    JsonOptions,
-                    cancellationToken
-                );
+                var dto =
+                    await response.Content.ReadFromJsonAsync<ProgramExerciseMapping.ProgramExerciseDto>(
+                        JsonOptions,
+                        cancellationToken
+                    );
                 return dto is null
                     ? new CreateProgramExerciseFailed("Server returned an empty response.")
-                    : new CreateProgramExerciseSucceeded(ToDomain(dto));
+                    : new CreateProgramExerciseSucceeded(ProgramExerciseMapping.ToDomain(dto));
             },
             error => new CreateProgramExerciseFailed(error),
             "Could not add exercise to phase. Try again.",
@@ -165,13 +164,14 @@ internal sealed class ProgramExercisesApiClient : ApiClientBase, IProgramExercis
                     );
                 }
 
-                var dto = await response.Content.ReadFromJsonAsync<ProgramExerciseDto>(
-                    JsonOptions,
-                    cancellationToken
-                );
+                var dto =
+                    await response.Content.ReadFromJsonAsync<ProgramExerciseMapping.ProgramExerciseDto>(
+                        JsonOptions,
+                        cancellationToken
+                    );
                 return dto is null
                     ? new UpdateProgramExerciseFailed("Server returned an empty response.")
-                    : new UpdateProgramExerciseSucceeded(ToDomain(dto));
+                    : new UpdateProgramExerciseSucceeded(ProgramExerciseMapping.ToDomain(dto));
             },
             error => new UpdateProgramExerciseFailed(error),
             "Could not update exercise. Try again.",
@@ -248,48 +248,4 @@ internal sealed class ProgramExercisesApiClient : ApiClientBase, IProgramExercis
         SessionId sessionId,
         SessionPhaseId sessionPhaseId
     ) => $"programs/{programId}/sessions/{sessionId}/phases/{sessionPhaseId}/exercises";
-
-    private static IProgramExercise ToDomain(ProgramExerciseDto dto)
-    {
-        var id = ProgramExerciseId.Parse(dto.Id);
-        var sessionPhaseId = SessionPhaseId.Parse(dto.SessionPhaseId);
-        var exerciseId = ExerciseId.Parse(dto.ExerciseId);
-        var side = Enum.Parse<ProgramExerciseSide>(dto.Side);
-
-        return dto.Type switch
-        {
-            "Reps" => new RepsProgramExercise(
-                id,
-                sessionPhaseId,
-                exerciseId,
-                dto.Reps!.Value,
-                dto.Weight,
-                new SetPrescription(dto.Sets, dto.RestSeconds),
-                side
-            ),
-            "Timed" => new TimedProgramExercise(
-                id,
-                sessionPhaseId,
-                exerciseId,
-                dto.DurationSeconds!.Value,
-                dto.Weight,
-                new SetPrescription(dto.Sets, dto.RestSeconds),
-                side
-            ),
-            _ => throw new FormatException($"Unknown program exercise type: '{dto.Type}'."),
-        };
-    }
-
-    private sealed record ProgramExerciseDto(
-        string Id,
-        string SessionPhaseId,
-        string ExerciseId,
-        string Type,
-        int? Reps,
-        int? DurationSeconds,
-        decimal Weight,
-        int Sets,
-        int RestSeconds,
-        string Side
-    );
 }

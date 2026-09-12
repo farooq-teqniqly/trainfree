@@ -23,7 +23,7 @@ const UPDATE_COLUMNS_BY_FIELD = {
 // TimedProgramExercise row carries no reps property -- the D1 column for the other type's
 // count is always NULL, and this strips it rather than exposing it as `null` (which would
 // read as "type has this field but it's unset" instead of "type does not have this field").
-function shapeProgramExerciseRow(row) {
+export function shapeProgramExerciseRow(row) {
     const shaped = { ...row };
     if (shaped.type === "Reps") {
         delete shaped.durationSeconds;

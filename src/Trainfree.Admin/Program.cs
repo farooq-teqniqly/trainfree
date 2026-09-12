@@ -16,6 +16,7 @@ builder.Services.AddScoped(sp => new HttpClient
     BaseAddress = new Uri(new Uri(builder.HostEnvironment.BaseAddress), apiBaseAddress),
 });
 builder.Services.AddScoped<IProgramsApiClient, ProgramsApiClient>();
+builder.Services.AddScoped<IProgramTreeApiClient, ProgramTreeApiClient>();
 builder.Services.AddScoped<ISessionsApiClient, SessionsApiClient>();
 builder.Services.AddScoped<ISessionPhasesApiClient, SessionPhasesApiClient>();
 builder.Services.AddScoped<IProgramExercisesApiClient, ProgramExercisesApiClient>();

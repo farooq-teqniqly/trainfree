@@ -46,9 +46,6 @@ public sealed class SessionRow
     /// <summary>The error message from the row's last failed save, if any.</summary>
     public string? Error { get; set; }
 
-    /// <summary>The error message from the row's last failed phases load, if any.</summary>
-    public string? PhasesLoadError { get; set; }
-
     /// <summary>The session's phases.</summary>
     public IReadOnlyList<SessionPhaseRow> Phases => _phases;
 

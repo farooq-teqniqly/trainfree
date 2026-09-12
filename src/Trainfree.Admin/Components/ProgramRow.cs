@@ -41,9 +41,6 @@ public sealed class ProgramRow
     /// <summary>The error message from the row's last failed save, if any.</summary>
     public string? Error { get; set; }
 
-    /// <summary>The error message from the row's last failed sessions load, if any.</summary>
-    public string? SessionsLoadError { get; set; }
-
     /// <summary>The program's sessions.</summary>
     public IReadOnlyList<SessionRow> Sessions => _sessions;
 
