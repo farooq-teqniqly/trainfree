@@ -75,6 +75,108 @@ public sealed class ProgramsPageTests : BunitContext
         Assert.Empty(cut.FindAll("tbody tr"));
     }
 
+    [Theory]
+    [InlineData("phase")]
+    [InlineData("exercise")]
+    [InlineData("tree")]
+    public void OnInitialized_OneLoadNeverCompletes_OtherLoadsStillFetchButNoRowRenders(
+        string hangingLoad
+    )
+    {
+        // Arrange
+        var assertOtherLoadsFetched = SetUpHangingLoad(hangingLoad);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        assertOtherLoadsFetched();
+        Assert.Empty(cut.FindAll("tbody tr"));
+    }
+
+    private Action SetUpHangingLoad(string hangingLoad)
+    {
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+
+        switch (hangingLoad)
+        {
+            case "phase":
+                _phasesApiClient
+                    .GetPhasesAsync(CancellationToken.None)
+                    .Returns(new TaskCompletionSource<IReadOnlyList<PhaseSummary>>().Task);
+                _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+                return () =>
+                {
+                    _exercisesApiClient.Received(1).GetExercisesAsync(CancellationToken.None);
+                    _treeApiClient.Received(1).GetProgramTreeAsync(CancellationToken.None);
+                };
+            case "exercise":
+                _exercisesApiClient
+                    .GetExercisesAsync(CancellationToken.None)
+                    .Returns(new TaskCompletionSource<IReadOnlyList<ExerciseSummary>>().Task);
+                _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+                return () =>
+                {
+                    _phasesApiClient.Received(1).GetPhasesAsync(CancellationToken.None);
+                    _treeApiClient.Received(1).GetProgramTreeAsync(CancellationToken.None);
+                };
+            case "tree":
+                _treeApiClient
+                    .GetProgramTreeAsync(CancellationToken.None)
+                    .Returns(new TaskCompletionSource<IReadOnlyList<ProgramTreeItem>>().Task);
+                return () =>
+                {
+                    _phasesApiClient.Received(1).GetPhasesAsync(CancellationToken.None);
+                    _exercisesApiClient.Received(1).GetExercisesAsync(CancellationToken.None);
+                };
+            default:
+                throw new ArgumentOutOfRangeException(nameof(hangingLoad));
+        }
+    }
+
+    [Fact]
+    public async Task OnInitialized_PhaseLibraryResolvesAfterProgramTreeFetch_RendersResolvedPhaseNameNotRawId()
+    {
+        // Arrange
+        var pendingPhases = new TaskCompletionSource<IReadOnlyList<PhaseSummary>>();
+        _phasesApiClient.GetPhasesAsync(CancellationToken.None).Returns(pendingPhases.Task);
+
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([
+                Tree(
+                    program,
+                    Tree(
+                        session,
+                        Tree(
+                            new SessionPhaseSummary(
+                                SessionPhaseId.Parse("SPH-AAAAAA"),
+                                SessionId.Parse("SNN-AAAAAA"),
+                                PhaseId.Parse("PHS-AAAAAA")
+                            )
+                        )
+                    )
+                ),
+            ]);
+
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() =>
+            pendingPhases.SetResult([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")])
+        );
+
+        // Assert
+        Assert.Contains("Warm Up", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("PHS-AAAAAA", cut.Markup, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void OnInitialized_ExistingPrograms_RendersOneRowPerProgram()
     {

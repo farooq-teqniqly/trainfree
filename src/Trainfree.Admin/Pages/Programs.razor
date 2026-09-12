@@ -153,6 +153,15 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var phaseLibraryLoad = LoadPhaseLibraryAsync();
+        var exerciseLibraryLoad = LoadExerciseLibraryAsync();
+        var programTreeLoad = LoadProgramTreeAsync(phaseLibraryLoad, exerciseLibraryLoad);
+
+        await Task.WhenAll(phaseLibraryLoad, exerciseLibraryLoad, programTreeLoad);
+    }
+
+    private async Task LoadPhaseLibraryAsync()
+    {
         try
         {
             _phaseLibrary.AddRange(
@@ -171,7 +180,10 @@
             _phaseLibraryLoadError = "Could not load phases. Try refreshing the page.";
             LogLoadPhaseLibraryFailed(Logger, ex);
         }
+    }
 
+    private async Task LoadExerciseLibraryAsync()
+    {
         try
         {
             _exerciseLibrary.AddRange(
@@ -190,10 +202,22 @@
             _exerciseLibraryLoadError = "Could not load exercises. Try refreshing the page.";
             LogLoadExerciseLibraryFailed(Logger, ex);
         }
+    }
 
+    private async Task LoadProgramTreeAsync(Task phaseLibraryReady, Task exerciseLibraryReady)
+    {
         try
         {
             var programTree = await TreeApi.GetProgramTreeAsync();
+
+            // Both loads swallow their own exceptions into *LoadError state, so awaiting them
+            // here cannot fault this task -- it only blocks row-building (which reads
+            // _phaseLibrary/_exerciseLibrary via ResolvePhaseName/ResolveExerciseName) until both
+            // libraries have settled, one way or another. Without this, the tree fetch's
+            // continuation can run before the library fetches finish populating their lists,
+            // permanently baking the raw PhaseId/ExerciseId into the read-only row properties.
+            await Task.WhenAll(phaseLibraryReady, exerciseLibraryReady);
+
             foreach (var programItem in programTree)
             {
                 _rows.Add(BuildProgramRow(programItem));
