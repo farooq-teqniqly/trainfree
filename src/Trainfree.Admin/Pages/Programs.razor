@@ -151,7 +151,10 @@
     private string? _deleteSessionError;
     private string? _loadError;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() =>
+        await Task.WhenAll(LoadPhaseLibraryAsync(), LoadExerciseLibraryAsync(), LoadProgramTreeAsync());
+
+    private async Task LoadPhaseLibraryAsync()
     {
         try
         {
@@ -171,7 +174,10 @@
             _phaseLibraryLoadError = "Could not load phases. Try refreshing the page.";
             LogLoadPhaseLibraryFailed(Logger, ex);
         }
+    }
 
+    private async Task LoadExerciseLibraryAsync()
+    {
         try
         {
             _exerciseLibrary.AddRange(
@@ -190,7 +196,10 @@
             _exerciseLibraryLoadError = "Could not load exercises. Try refreshing the page.";
             LogLoadExerciseLibraryFailed(Logger, ex);
         }
+    }
 
+    private async Task LoadProgramTreeAsync()
+    {
         try
         {
             var programTree = await TreeApi.GetProgramTreeAsync();

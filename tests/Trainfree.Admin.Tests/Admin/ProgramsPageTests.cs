@@ -76,6 +76,25 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public void OnInitialized_PhaseLibraryLoadNeverCompletes_ExerciseLibraryAndProgramTreeStillLoad()
+    {
+        // Arrange
+        var pendingPhases = new TaskCompletionSource<IReadOnlyList<PhaseSummary>>();
+        _phasesApiClient.GetPhasesAsync(CancellationToken.None).Returns(pendingPhases.Task);
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A"))]);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        _exercisesApiClient.Received(1).GetExercisesAsync(CancellationToken.None);
+        _treeApiClient.Received(1).GetProgramTreeAsync(CancellationToken.None);
+        Assert.Single(cut.FindAll("tbody tr"));
+    }
+
+    [Fact]
     public void OnInitialized_ExistingPrograms_RendersOneRowPerProgram()
     {
         // Arrange
