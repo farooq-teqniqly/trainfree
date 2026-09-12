@@ -76,7 +76,7 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
-    public void OnInitialized_PhaseLibraryLoadNeverCompletes_ExerciseLibraryAndProgramTreeStillLoad()
+    public void OnInitialized_PhaseLibraryLoadNeverCompletes_ExerciseLibraryAndProgramTreeStillFetchButNoRowRenders()
     {
         // Arrange
         var pendingPhases = new TaskCompletionSource<IReadOnlyList<PhaseSummary>>();
@@ -91,7 +91,50 @@ public sealed class ProgramsPageTests : BunitContext
         // Assert
         _exercisesApiClient.Received(1).GetExercisesAsync(CancellationToken.None);
         _treeApiClient.Received(1).GetProgramTreeAsync(CancellationToken.None);
-        Assert.Single(cut.FindAll("tbody tr"));
+        Assert.Empty(cut.FindAll("tbody tr"));
+    }
+
+    [Fact]
+    public async Task OnInitialized_PhaseLibraryResolvesAfterProgramTreeFetch_RendersResolvedPhaseNameNotRawId()
+    {
+        // Arrange
+        var pendingPhases = new TaskCompletionSource<IReadOnlyList<PhaseSummary>>();
+        _phasesApiClient.GetPhasesAsync(CancellationToken.None).Returns(pendingPhases.Task);
+
+        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        var session = new SessionSummary(
+            SessionId.Parse("SNN-AAAAAA"),
+            ProgramId.Parse("PRG-AAAAAA"),
+            "Monday Lower Body"
+        );
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([
+                Tree(
+                    program,
+                    Tree(
+                        session,
+                        Tree(
+                            new SessionPhaseSummary(
+                                SessionPhaseId.Parse("SPH-AAAAAA"),
+                                SessionId.Parse("SNN-AAAAAA"),
+                                PhaseId.Parse("PHS-AAAAAA")
+                            )
+                        )
+                    )
+                ),
+            ]);
+
+        var cut = Render<Programs>();
+
+        // Act
+        await cut.InvokeAsync(() =>
+            pendingPhases.SetResult([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")])
+        );
+
+        // Assert
+        Assert.Contains("Warm Up", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("PHS-AAAAAA", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
