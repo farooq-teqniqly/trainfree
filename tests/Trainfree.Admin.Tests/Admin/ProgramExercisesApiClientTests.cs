@@ -126,6 +126,27 @@ public sealed class ProgramExercisesApiClientTests : IDisposable
     }
 
     [Fact]
+    public async Task GetProgramExercisesAsync_ServerReturnsNullElement_ThrowsArgumentNullException()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("[null]", Encoding.UTF8, "application/json"),
+        };
+        var client = CreateClient();
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            client.GetProgramExercisesAsync(
+                _programId,
+                _sessionId,
+                _sessionPhaseId,
+                CancellationToken.None
+            )
+        );
+    }
+
+    [Fact]
     public async Task GetProgramExercisesAsync_ServerReturnsUnknownSide_ThrowsArgumentException()
     {
         // Arrange

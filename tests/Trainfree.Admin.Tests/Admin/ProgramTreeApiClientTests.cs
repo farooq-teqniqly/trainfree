@@ -137,6 +137,48 @@ public sealed class ProgramTreeApiClientTests : IDisposable
     }
 
     [Fact]
+    public async Task GetProgramTreeAsync_ServerReturnsNullExerciseElement_ThrowsArgumentNullException()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """
+                [
+                    {
+                        "id": "PRG-AAAAAA",
+                        "name": "Workout A",
+                        "sessions": [
+                            {
+                                "id": "SNN-AAAAAA",
+                                "programId": "PRG-AAAAAA",
+                                "name": "Monday Lower Body",
+                                "phases": [
+                                    {
+                                        "id": "SPH-AAAAAA",
+                                        "sessionId": "SNN-AAAAAA",
+                                        "phaseId": "PHS-AAAAAA",
+                                        "exercises": [null]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+                """,
+                Encoding.UTF8,
+                "application/json"
+            ),
+        };
+        var client = CreateClient();
+
+        // Act / Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            client.GetProgramTreeAsync(CancellationToken.None)
+        );
+    }
+
+    [Fact]
     public async Task GetProgramTreeAsync_ServerReturnsUnknownExerciseType_ThrowsFormatException()
     {
         // Arrange

@@ -41,10 +41,13 @@ internal static class ProgramExerciseMapping
     /// </summary>
     /// <param name="dto">The DTO to map.</param>
     /// <returns>The mapped <see cref="IProgramExercise"/>.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="dto"/> is <see langword="null"/>.</exception>
     /// <exception cref="FormatException">Thrown when <paramref name="dto"/>'s <see cref="ProgramExerciseDto.Type"/> is neither "Reps" nor "Timed".</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="dto"/>'s <see cref="ProgramExerciseDto.Side"/> does not parse as a <see cref="ProgramExerciseSide"/>.</exception>
     internal static IProgramExercise ToDomain(ProgramExerciseDto dto)
     {
+        ArgumentNullException.ThrowIfNull(dto);
+
         var id = ProgramExerciseId.Parse(dto.Id);
         var sessionPhaseId = SessionPhaseId.Parse(dto.SessionPhaseId);
         var exerciseId = ExerciseId.Parse(dto.ExerciseId);
