@@ -48,66 +48,36 @@ internal sealed class ProgramTreeApiClient : ApiClientBase, IProgramTreeApiClien
                 SessionId.Parse(dto.SessionId),
                 PhaseId.Parse(dto.PhaseId)
             ),
-            dto.Exercises.ConvertAll(ToDomain)
+            dto.Exercises.ConvertAll(ProgramExerciseMapping.ToDomain)
         );
 
-    private static IProgramExercise ToDomain(ProgramExerciseDto dto)
+    private sealed record ProgramTreeDto(
+        string Id,
+        string Name,
+        List<SessionTreeDto> Sessions = null!
+    )
     {
-        var id = ProgramExerciseId.Parse(dto.Id);
-        var sessionPhaseId = SessionPhaseId.Parse(dto.SessionPhaseId);
-        var exerciseId = ExerciseId.Parse(dto.ExerciseId);
-        var side = Enum.Parse<ProgramExerciseSide>(dto.Side);
-
-        return dto.Type switch
-        {
-            "Reps" => new RepsProgramExercise(
-                id,
-                sessionPhaseId,
-                exerciseId,
-                dto.Reps!.Value,
-                dto.Weight,
-                new SetPrescription(dto.Sets, dto.RestSeconds),
-                side
-            ),
-            "Timed" => new TimedProgramExercise(
-                id,
-                sessionPhaseId,
-                exerciseId,
-                dto.DurationSeconds!.Value,
-                dto.Weight,
-                new SetPrescription(dto.Sets, dto.RestSeconds),
-                side
-            ),
-            _ => throw new FormatException($"Unknown program exercise type: '{dto.Type}'."),
-        };
+        public List<SessionTreeDto> Sessions { get; init; } = Sessions ?? [];
     }
-
-    private sealed record ProgramTreeDto(string Id, string Name, List<SessionTreeDto> Sessions);
 
     private sealed record SessionTreeDto(
         string Id,
         string ProgramId,
         string Name,
-        List<SessionPhaseTreeDto> Phases
-    );
+        List<SessionPhaseTreeDto> Phases = null!
+    )
+    {
+        public List<SessionPhaseTreeDto> Phases { get; init; } = Phases ?? [];
+    }
 
     private sealed record SessionPhaseTreeDto(
         string Id,
         string SessionId,
         string PhaseId,
-        List<ProgramExerciseDto> Exercises
-    );
-
-    private sealed record ProgramExerciseDto(
-        string Id,
-        string SessionPhaseId,
-        string ExerciseId,
-        string Type,
-        int? Reps,
-        int? DurationSeconds,
-        decimal Weight,
-        int Sets,
-        int RestSeconds,
-        string Side
-    );
+        List<ProgramExerciseMapping.ProgramExerciseDto> Exercises = null!
+    )
+    {
+        public List<ProgramExerciseMapping.ProgramExerciseDto> Exercises { get; init; } =
+            Exercises ?? [];
+    }
 }
