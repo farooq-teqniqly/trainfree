@@ -34,6 +34,7 @@ import {
     programExerciseSessionPhaseExists,
     updateProgramExercise,
 } from "./program-exercises.js";
+import { listProgramsTree } from "./programs-tree.js";
 import {
     validateCreateProgramExercise,
     validateExerciseName,
@@ -96,6 +97,14 @@ function handleVersion(request, env) {
     const response = jsonResponse(versionStamp(env));
     response.headers.set("cache-control", "no-store");
     return response;
+}
+
+async function handleProgramsTree(request, db) {
+    if (request.method !== "GET") {
+        return new Response("Method not allowed", { status: 405 });
+    }
+
+    return jsonResponse(await listProgramsTree(db));
 }
 
 async function handleProgramsCollection(request, db) {
@@ -433,6 +442,16 @@ function notFoundOrAssets(request, env) {
     return withCors(new Response("Not found", { status: 404 }), request);
 }
 
+// /api/programs-tree (length 2 only) -- a separate top-level resource name from
+// /api/programs so it never collides with that route's :id/sessions/... dispatch.
+async function routeProgramsTree(request, env, segments) {
+    if (segments.length !== 2) {
+        return notFoundOrAssets(request, env);
+    }
+
+    return withCors(await handleProgramsTree(request, env.DB), request);
+}
+
 // /api/phases (collection, length 2) or /api/phases/:id (resource, length 3)
 // -- a flat resource, unlike programs/sessions below.
 async function routePhases(request, env, segments) {
@@ -573,6 +592,10 @@ export default {
 
         if (segments[0] === "api" && segments[1] === "version" && segments.length === 2) {
             return withCors(handleVersion(request, env), request);
+        }
+
+        if (segments[0] === "api" && segments[1] === "programs-tree") {
+            return routeProgramsTree(request, env, segments);
         }
 
         if (segments[0] === "api" && segments[1] === "phases") {

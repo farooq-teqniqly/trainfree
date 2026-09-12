@@ -1847,3 +1847,70 @@ describe("DELETE /api/programs/:programId/sessions/:sessionId/phases/:id cascade
         expect(listResponse.status).toBe(404);
     });
 });
+
+describe("GET /api/programs-tree", () => {
+    it("returns an empty array when no programs exist", async () => {
+        const response = await SELF.fetch("http://worker/api/programs-tree");
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual([]);
+    });
+
+    it("returns a fully nested tree with all levels present", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+        const exercise = await (await createExercise("Bodyweight Squat")).json();
+        const sessionPhase = await (
+            await createSessionPhase(program.id, session.id, phase.id)
+        ).json();
+        const programExercise = await (
+            await createProgramExercise(program.id, session.id, sessionPhase.id, {
+                exerciseId: exercise.id,
+                type: "Reps",
+                reps: 10,
+                sets: 3,
+                restSeconds: 60,
+            })
+        ).json();
+
+        const response = await SELF.fetch("http://worker/api/programs-tree");
+        const tree = await response.json();
+
+        expect(tree).toEqual([
+            {
+                ...program,
+                sessions: [
+                    {
+                        ...session,
+                        phases: [
+                            {
+                                ...sessionPhase,
+                                exercises: [programExercise],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it("keeps a program with no sessions, and a session with no phases, as empty arrays", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        await createSession(program.id, "Monday Lower Body");
+
+        const response = await SELF.fetch("http://worker/api/programs-tree");
+        const tree = await response.json();
+
+        expect(tree[0].sessions).toHaveLength(1);
+        expect(tree[0].sessions[0].phases).toEqual([]);
+    });
+
+    it("returns 405 for a non-GET method", async () => {
+        const response = await SELF.fetch("http://worker/api/programs-tree", {
+            method: "POST",
+        });
+
+        expect(response.status).toBe(405);
+    });
+});

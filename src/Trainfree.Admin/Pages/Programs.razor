@@ -5,6 +5,7 @@
 @using Trainfree.Domain.Ids
 @using Trainfree.Domain.ProgramExercises
 @inject IProgramsApiClient Api
+@inject IProgramTreeApiClient TreeApi
 @inject ISessionsApiClient SessionsApi
 @inject IPhasesApiClient PhasesApi
 @inject ISessionPhasesApiClient SessionPhasesApi
@@ -72,17 +73,6 @@
                 />
                 @if (!_collapsedIds.Contains(row.Id))
                 {
-                    @if (row.SessionsLoadError is not null)
-                    {
-                        <tr>
-                            <td colspan="8">
-                                <InlineError
-                                    Message="@row.SessionsLoadError"
-                                    TestId="@($"sessions-load-error-{row.Id}")"
-                                />
-                            </td>
-                        </tr>
-                    }
                     @foreach (var session in row.Sessions)
                     {
                         <SessionTableRow
@@ -103,17 +93,6 @@
                         />
                         @if (!_collapsedSessionIds.Contains(session.Id))
                         {
-                            @if (session.PhasesLoadError is not null)
-                            {
-                                <tr>
-                                    <td colspan="8">
-                                        <InlineError
-                                            Message="@session.PhasesLoadError"
-                                            TestId="@($"phases-load-error-{session.Id}")"
-                                        />
-                                    </td>
-                                </tr>
-                            }
                             @foreach (var phase in session.Phases)
                             {
                                 <SessionPhaseTableRow
@@ -132,17 +111,6 @@
                                 />
                                 @if (!_collapsedSessionPhaseIds.Contains(phase.Id))
                                 {
-                                    @if (phase.ProgramExercisesLoadError is not null)
-                                    {
-                                        <tr>
-                                            <td colspan="8">
-                                                <InlineError
-                                                    Message="@phase.ProgramExercisesLoadError"
-                                                    TestId="@($"program-exercises-load-error-{phase.Id}")"
-                                                />
-                                            </td>
-                                        </tr>
-                                    }
                                     @foreach (var programExercise in phase.ProgramExercises)
                                     {
                                         <ProgramExerciseTableRow
@@ -225,18 +193,19 @@
 
         try
         {
-            var programs = await Api.GetProgramsAsync();
-            foreach (var program in programs)
+            var programTree = await TreeApi.GetProgramTreeAsync();
+            foreach (var programItem in programTree)
             {
-                var row = new ProgramRow(program.Id, program.Name);
-                _rows.Add(row);
-                await LoadSessionsAsync(row, program.Id);
+                _rows.Add(BuildProgramRow(programItem));
             }
         }
         // HttpRequestException alone was not enough: Cloudflare Access answers a request made
         // before the session is established with its own HTML login page, which arrives as a
         // JsonException and escaped, blanking the page instead of showing the load error.
         // The charset and content-type cases come with it; a timeout arrives as a cancellation.
+        // FormatException/ArgumentException cover a program exercise row whose type or side
+        // doesn't parse -- GetProgramTreeAsync maps every row eagerly rather than lazily, so
+        // that surfaces here rather than later when a lazily-evaluated row is enumerated.
         catch (Exception ex)
             when (ex
                     is HttpRequestException
@@ -244,113 +213,53 @@
                         or InvalidOperationException
                         or NotSupportedException
                         or OperationCanceledException
+                        or FormatException
+                        or ArgumentException
             )
         {
             _loadError = "Could not load programs. Try refreshing the page.";
-            LogLoadProgramsFailed(Logger, ex);
+            LogLoadProgramTreeFailed(Logger, ex);
         }
     }
 
-    private async Task LoadSessionsAsync(ProgramRow row, ProgramId programId)
+    private ProgramRow BuildProgramRow(ProgramTreeItem programItem)
     {
-        try
+        var row = new ProgramRow(programItem.Program.Id, programItem.Program.Name);
+        foreach (var sessionItem in programItem.Sessions)
         {
-            var sessions = await SessionsApi.GetSessionsAsync(programId);
-            foreach (var session in sessions)
-            {
-                var sessionRow = new SessionRow(session.Id, programId, session.Name);
-                row.AddSession(sessionRow);
-                await LoadSessionPhasesAsync(sessionRow, programId, session.Id);
-            }
+            row.AddSession(BuildSessionRow(sessionItem));
         }
-        catch (Exception ex)
-            when (ex
-                is HttpRequestException
-                    or JsonException
-                    or InvalidOperationException
-                    or NotSupportedException
-                    or OperationCanceledException
-            )
-        {
-            row.SessionsLoadError = "Could not load sessions. Try refreshing the page.";
-            LogLoadSessionsForProgramFailed(Logger, programId, ex);
-        }
+        return row;
     }
 
-    private async Task LoadSessionPhasesAsync(
-        SessionRow sessionRow,
-        ProgramId programId,
-        SessionId sessionId
-    )
+    private SessionRow BuildSessionRow(SessionTreeItem sessionItem)
     {
-        try
+        var sessionRow = new SessionRow(
+            sessionItem.Session.Id,
+            sessionItem.Session.ProgramId,
+            sessionItem.Session.Name
+        );
+        foreach (var phaseItem in sessionItem.Phases)
         {
-            var sessionPhases = await SessionPhasesApi.GetSessionPhasesAsync(programId, sessionId);
-            foreach (var sessionPhase in sessionPhases)
-            {
-                var sessionPhaseRow = new SessionPhaseRow(
-                    sessionPhase.Id,
-                    sessionPhase.PhaseId,
-                    ResolvePhaseName(sessionPhase.PhaseId)
-                );
-                sessionRow.AddPhase(sessionPhaseRow);
-                await LoadProgramExercisesAsync(sessionPhaseRow, programId, sessionId, sessionPhase.Id);
-            }
+            sessionRow.AddPhase(BuildSessionPhaseRow(phaseItem));
         }
-        catch (Exception ex)
-            when (ex
-                is HttpRequestException
-                    or JsonException
-                    or InvalidOperationException
-                    or NotSupportedException
-                    or OperationCanceledException
-            )
-        {
-            sessionRow.PhasesLoadError = "Could not load phases. Try refreshing the page.";
-            LogLoadPhasesForSessionFailed(Logger, sessionId, ex);
-        }
+        return sessionRow;
     }
 
-    private async Task LoadProgramExercisesAsync(
-        SessionPhaseRow sessionPhaseRow,
-        ProgramId programId,
-        SessionId sessionId,
-        SessionPhaseId sessionPhaseId
-    )
+    private SessionPhaseRow BuildSessionPhaseRow(SessionPhaseTreeItem phaseItem)
     {
-        try
-        {
-            var programExercises = await ProgramExercisesApi.GetProgramExercisesAsync(
-                programId,
-                sessionId,
-                sessionPhaseId
-            );
-            sessionPhaseRow.AddProgramExercises(
-                programExercises.Select(pe => new ProgramExerciseRow(
-                    pe,
-                    ResolveExerciseName(pe.ExerciseId)
-                ))
-            );
-        }
-        catch (Exception ex)
-            when (ex
-                is HttpRequestException
-                    or JsonException
-                    or InvalidOperationException
-                    or NotSupportedException
-                    or OperationCanceledException
-                    or FormatException
-                    or ArgumentException
-            )
-        {
-            sessionPhaseRow.ProgramExercisesLoadError =
-                "Could not load exercises. Try refreshing the page.";
-            LogLoadProgramExercisesForSessionPhaseFailed(Logger, sessionPhaseId, ex);
-        }
+        var sessionPhaseRow = new SessionPhaseRow(
+            phaseItem.SessionPhase.Id,
+            phaseItem.SessionPhase.PhaseId,
+            ResolvePhaseName(phaseItem.SessionPhase.PhaseId)
+        );
+        sessionPhaseRow.AddProgramExercises(
+            phaseItem.Exercises.Select(pe => new ProgramExerciseRow(pe, ResolveExerciseName(pe.ExerciseId)))
+        );
+        return sessionPhaseRow;
     }
 
-    private static bool HasToggleableContent(ProgramRow row) =>
-        row.Sessions.Count > 0 || row.SessionsLoadError is not null;
+    private static bool HasToggleableContent(ProgramRow row) => row.Sessions.Count > 0;
 
     private bool HasOpenAddExerciseForm(SessionRow session) =>
         _addingExerciseSessionPhaseId is not null
@@ -400,7 +309,7 @@
         _exerciseLibrary.FirstOrDefault(e => e.Id == exerciseId)?.Name ?? exerciseId.Value;
 
     private static bool HasToggleableExerciseContent(SessionPhaseRow phase) =>
-        phase.ProgramExercises.Count > 0 || phase.ProgramExercisesLoadError is not null;
+        phase.ProgramExercises.Count > 0;
 
     private string PhaseChevronTitle(SessionPhaseRow phase)
     {
@@ -695,8 +604,7 @@
         }
     }
 
-    private static bool HasToggleablePhaseContent(SessionRow session) =>
-        session.Phases.Count > 0 || session.PhasesLoadError is not null;
+    private static bool HasToggleablePhaseContent(SessionRow session) => session.Phases.Count > 0;
 
     private string SessionChevronTitle(SessionRow session)
     {

@@ -14,6 +14,7 @@ namespace Trainfree.Admin.Tests.Admin;
 public sealed class ProgramsPageTests : BunitContext
 {
     private readonly IProgramsApiClient _apiClient = Substitute.For<IProgramsApiClient>();
+    private readonly IProgramTreeApiClient _treeApiClient = Substitute.For<IProgramTreeApiClient>();
     private readonly ISessionsApiClient _sessionsApiClient = Substitute.For<ISessionsApiClient>();
     private readonly IPhasesApiClient _phasesApiClient = Substitute.For<IPhasesApiClient>();
     private readonly ISessionPhasesApiClient _sessionPhasesApiClient =
@@ -23,43 +24,46 @@ public sealed class ProgramsPageTests : BunitContext
     private readonly IProgramExercisesApiClient _programExercisesApiClient =
         Substitute.For<IProgramExercisesApiClient>();
 
+    private ProgramSummary? _setUpProgram;
+    private SessionSummary? _setUpSession;
+    private SessionPhaseSummary? _setUpSessionPhase;
+
     public ProgramsPageTests()
     {
         Services.AddSingleton(_apiClient);
+        Services.AddSingleton(_treeApiClient);
         Services.AddSingleton(_sessionsApiClient);
         Services.AddSingleton(_phasesApiClient);
         Services.AddSingleton(_sessionPhasesApiClient);
         Services.AddSingleton(_exercisesApiClient);
         Services.AddSingleton(_programExercisesApiClient);
-        _sessionsApiClient
-            .GetSessionsAsync(Arg.Any<ProgramId>(), Arg.Any<CancellationToken>())
-            .Returns([]);
+        _treeApiClient.GetProgramTreeAsync(Arg.Any<CancellationToken>()).Returns([]);
         _phasesApiClient.GetPhasesAsync(Arg.Any<CancellationToken>()).Returns([]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                Arg.Any<ProgramId>(),
-                Arg.Any<SessionId>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns([]);
         _exercisesApiClient.GetExercisesAsync(Arg.Any<CancellationToken>()).Returns([]);
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(
-                Arg.Any<ProgramId>(),
-                Arg.Any<SessionId>(),
-                Arg.Any<SessionPhaseId>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns([]);
     }
+
+    private static ProgramTreeItem Tree(
+        ProgramSummary program,
+        params SessionTreeItem[] sessions
+    ) => new(program, sessions);
+
+    private static SessionTreeItem Tree(
+        SessionSummary session,
+        params SessionPhaseTreeItem[] phases
+    ) => new(session, phases);
+
+    private static SessionPhaseTreeItem Tree(
+        SessionPhaseSummary sessionPhase,
+        params IProgramExercise[] exercises
+    ) => new(sessionPhase, exercises);
 
     [Fact]
     public void OnInitialized_ServerReturnsTheAccessLoginPage_ShowsTheLoadErrorInsteadOfFailing()
     {
         // Arrange
-        _apiClient
-            .GetProgramsAsync(CancellationToken.None)
-            .Returns<IReadOnlyList<ProgramSummary>>(_ =>
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns<IReadOnlyList<ProgramTreeItem>>(_ =>
                 throw new JsonException("'<' is an invalid start of a value.")
             );
 
@@ -72,41 +76,14 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
-    public void OnInitialized_OneProgramSessionsFailToLoad_StillRendersEveryProgramRow()
-    {
-        // Arrange
-        _apiClient
-            .GetProgramsAsync(CancellationToken.None)
-            .Returns([
-                new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A"),
-                new ProgramSummary(ProgramId.Parse("PRG-BBBBBB"), "Workout B"),
-            ]);
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns<IReadOnlyList<SessionSummary>>(_ =>
-                throw new JsonException("'<' is an invalid start of a value.")
-            );
-
-        // Act
-        var cut = Render<Programs>();
-
-        // Assert
-        var rows = cut.FindAll("tbody tr");
-        Assert.Contains("Workout A", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("Workout B", cut.Markup, StringComparison.Ordinal);
-        Assert.NotEmpty(rows);
-        Assert.NotNull(cut.Find("[data-testid=sessions-load-error-PRG-AAAAAA]"));
-    }
-
-    [Fact]
     public void OnInitialized_ExistingPrograms_RendersOneRowPerProgram()
     {
         // Arrange
-        _apiClient
-            .GetProgramsAsync(CancellationToken.None)
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
             .Returns([
-                new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A"),
-                new ProgramSummary(ProgramId.Parse("PRG-BBBBBB"), "Workout B"),
+                Tree(new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A")),
+                Tree(new ProgramSummary(ProgramId.Parse("PRG-BBBBBB"), "Workout B")),
             ]);
 
         // Act
@@ -123,8 +100,10 @@ public sealed class ProgramsPageTests : BunitContext
     public async Task AddProgram_ClickPlusProgram_AppendsRowInEditMode()
     {
         // Arrange
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([]);
         var created = new ProgramSummary(ProgramId.Parse("PRG-CCCCCC"), "New Program");
+
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([]);
+
         _apiClient
             .CreateProgramAsync("New Program", CancellationToken.None)
             .Returns(new CreateProgramSucceeded(created));
@@ -143,7 +122,8 @@ public sealed class ProgramsPageTests : BunitContext
     public async Task AddProgram_ServerRejectsDuplicateName_ShowsErrorAndAddsNoRow()
     {
         // Arrange
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([]);
+
         _apiClient
             .CreateProgramAsync("New Program", CancellationToken.None)
             .Returns(new CreateProgramFailed("A program named \"New Program\" already exists."));
@@ -166,8 +146,10 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var renamed = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Renamed Workout");
+
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         _apiClient
             .RenameProgramAsync(
                 ProgramId.Parse("PRG-AAAAAA"),
@@ -199,7 +181,8 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         var cut = Render<Programs>();
         var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
 
@@ -223,7 +206,8 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         _apiClient
             .RenameProgramAsync(
                 ProgramId.Parse("PRG-AAAAAA"),
@@ -251,8 +235,10 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var renamed = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Renamed Workout");
+
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         _apiClient
             .RenameProgramAsync(
                 ProgramId.Parse("PRG-AAAAAA"),
@@ -284,7 +270,8 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         var cut = Render<Programs>();
         var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
 
@@ -306,8 +293,10 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var renamed = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Renamed Workout");
+
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         var tcs = new TaskCompletionSource<RenameProgramOutcome>();
         _apiClient
             .RenameProgramAsync(
@@ -343,7 +332,8 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         var tcs = new TaskCompletionSource<RenameProgramOutcome>();
         _apiClient
             .RenameProgramAsync(
@@ -376,7 +366,7 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
 
         // Act
         var cut = Render<Programs>();
@@ -390,7 +380,8 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         var cut = Render<Programs>();
         var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
 
@@ -406,7 +397,7 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
 
         // Act
         var cut = Render<Programs>();
@@ -420,7 +411,8 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         var cut = Render<Programs>();
         var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
 
@@ -436,7 +428,8 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         var cut = Render<Programs>();
         var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
         await cut.InvokeAsync(() => input.Input("Renamed Workout"));
@@ -455,7 +448,8 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         var cut = Render<Programs>();
         var input = cut.Find("[data-testid='name-input-PRG-AAAAAA']");
         await cut.InvokeAsync(() => input.Input("Ab"));
@@ -474,7 +468,8 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         _apiClient
             .DeleteProgramAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
             .Returns(new DeleteProgramSucceeded());
@@ -495,7 +490,8 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         _apiClient
             .DeleteProgramAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
             .Returns(new DeleteProgramFailed("Request failed with status 500."));
@@ -513,9 +509,9 @@ public sealed class ProgramsPageTests : BunitContext
     public void OnInitialized_LoadFails_ShowsErrorWithoutThrowing()
     {
         // Arrange
-        _apiClient
-            .GetProgramsAsync(CancellationToken.None)
-            .Returns<Task<IReadOnlyList<ProgramSummary>>>(_ =>
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns<Task<IReadOnlyList<ProgramTreeItem>>>(_ =>
                 throw new HttpRequestException("simulated failure")
             );
 
@@ -532,19 +528,25 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
             .Returns([
-                new SessionSummary(
-                    SessionId.Parse("SNN-AAAAAA"),
-                    ProgramId.Parse("PRG-AAAAAA"),
-                    "Monday Lower Body"
-                ),
-                new SessionSummary(
-                    SessionId.Parse("SNN-BBBBBB"),
-                    ProgramId.Parse("PRG-AAAAAA"),
-                    "Wednesday Upper Body"
+                Tree(
+                    program,
+                    Tree(
+                        new SessionSummary(
+                            SessionId.Parse("SNN-AAAAAA"),
+                            ProgramId.Parse("PRG-AAAAAA"),
+                            "Monday Lower Body"
+                        )
+                    ),
+                    Tree(
+                        new SessionSummary(
+                            SessionId.Parse("SNN-BBBBBB"),
+                            ProgramId.Parse("PRG-AAAAAA"),
+                            "Wednesday Upper Body"
+                        )
+                    )
                 ),
             ]);
 
@@ -561,12 +563,14 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var created = new SessionSummary(
             SessionId.Parse("SNN-CCCCCC"),
             ProgramId.Parse("PRG-AAAAAA"),
             "New Session"
         );
+
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         _sessionsApiClient
             .CreateSessionAsync(
                 ProgramId.Parse("PRG-AAAAAA"),
@@ -596,12 +600,14 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var created = new SessionSummary(
             SessionId.Parse("SNN-CCCCCC"),
             ProgramId.Parse("PRG-AAAAAA"),
             "New Session"
         );
+
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         _sessionsApiClient
             .CreateSessionAsync(
                 ProgramId.Parse("PRG-AAAAAA"),
@@ -625,7 +631,8 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         _sessionsApiClient
             .CreateSessionAsync(
                 ProgramId.Parse("PRG-AAAAAA"),
@@ -652,20 +659,22 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
         var renamed = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Renamed Session"
         );
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         _sessionsApiClient
             .RenameSessionAsync(
                 ProgramId.Parse("PRG-AAAAAA"),
@@ -699,15 +708,16 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         var cut = Render<Programs>();
         var input = cut.Find("[data-testid='session-name-input-SNN-AAAAAA']");
 
@@ -732,15 +742,16 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         _sessionsApiClient
             .RenameSessionAsync(
                 ProgramId.Parse("PRG-AAAAAA"),
@@ -769,20 +780,22 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
         var renamed = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Renamed Session"
         );
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         _sessionsApiClient
             .RenameSessionAsync(
                 ProgramId.Parse("PRG-AAAAAA"),
@@ -816,15 +829,16 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         var cut = Render<Programs>();
         var input = cut.Find("[data-testid='session-name-input-SNN-AAAAAA']");
 
@@ -847,20 +861,22 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
         var renamed = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Renamed Session"
         );
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         var tcs = new TaskCompletionSource<RenameSessionOutcome>();
         _sessionsApiClient
             .RenameSessionAsync(
@@ -898,15 +914,16 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         var tcs = new TaskCompletionSource<RenameSessionOutcome>();
         _sessionsApiClient
             .RenameSessionAsync(
@@ -944,15 +961,16 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         var cut = Render<Programs>();
         var input = cut.Find("[data-testid='session-name-input-SNN-AAAAAA']");
         await cut.InvokeAsync(() => input.Input("Renamed Session"));
@@ -979,15 +997,16 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         _sessionsApiClient
             .DeleteSessionAsync(
                 ProgramId.Parse("PRG-AAAAAA"),
@@ -1016,15 +1035,15 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
 
         // Act
         var cut = Render<Programs>();
@@ -1038,15 +1057,16 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         var cut = Render<Programs>();
         var chevron = cut.Find("[data-testid='chevron-PRG-AAAAAA']");
         Assert.Equal("true", chevron.GetAttribute("aria-expanded"));
@@ -1064,15 +1084,16 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         var cut = Render<Programs>();
 
         // Act
@@ -1087,15 +1108,15 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         var cut = Render<Programs>();
         await cut.InvokeAsync(() => cut.Find("[data-testid='chevron-PRG-AAAAAA']").Click());
 
@@ -1104,9 +1125,7 @@ public sealed class ProgramsPageTests : BunitContext
 
         // Assert
         Assert.Contains("Monday Lower Body", cut.Markup, StringComparison.Ordinal);
-        await _sessionsApiClient
-            .Received(1)
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None);
+        await _treeApiClient.Received(1).GetProgramTreeAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -1115,25 +1134,31 @@ public sealed class ProgramsPageTests : BunitContext
         // Arrange
         var programA = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
         var programB = new ProgramSummary(ProgramId.Parse("PRG-BBBBBB"), "Workout B");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([programA, programB]);
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
             .Returns([
-                new SessionSummary(
-                    SessionId.Parse("SNN-AAAAAA"),
-                    ProgramId.Parse("PRG-AAAAAA"),
-                    "Monday Lower Body"
+                Tree(
+                    programA,
+                    Tree(
+                        new SessionSummary(
+                            SessionId.Parse("SNN-AAAAAA"),
+                            ProgramId.Parse("PRG-AAAAAA"),
+                            "Monday Lower Body"
+                        )
+                    )
+                ),
+                Tree(
+                    programB,
+                    Tree(
+                        new SessionSummary(
+                            SessionId.Parse("SNN-BBBBBB"),
+                            ProgramId.Parse("PRG-BBBBBB"),
+                            "Tuesday Upper Body"
+                        )
+                    )
                 ),
             ]);
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-BBBBBB"), CancellationToken.None)
-            .Returns([
-                new SessionSummary(
-                    SessionId.Parse("SNN-BBBBBB"),
-                    ProgramId.Parse("PRG-BBBBBB"),
-                    "Tuesday Upper Body"
-                ),
-            ]);
+
         var cut = Render<Programs>();
 
         // Act
@@ -1149,7 +1174,8 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+        _treeApiClient.GetProgramTreeAsync(CancellationToken.None).Returns([Tree(program)]);
+
         var cut = Render<Programs>();
         var chevron = cut.Find("[data-testid='chevron-PRG-AAAAAA']");
         Assert.True(chevron.HasAttribute("disabled"));
@@ -1167,48 +1193,20 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
-    public async Task Chevron_ClickOnProgramWhoseSessionsFailedToLoad_TogglesErrorPanel()
-    {
-        // Arrange
-        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns<IReadOnlyList<SessionSummary>>(_ =>
-                throw new JsonException("'<' is an invalid start of a value.")
-            );
-        var cut = Render<Programs>();
-        var chevron = cut.Find("[data-testid='chevron-PRG-AAAAAA']");
-        Assert.False(chevron.HasAttribute("disabled"));
-        Assert.Equal("true", chevron.GetAttribute("aria-expanded"));
-        Assert.Equal("Collapse", chevron.GetAttribute("title"));
-        Assert.NotNull(cut.Find("[data-testid=sessions-load-error-PRG-AAAAAA]"));
-
-        // Act
-        await cut.InvokeAsync(() => chevron.Click());
-
-        // Assert
-        chevron = cut.Find("[data-testid='chevron-PRG-AAAAAA']");
-        Assert.Equal("false", chevron.GetAttribute("aria-expanded"));
-        Assert.Equal("Expand", chevron.GetAttribute("title"));
-        Assert.Contains("chevron-collapsed", chevron.InnerHtml, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll("[data-testid=sessions-load-error-PRG-AAAAAA]"));
-    }
-
-    [Fact]
     public async Task DeleteSession_ServerRejects_ShowsErrorAndKeepsRowWithoutThrowing()
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         _sessionsApiClient
             .DeleteSessionAsync(
                 ProgramId.Parse("PRG-AAAAAA"),
@@ -1231,31 +1229,34 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([
+                Tree(
+                    program,
+                    Tree(
+                        session,
+                        Tree(
+                            new SessionPhaseSummary(
+                                SessionPhaseId.Parse("SPH-AAAAAA"),
+                                SessionId.Parse("SNN-AAAAAA"),
+                                PhaseId.Parse("PHS-AAAAAA")
+                            )
+                        )
+                    )
+                ),
+            ]);
+
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-AAAAAA"),
-                CancellationToken.None
-            )
-            .Returns([
-                new SessionPhaseSummary(
-                    SessionPhaseId.Parse("SPH-AAAAAA"),
-                    SessionId.Parse("SNN-AAAAAA"),
-                    PhaseId.Parse("PHS-AAAAAA")
-                ),
-            ]);
 
         // Act
         var cut = Render<Programs>();
@@ -1265,73 +1266,38 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
-    public void OnInitialized_OneSessionsPhasesFailToLoad_StillRendersEveryOtherRow()
-    {
-        // Arrange
-        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
-        var sessionA = new SessionSummary(
-            SessionId.Parse("SNN-AAAAAA"),
-            ProgramId.Parse("PRG-AAAAAA"),
-            "Monday Lower Body"
-        );
-        var sessionB = new SessionSummary(
-            SessionId.Parse("SNN-BBBBBB"),
-            ProgramId.Parse("PRG-AAAAAA"),
-            "Wednesday Upper Body"
-        );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([sessionA, sessionB]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-AAAAAA"),
-                CancellationToken.None
-            )
-            .Returns<IReadOnlyList<SessionPhaseSummary>>(_ =>
-                throw new JsonException("'<' is an invalid start of a value.")
-            );
-
-        // Act
-        var cut = Render<Programs>();
-
-        // Assert
-        Assert.Contains("Monday Lower Body", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("Wednesday Upper Body", cut.Markup, StringComparison.Ordinal);
-        Assert.NotNull(cut.Find("[data-testid=phases-load-error-SNN-AAAAAA]"));
-    }
-
-    [Fact]
     public void OnInitialized_SessionHasPhases_StartsExpanded()
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([
+                Tree(
+                    program,
+                    Tree(
+                        session,
+                        Tree(
+                            new SessionPhaseSummary(
+                                SessionPhaseId.Parse("SPH-AAAAAA"),
+                                SessionId.Parse("SNN-AAAAAA"),
+                                PhaseId.Parse("PHS-AAAAAA")
+                            )
+                        )
+                    )
+                ),
+            ]);
+
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-AAAAAA"),
-                CancellationToken.None
-            )
-            .Returns([
-                new SessionPhaseSummary(
-                    SessionPhaseId.Parse("SPH-AAAAAA"),
-                    SessionId.Parse("SNN-AAAAAA"),
-                    PhaseId.Parse("PHS-AAAAAA")
-                ),
-            ]);
 
         // Act
         var cut = Render<Programs>();
@@ -1345,31 +1311,35 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([
+                Tree(
+                    program,
+                    Tree(
+                        session,
+                        Tree(
+                            new SessionPhaseSummary(
+                                SessionPhaseId.Parse("SPH-AAAAAA"),
+                                SessionId.Parse("SNN-AAAAAA"),
+                                PhaseId.Parse("PHS-AAAAAA")
+                            )
+                        )
+                    )
+                ),
+            ]);
+
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-AAAAAA"),
-                CancellationToken.None
-            )
-            .Returns([
-                new SessionPhaseSummary(
-                    SessionPhaseId.Parse("SPH-AAAAAA"),
-                    SessionId.Parse("SNN-AAAAAA"),
-                    PhaseId.Parse("PHS-AAAAAA")
-                ),
-            ]);
+
         var cut = Render<Programs>();
 
         // Act
@@ -1384,31 +1354,23 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+        var sessionPhase = new SessionPhaseSummary(
+            SessionPhaseId.Parse("SPH-AAAAAA"),
+            SessionId.Parse("SNN-AAAAAA"),
+            PhaseId.Parse("PHS-AAAAAA")
+        );
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session, Tree(sessionPhase)))]);
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-AAAAAA"),
-                CancellationToken.None
-            )
-            .Returns([
-                new SessionPhaseSummary(
-                    SessionPhaseId.Parse("SPH-AAAAAA"),
-                    SessionId.Parse("SNN-AAAAAA"),
-                    PhaseId.Parse("PHS-AAAAAA")
-                ),
-            ]);
+
         var cut = Render<Programs>();
         await cut.InvokeAsync(() => cut.Find("[data-testid='session-chevron-SNN-AAAAAA']").Click());
 
@@ -1417,13 +1379,7 @@ public sealed class ProgramsPageTests : BunitContext
 
         // Assert
         Assert.NotEmpty(cut.FindAll("[data-testid='phase-name-SPH-AAAAAA']"));
-        await _sessionPhasesApiClient
-            .Received(1)
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-AAAAAA"),
-                CancellationToken.None
-            );
+        await _treeApiClient.Received(1).GetProgramTreeAsync(CancellationToken.None);
     }
 
     [Fact]
@@ -1431,7 +1387,7 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+
         var sessionA = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
@@ -1442,38 +1398,39 @@ public sealed class ProgramsPageTests : BunitContext
             ProgramId.Parse("PRG-AAAAAA"),
             "Wednesday Upper Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([sessionA, sessionB]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([
+                Tree(
+                    program,
+                    Tree(
+                        sessionA,
+                        Tree(
+                            new SessionPhaseSummary(
+                                SessionPhaseId.Parse("SPH-AAAAAA"),
+                                SessionId.Parse("SNN-AAAAAA"),
+                                PhaseId.Parse("PHS-AAAAAA")
+                            )
+                        )
+                    ),
+                    Tree(
+                        sessionB,
+                        Tree(
+                            new SessionPhaseSummary(
+                                SessionPhaseId.Parse("SPH-BBBBBB"),
+                                SessionId.Parse("SNN-BBBBBB"),
+                                PhaseId.Parse("PHS-AAAAAA")
+                            )
+                        )
+                    )
+                ),
+            ]);
+
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-AAAAAA"),
-                CancellationToken.None
-            )
-            .Returns([
-                new SessionPhaseSummary(
-                    SessionPhaseId.Parse("SPH-AAAAAA"),
-                    SessionId.Parse("SNN-AAAAAA"),
-                    PhaseId.Parse("PHS-AAAAAA")
-                ),
-            ]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-BBBBBB"),
-                CancellationToken.None
-            )
-            .Returns([
-                new SessionPhaseSummary(
-                    SessionPhaseId.Parse("SPH-BBBBBB"),
-                    SessionId.Parse("SNN-BBBBBB"),
-                    PhaseId.Parse("PHS-AAAAAA")
-                ),
-            ]);
+
         var cut = Render<Programs>();
 
         // Act
@@ -1489,15 +1446,16 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
@@ -1516,15 +1474,16 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([
@@ -1547,15 +1506,16 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
@@ -1600,15 +1560,16 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         var cut = Render<Programs>();
 
         // Act
@@ -1631,15 +1592,16 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session))]);
+
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns<Task<IReadOnlyList<PhaseSummary>>>(_ =>
@@ -1660,31 +1622,35 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([
+                Tree(
+                    program,
+                    Tree(
+                        session,
+                        Tree(
+                            new SessionPhaseSummary(
+                                SessionPhaseId.Parse("SPH-AAAAAA"),
+                                SessionId.Parse("SNN-AAAAAA"),
+                                PhaseId.Parse("PHS-AAAAAA")
+                            )
+                        )
+                    )
+                ),
+            ]);
+
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-AAAAAA"),
-                CancellationToken.None
-            )
-            .Returns([
-                new SessionPhaseSummary(
-                    SessionPhaseId.Parse("SPH-AAAAAA"),
-                    SessionId.Parse("SNN-AAAAAA"),
-                    PhaseId.Parse("PHS-AAAAAA")
-                ),
-            ]);
+
         _sessionPhasesApiClient
             .DeleteSessionPhaseAsync(
                 ProgramId.Parse("PRG-AAAAAA"),
@@ -1707,31 +1673,35 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
+
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([
+                Tree(
+                    program,
+                    Tree(
+                        session,
+                        Tree(
+                            new SessionPhaseSummary(
+                                SessionPhaseId.Parse("SPH-AAAAAA"),
+                                SessionId.Parse("SNN-AAAAAA"),
+                                PhaseId.Parse("PHS-AAAAAA")
+                            )
+                        )
+                    )
+                ),
+            ]);
+
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-AAAAAA"),
-                CancellationToken.None
-            )
-            .Returns([
-                new SessionPhaseSummary(
-                    SessionPhaseId.Parse("SPH-AAAAAA"),
-                    SessionId.Parse("SNN-AAAAAA"),
-                    PhaseId.Parse("PHS-AAAAAA")
-                ),
-            ]);
+
         _sessionPhasesApiClient
             .DeleteSessionPhaseAsync(
                 ProgramId.Parse("PRG-AAAAAA"),
@@ -1759,48 +1729,40 @@ public sealed class ProgramsPageTests : BunitContext
         string exerciseName = "Bodyweight Squat"
     )
     {
-        var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
-        var session = new SessionSummary(
+        _setUpProgram = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
+        _setUpSession = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+        _setUpSessionPhase = new SessionPhaseSummary(
+            SessionPhaseId.Parse("SPH-AAAAAA"),
+            SessionId.Parse("SNN-AAAAAA"),
+            PhaseId.Parse("PHS-AAAAAA")
+        );
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-AAAAAA"),
-                CancellationToken.None
-            )
-            .Returns([
-                new SessionPhaseSummary(
-                    SessionPhaseId.Parse("SPH-AAAAAA"),
-                    SessionId.Parse("SNN-AAAAAA"),
-                    PhaseId.Parse("PHS-AAAAAA")
-                ),
-            ]);
         _exercisesApiClient
             .GetExercisesAsync(CancellationToken.None)
             .Returns([new ExerciseSummary(ExerciseId.Parse(exerciseId), exerciseName)]);
+        SetProgramExercises();
 
-        return (
-            ProgramId.Parse("PRG-AAAAAA"),
-            SessionId.Parse("SNN-AAAAAA"),
-            SessionPhaseId.Parse("SPH-AAAAAA")
-        );
+        return (_setUpProgram.Id, _setUpSession.Id, _setUpSessionPhase.Id);
     }
+
+    private void SetProgramExercises(params IProgramExercise[] exercises) =>
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([
+                Tree(_setUpProgram!, Tree(_setUpSession!, Tree(_setUpSessionPhase!, exercises))),
+            ]);
 
     [Fact]
     public void ProgramExercises_SessionPhaseHasProgramExercises_RendersRowsNestedUnderPhase()
     {
         // Arrange
-        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var (_, _, sessionPhaseId) = SetUpProgramSessionPhase();
         var reps = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-AAAAAA"),
             sessionPhaseId,
@@ -1810,9 +1772,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
 
         // Act
         var cut = Render<Programs>();
@@ -1822,44 +1782,6 @@ public sealed class ProgramsPageTests : BunitContext
             "Bodyweight Squat",
             cut.Find("[data-testid='program-exercise-name-PGX-AAAAAA']").TextContent.Trim()
         );
-    }
-
-    [Fact]
-    public void ProgramExercises_LoadFailsForOneSessionPhase_ShowsErrorButPhaseRowStillRenders()
-    {
-        // Arrange
-        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns<Task<IReadOnlyList<IProgramExercise>>>(_ =>
-                throw new HttpRequestException("simulated failure")
-            );
-
-        // Act
-        var cut = Render<Programs>();
-
-        // Assert
-        Assert.NotEmpty(cut.FindAll("[data-testid='program-exercises-load-error-SPH-AAAAAA']"));
-        Assert.NotEmpty(cut.FindAll("[data-testid='phase-name-SPH-AAAAAA']"));
-    }
-
-    [Fact]
-    public void ProgramExercises_LoadThrowsFormatException_ShowsErrorButPhaseRowStillRenders()
-    {
-        // Arrange
-        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns<Task<IReadOnlyList<IProgramExercise>>>(_ =>
-                throw new FormatException("Unknown program exercise type: 'Bogus'.")
-            );
-
-        // Act
-        var cut = Render<Programs>();
-
-        // Assert
-        Assert.NotEmpty(cut.FindAll("[data-testid='program-exercises-load-error-SPH-AAAAAA']"));
-        Assert.NotEmpty(cut.FindAll("[data-testid='phase-name-SPH-AAAAAA']"));
     }
 
     [Fact]
@@ -1882,31 +1804,22 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+        var sessionPhase = new SessionPhaseSummary(
+            SessionPhaseId.Parse("SPH-AAAAAA"),
+            SessionId.Parse("SNN-AAAAAA"),
+            PhaseId.Parse("PHS-AAAAAA")
+        );
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session, Tree(sessionPhase)))]);
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-AAAAAA"),
-                CancellationToken.None
-            )
-            .Returns([
-                new SessionPhaseSummary(
-                    SessionPhaseId.Parse("SPH-AAAAAA"),
-                    SessionId.Parse("SNN-AAAAAA"),
-                    PhaseId.Parse("PHS-AAAAAA")
-                ),
-            ]);
         _exercisesApiClient
             .GetExercisesAsync(CancellationToken.None)
             .Returns([
@@ -1929,31 +1842,22 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+        var sessionPhase = new SessionPhaseSummary(
+            SessionPhaseId.Parse("SPH-AAAAAA"),
+            SessionId.Parse("SNN-AAAAAA"),
+            PhaseId.Parse("PHS-AAAAAA")
+        );
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session, Tree(sessionPhase)))]);
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-AAAAAA"),
-                CancellationToken.None
-            )
-            .Returns([
-                new SessionPhaseSummary(
-                    SessionPhaseId.Parse("SPH-AAAAAA"),
-                    SessionId.Parse("SNN-AAAAAA"),
-                    PhaseId.Parse("PHS-AAAAAA")
-                ),
-            ]);
         var cut = Render<Programs>();
 
         // Act
@@ -2054,31 +1958,22 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+        var sessionPhase = new SessionPhaseSummary(
+            SessionPhaseId.Parse("SPH-AAAAAA"),
+            SessionId.Parse("SNN-AAAAAA"),
+            PhaseId.Parse("PHS-AAAAAA")
+        );
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session, Tree(sessionPhase)))]);
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up")]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-AAAAAA"),
-                CancellationToken.None
-            )
-            .Returns([
-                new SessionPhaseSummary(
-                    SessionPhaseId.Parse("SPH-AAAAAA"),
-                    SessionId.Parse("SNN-AAAAAA"),
-                    PhaseId.Parse("PHS-AAAAAA")
-                ),
-            ]);
         var cut = Render<Programs>();
         await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-SPH-AAAAAA']").Click());
 
@@ -2353,38 +2248,29 @@ public sealed class ProgramsPageTests : BunitContext
     {
         // Arrange
         var program = new ProgramSummary(ProgramId.Parse("PRG-AAAAAA"), "Workout A");
-        _apiClient.GetProgramsAsync(CancellationToken.None).Returns([program]);
         var session = new SessionSummary(
             SessionId.Parse("SNN-AAAAAA"),
             ProgramId.Parse("PRG-AAAAAA"),
             "Monday Lower Body"
         );
-        _sessionsApiClient
-            .GetSessionsAsync(ProgramId.Parse("PRG-AAAAAA"), CancellationToken.None)
-            .Returns([session]);
+        var sessionPhaseA = new SessionPhaseSummary(
+            SessionPhaseId.Parse("SPH-AAAAAA"),
+            SessionId.Parse("SNN-AAAAAA"),
+            PhaseId.Parse("PHS-AAAAAA")
+        );
+        var sessionPhaseB = new SessionPhaseSummary(
+            SessionPhaseId.Parse("SPH-BBBBBB"),
+            SessionId.Parse("SNN-AAAAAA"),
+            PhaseId.Parse("PHS-BBBBBB")
+        );
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns([Tree(program, Tree(session, Tree(sessionPhaseA), Tree(sessionPhaseB)))]);
         _phasesApiClient
             .GetPhasesAsync(CancellationToken.None)
             .Returns([
                 new PhaseSummary(PhaseId.Parse("PHS-AAAAAA"), "Warm Up"),
                 new PhaseSummary(PhaseId.Parse("PHS-BBBBBB"), "Cool Down"),
-            ]);
-        _sessionPhasesApiClient
-            .GetSessionPhasesAsync(
-                ProgramId.Parse("PRG-AAAAAA"),
-                SessionId.Parse("SNN-AAAAAA"),
-                CancellationToken.None
-            )
-            .Returns([
-                new SessionPhaseSummary(
-                    SessionPhaseId.Parse("SPH-AAAAAA"),
-                    SessionId.Parse("SNN-AAAAAA"),
-                    PhaseId.Parse("PHS-AAAAAA")
-                ),
-                new SessionPhaseSummary(
-                    SessionPhaseId.Parse("SPH-BBBBBB"),
-                    SessionId.Parse("SNN-AAAAAA"),
-                    PhaseId.Parse("PHS-BBBBBB")
-                ),
             ]);
         _exercisesApiClient
             .GetExercisesAsync(CancellationToken.None)
@@ -2510,7 +2396,7 @@ public sealed class ProgramsPageTests : BunitContext
     public void ProgramExerciseRow_WeightIsZero_RendersWeightAsEnDash()
     {
         // Arrange
-        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var (_, _, sessionPhaseId) = SetUpProgramSessionPhase();
         var reps = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-AAAAAA"),
             sessionPhaseId,
@@ -2520,9 +2406,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
 
         // Act
         var cut = Render<Programs>();
@@ -2538,7 +2422,7 @@ public sealed class ProgramsPageTests : BunitContext
     public void ProgramExerciseRow_TimedType_RendersDurationInCountCellAndTimedBadge()
     {
         // Arrange
-        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var (_, _, sessionPhaseId) = SetUpProgramSessionPhase();
         var timed = new TimedProgramExercise(
             ProgramExerciseId.Parse("PGX-BBBBBB"),
             sessionPhaseId,
@@ -2548,9 +2432,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([timed]);
+        SetProgramExercises(timed);
 
         // Act
         var cut = Render<Programs>();
@@ -2570,7 +2452,7 @@ public sealed class ProgramsPageTests : BunitContext
     public void ProgramExerciseRow_NonZeroValues_RendersActualNumbersWithoutDash()
     {
         // Arrange
-        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var (_, _, sessionPhaseId) = SetUpProgramSessionPhase();
         var reps = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-AAAAAA"),
             sessionPhaseId,
@@ -2580,9 +2462,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
 
         // Act
         var cut = Render<Programs>();
@@ -2602,7 +2482,7 @@ public sealed class ProgramsPageTests : BunitContext
     public async Task ProgramExerciseRow_TypeSubOneWeightStartingFromDash_KeepsIntermediateKeystrokes()
     {
         // Arrange
-        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var (_, _, sessionPhaseId) = SetUpProgramSessionPhase();
         var reps = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-AAAAAA"),
             sessionPhaseId,
@@ -2612,9 +2492,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var cut = Render<Programs>();
         var weightInput = cut.Find("[data-testid='program-exercise-weight-PGX-AAAAAA']");
 
@@ -2634,7 +2512,7 @@ public sealed class ProgramsPageTests : BunitContext
     public async Task SaveProgramExercise_WeightIsUnparsableText_ShowsErrorAndDoesNotCallUpdate()
     {
         // Arrange
-        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var (_, _, sessionPhaseId) = SetUpProgramSessionPhase();
         var reps = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-AAAAAA"),
             sessionPhaseId,
@@ -2644,9 +2522,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var cut = Render<Programs>();
         await cut.InvokeAsync(() =>
             cut.Find("[data-testid='program-exercise-weight-PGX-AAAAAA']").Input("abc")
@@ -2688,9 +2564,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         _programExercisesApiClient
             .UpdateProgramExerciseAsync(
                 programId,
@@ -2752,9 +2626,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var expectedUpdate = new ProgramExerciseUpdate(
             Reps: 12,
             Weight: 45,
@@ -2820,7 +2692,7 @@ public sealed class ProgramsPageTests : BunitContext
     public async Task SaveProgramExercise_EnterKeyOnCleanRow_DoesNotCallApi()
     {
         // Arrange
-        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var (_, _, sessionPhaseId) = SetUpProgramSessionPhase();
         var reps = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-AAAAAA"),
             sessionPhaseId,
@@ -2830,9 +2702,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var cut = Render<Programs>();
         var countInput = cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']");
 
@@ -2866,9 +2736,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var tcs = new TaskCompletionSource<UpdateProgramExerciseOutcome>();
         _programExercisesApiClient
             .UpdateProgramExerciseAsync(
@@ -2931,9 +2799,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var tcs = new TaskCompletionSource<UpdateProgramExerciseOutcome>();
         _programExercisesApiClient
             .UpdateProgramExerciseAsync(
@@ -2984,7 +2850,7 @@ public sealed class ProgramsPageTests : BunitContext
     public async Task SaveProgramExercise_NonPositiveCount_ShowsValidationErrorWithoutApiCall()
     {
         // Arrange
-        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var (_, _, sessionPhaseId) = SetUpProgramSessionPhase();
         var reps = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-AAAAAA"),
             sessionPhaseId,
@@ -2994,9 +2860,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var cut = Render<Programs>();
         await cut.InvokeAsync(() =>
             cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").Input("0")
@@ -3035,9 +2899,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         _programExercisesApiClient
             .UpdateProgramExerciseAsync(
                 programId,
@@ -3069,7 +2931,7 @@ public sealed class ProgramsPageTests : BunitContext
     public async Task RevertProgramExercise_ClickRevert_RestoresSavedValuesAndMakesNoApiCall()
     {
         // Arrange
-        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var (_, _, sessionPhaseId) = SetUpProgramSessionPhase();
         var reps = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-AAAAAA"),
             sessionPhaseId,
@@ -3079,9 +2941,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var cut = Render<Programs>();
         await cut.InvokeAsync(() =>
             cut.Find("[data-testid='program-exercise-count-PGX-AAAAAA']").Input("99")
@@ -3123,9 +2983,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         _programExercisesApiClient
             .DeleteProgramExerciseAsync(
                 programId,
@@ -3160,9 +3018,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         _programExercisesApiClient
             .DeleteProgramExerciseAsync(
                 programId,
@@ -3191,7 +3047,7 @@ public sealed class ProgramsPageTests : BunitContext
     public void DuplicateButton_ProgramExerciseRow_IsRendered()
     {
         // Arrange
-        var (programId, sessionId, sessionPhaseId) = SetUpProgramSessionPhase();
+        var (_, _, sessionPhaseId) = SetUpProgramSessionPhase();
         var reps = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-AAAAAA"),
             sessionPhaseId,
@@ -3201,9 +3057,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
 
         // Act
         var cut = Render<Programs>();
@@ -3226,9 +3080,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Left
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var created = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-CCCCCC"),
             sessionPhaseId,
@@ -3328,9 +3180,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Right
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([timed]);
+        SetProgramExercises(timed);
         var created = new TimedProgramExercise(
             ProgramExerciseId.Parse("PGX-CCCCCC"),
             sessionPhaseId,
@@ -3439,9 +3289,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(4, 30),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([first, second]);
+        SetProgramExercises(first, second);
         var created = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-CCCCCC"),
             sessionPhaseId,
@@ -3511,9 +3359,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var created = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-CCCCCC"),
             sessionPhaseId,
@@ -3604,9 +3450,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         _programExercisesApiClient
             .CreateRepsProgramExerciseAsync(
                 programId,
@@ -3659,9 +3503,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Left
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var created = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-CCCCCC"),
             sessionPhaseId,
@@ -3728,9 +3570,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var created = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-CCCCCC"),
             sessionPhaseId,
@@ -3819,9 +3659,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Left
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var tcs = new TaskCompletionSource<CreateProgramExerciseOutcome>();
         _programExercisesApiClient
             .CreateRepsProgramExerciseAsync(
@@ -3886,9 +3724,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Left
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var created = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-CCCCCC"),
             sessionPhaseId,
@@ -3969,9 +3805,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Left
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var created = new RepsProgramExercise(
             ProgramExerciseId.Parse("PGX-CCCCCC"),
             sessionPhaseId,
@@ -4041,9 +3875,7 @@ public sealed class ProgramsPageTests : BunitContext
             new SetPrescription(3, 60),
             ProgramExerciseSide.Both
         );
-        _programExercisesApiClient
-            .GetProgramExercisesAsync(programId, sessionId, sessionPhaseId, CancellationToken.None)
-            .Returns([reps]);
+        SetProgramExercises(reps);
         var tcs = new TaskCompletionSource<DeleteProgramExerciseOutcome>();
         _programExercisesApiClient
             .DeleteProgramExerciseAsync(

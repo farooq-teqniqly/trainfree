@@ -36,9 +36,6 @@ public sealed class SessionPhaseRow
     /// <summary>The error message from the row's last failed operation, if any.</summary>
     public string? Error { get; set; }
 
-    /// <summary>The error message from the row's last failed program exercises load, if any.</summary>
-    public string? ProgramExercisesLoadError { get; set; }
-
     /// <summary>The error message from the row's last failed add-exercise attempt, if any.</summary>
     public string? AddExerciseError { get; set; }
 
