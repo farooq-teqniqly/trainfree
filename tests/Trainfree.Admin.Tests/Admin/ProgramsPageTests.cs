@@ -524,6 +524,42 @@ public sealed class ProgramsPageTests : BunitContext
     }
 
     [Fact]
+    public void OnInitialized_ProgramTreeThrowsFormatException_ShowsErrorWithoutThrowing()
+    {
+        // Arrange
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns<Task<IReadOnlyList<ProgramTreeItem>>>(_ =>
+                throw new FormatException("Unknown program exercise type: 'Bogus'.")
+            );
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll("[data-testid='load-programs-error']"));
+        Assert.Empty(cut.FindAll("tbody tr"));
+    }
+
+    [Fact]
+    public void OnInitialized_ProgramTreeThrowsArgumentException_ShowsErrorWithoutThrowing()
+    {
+        // Arrange
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns<Task<IReadOnlyList<ProgramTreeItem>>>(_ =>
+                throw new ArgumentException("Unknown program exercise side: 'Bogus'.")
+            );
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll("[data-testid='load-programs-error']"));
+        Assert.Empty(cut.FindAll("tbody tr"));
+    }
+
+    [Fact]
     public void OnInitialized_ProgramHasSessions_RendersSessionRowsNestedUnderProgram()
     {
         // Arrange
