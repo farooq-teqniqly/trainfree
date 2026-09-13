@@ -29,12 +29,12 @@ record (email + role) is added by a provisioning script, run after the email is
 whitelisted in Cloudflare Access. That script does not exist in this repo yet -- it is
 an explicit deliverable of this slice, not a prerequisite assumed to already exist. It
 must be idempotent: it first checks whether a `logins` row already exists for the
-target `(provider_name, provider_id)` and, if so, does nothing; otherwise, for the first
-user provisioned in a given environment, it claims the migration's placeholder bootstrap
-`logins` row in place (see the schema section in `identity-intent.md`) by updating both
-`provider_name` and `provider_id`; otherwise it inserts a new `logins`/`users` row. That
-existing-row check first is what makes re-running the script for an already-provisioned
-operator a no-op instead of a duplicate insert.
+target `(provider_name, provider_id)` and, if so, does nothing; otherwise it inserts a
+new `logins`/`users` row. That existing-row check first is what makes re-running the
+script for an already-provisioned identity a no-op instead of a duplicate insert. (An
+earlier version of this doc had the script claiming a migration-seeded bootstrap
+placeholder row for the first user in an environment -- dropped along with
+`programs.user_id`'s bootstrap-user design; see `identity-intent.md`'s schema section.)
 
 ## Requirements
 
