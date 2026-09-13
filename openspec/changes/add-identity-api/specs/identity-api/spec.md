@@ -186,7 +186,7 @@ request came through the service binding rather than the public internet.
   body, without inspecting the JWT
 
 ### Requirement: Response shapes and status codes are stable JSON
-On success, `IdentityApi` SHALL respond `200 { "email": string, "userId": number,
+On success, `IdentityApi` SHALL respond `200 { "email": string, "userId": string,
 "role": "Administrator" | "User" }`. It SHALL respond `401` when it cannot
 authenticate the request at all (missing/malformed `X-Trainfree-Caller`, or a missing,
 malformed, expired, wrong-issuer, or wrong-audience-for-the-named-caller JWT). It

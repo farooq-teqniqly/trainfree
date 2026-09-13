@@ -22,12 +22,16 @@
 ## 3. D1 schema migration (owned by AdminApi)
 
 - [x] 3.1 Add a new migration file under `src/Trainfree.AdminApi/migrations/` creating
-      `roles` (seeded with `Administrator` and `User` rows), `logins`
-      (`UNIQUE (provider_name, provider_id)`), and `users` (`UNIQUE (login_id)`,
-      `login_id NOT NULL REFERENCES logins(login_id)`, `role_id REFERENCES roles`).
+      `roles` (surrogate `id INTEGER` plus a `role_id TEXT UNIQUE` Crockford Base32
+      business id, prefix `ROL-`, seeded with `Administrator` and `User` rows),
+      `logins` (`UNIQUE (provider_name, provider_id)`), and `users` (surrogate
+      `id INTEGER` plus a `user_id TEXT UNIQUE` business id, prefix `USR-`,
+      `login_id INTEGER NOT NULL UNIQUE REFERENCES logins(id)`,
+      `role_id TEXT REFERENCES roles(role_id)`) -- matching the business-id-plus-
+      surrogate-id pattern already used by `programs`/`sessions`/`phases`/etc.
       Verify: `wrangler d1 migrations apply` (local) succeeds and `sqlite_master` shows
       all three tables plus two seeded `roles` rows.
-- [x] 3.2 Add a second migration adding the nullable `programs.user_id INTEGER
+- [x] 3.2 Add a second migration adding the nullable `programs.user_id TEXT
       REFERENCES users(user_id)` column, no default. Verify: existing `programs` rows
       have `user_id = NULL` after migration; inserting a `programs` row with an
       unknown `user_id` fails the FK check locally.
