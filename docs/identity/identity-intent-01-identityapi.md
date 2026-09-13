@@ -50,11 +50,20 @@ design; see `identity-intent.md`'s schema section.)
   and slice 2's `AdminApi` enforcement (including `GET /api/me`) relays that `403`
   verbatim -- so deploying slice 2 before any D1 identity exists locks out every
   administrator, including the operator, with no in-app way to recover (no provisioning
-  UI in this change). The rollout must run the provisioning script against the deployed
-  D1 database, creating at least one `Administrator` identity, and confirm a real
-  authenticated `GET /api/me` call succeeds against that identity, *before* slice 2 is
-  enabled in production. This is a deploy-runbook task for slice 1/2's rollout, not
-  something `IdentityApi` itself can enforce in code.
+  UI in this change). `GET /api/me` is itself introduced by slice 2, so it can't be the
+  smoke check that gates slice 2's own rollout -- the check has to run against
+  `IdentityApi` directly, which slice 1 already exposes via its public,
+  Access-gated hostname (the same one CI calls for `GET /api/version`). The rollout
+  runbook is: (1) deploy slice 1 (`IdentityApi` live, `AdminApi` not yet calling it);
+  (2) run the provisioning script against the deployed D1 database, creating at least
+  one `Administrator` identity; (3) call `IdentityApi`'s own
+  `GET /internal/identity`-equivalent check directly with that administrator's real
+  JWT and internal key (a manual or scripted call, not through `AdminApi`) and confirm
+  it returns `200`/`Administrator`; only then (4) deploy slice 2 with enforcement
+  enabled. If step 3 fails, slice 2 is not deployed and the operator is never locked
+  out, since `AdminApi` isn't calling `IdentityApi` yet at that point. This is a
+  deploy-runbook task for slice 1/2's rollout, not something either Worker can enforce
+  in code.
 - The canonical `provider_name` value for Cloudflare Access is the literal string
   `"cloudflare-access"`. Both the provisioning script (slice 1) and `IdentityApi`'s role
   lookup (below) must use this exact, shared value -- defined once (e.g. a constant in a
