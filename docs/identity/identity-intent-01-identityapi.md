@@ -138,7 +138,10 @@ design; see `identity-intent.md`'s schema section.)
   per-caller key is what actually restricts this endpoint -- `IdentityApi` rejects any
   request to `/internal/identity` missing or presenting the wrong key for the named
   caller with a `404` (not `401`/`403`, so the endpoint's existence isn't confirmed to
-  an unauthenticated public prober) before even looking at the JWT. Slice 1's test
+  an unauthenticated public prober) before even looking at the JWT -- this `404` uses
+  the same stable `application/json { "error": string }` shape as every other non-`200`
+  response (below), not an empty or platform-default body, since `AdminApi` (slice 2)
+  consumes this response too. Slice 1's test
   suite must include a test asserting a request to `/internal/identity` with a valid
   JWT but no/wrong internal key is rejected, and a test asserting `admin`'s key cannot
   be used to claim `workout` (or vice versa) once `WorkoutApi` exists. `IdentityApi`
@@ -155,8 +158,8 @@ design; see `identity-intent.md`'s schema section.)
   There's no separate "unprovisioned" vs. "wrong role" signal within the `403` case --
   both are a 403; the 401/403 split exists only to distinguish "we don't know who this
   is" from "we know who this is, and they don't have access." Every non-`200` response
-  (`401`, `403`, `503`) is `application/json` with a stable `{ "error": string }` body,
-  same as the `200` shape's content type -- never an empty body or plain text. This
+  (`401`, `403`, `404`, `503`) is `application/json` with a stable `{ "error": string }`
+  body, same as the `200` shape's content type -- never an empty body or plain text. This
   matters because slice 3 treats a non-JSON response from `/api/me` as a sign of an
   expired Access session (see `identity-intent.md`); a denial response that isn't valid
   JSON would be misread as an expired session instead of "no access."

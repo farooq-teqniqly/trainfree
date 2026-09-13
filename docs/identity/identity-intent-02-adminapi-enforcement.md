@@ -89,11 +89,23 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
   from `AdminApi`'s existing 9999) so both Workers can run locally together -- "local
   dev" cannot be inferred from a missing binding, since a production deployment that is
   accidentally missing the binding or the internal key must still fail closed rather
-  than silently behaving like local dev. Detection is instead an explicit
-  `LOCAL_DEV_BYPASS` environment flag, set only in `wrangler.jsonc`'s local `dev`
-  config (never in the deployed production vars), that `AdminApi` checks before calling
-  `IdentityApi`; a deployed environment where the binding or internal key is absent
-  fails closed with `503`, it does not fall back to bypass behavior. When the flag is
+  than silently behaving like local dev. Wrangler has no config-file inheritance
+  (`wrangler.deploy.jsonc`'s own header comment says as much, and duplicates
+  `wrangler.jsonc`'s `main`/`d1_databases`/`observability` for exactly this reason) --
+  so the `services` binding and the `ADMIN_INTERNAL_KEY` secret must be added to
+  **both** `wrangler.jsonc` (local `wrangler dev`, binding `IdentityApi`'s local port)
+  **and** `wrangler.deploy.jsonc` (production, binding the deployed `IdentityApi`
+  Worker; the key itself set via `wrangler secret put` against the deployed Worker, not
+  committed to either file). Adding the binding only to `wrangler.jsonc` would leave the
+  deployed `AdminApi` unable to reach `IdentityApi` at all, unrelated to the
+  `LOCAL_DEV_BYPASS` flag below. Slice 1/2's rollout runbook (above) must verify the
+  production binding directly (the service-binding smoke check already described serves
+  this purpose), not just assume adding it to source is sufficient. Detection of local
+  vs. deployed is an explicit `LOCAL_DEV_BYPASS` environment flag, set only in
+  `wrangler.jsonc`'s local `dev` config (never in `wrangler.deploy.jsonc` or any
+  deployed var), that `AdminApi` checks before calling `IdentityApi`; a deployed
+  environment where the binding or internal key is absent fails closed with `503`, it
+  does not fall back to bypass behavior. When the flag is
   set, `AdminApi` treats the `IdentityApi` call as having returned a synthetic local
   `200 { "email": "local-dev@trainfree.local", "role": "Administrator", "userId": ... }`
   identity, rather than skipping authorization checking altogether: every data endpoint
