@@ -92,14 +92,19 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
   than silently behaving like local dev. Wrangler has no config-file inheritance
   (`wrangler.deploy.jsonc`'s own header comment says as much, and duplicates
   `wrangler.jsonc`'s `main`/`d1_databases`/`observability` for exactly this reason) --
-  so the `services` binding and the `ADMIN_INTERNAL_KEY` secret must be added to
+  so the `services` binding itself (a plain, non-secret config value) must be added to
   **both** `wrangler.jsonc` (local `wrangler dev`, binding `IdentityApi`'s local port)
   **and** `wrangler.deploy.jsonc` (production, binding the deployed `IdentityApi`
-  Worker; the key itself set via `wrangler secret put` against the deployed Worker, not
-  committed to either file). Adding the binding only to `wrangler.jsonc` would leave the
-  deployed `AdminApi` unable to reach `IdentityApi` at all, unrelated to the
-  `LOCAL_DEV_BYPASS` flag below. Slice 1/2's rollout runbook (above) must verify the
-  production binding directly (the service-binding smoke check already described serves
+  Worker). `ADMIN_INTERNAL_KEY` is a secret and never belongs in either JSON file:
+  locally it's set via `.dev.vars` (Wrangler's local-secret file, gitignored) on
+  **both** `AdminApi` and `IdentityApi`'s local dev configs with the same value, since
+  `AdminApi` sends it and `IdentityApi` validates it; in production it's set via
+  `wrangler secret put ADMIN_INTERNAL_KEY` against **both deployed Workers**
+  individually (`AdminApi` and `IdentityApi`), again with the same value on each side.
+  Adding the `services` binding only to `wrangler.jsonc` would leave the deployed
+  `AdminApi` unable to reach `IdentityApi` at all, unrelated to the `LOCAL_DEV_BYPASS`
+  flag below. Slice 1/2's rollout runbook (above) must verify the production binding
+  directly (the service-binding smoke check already described serves
   this purpose), not just assume adding it to source is sufficient. Detection of local
   vs. deployed is an explicit `LOCAL_DEV_BYPASS` environment flag, set only in
   `wrangler.jsonc`'s local `dev` config (never in `wrangler.deploy.jsonc` or any

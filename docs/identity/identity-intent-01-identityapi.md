@@ -71,10 +71,18 @@ design; see `identity-intent.md`'s schema section.)
   session bound to the deployed `IdentityApi` over the real service binding) that sends
   the administrator's own `Trainfree.Admin`-issued JWT (captured from their existing
   browser session's `CF_Authorization` cookie) to `/internal/identity` with
-  `X-Trainfree-Caller: admin` and the internal key. If this fails, slice 2 is not
-  deployed and the operator is never locked out, since `AdminApi` isn't calling
-  `IdentityApi` yet at that point. This is a deploy-runbook task for slice 1/2's
-  rollout, not something either Worker can enforce in code.
+  `X-Trainfree-Caller: admin` and the internal key. This must run from a **dedicated
+  smoke-harness Wrangler config**, not `AdminApi`'s own local `wrangler.jsonc` --
+  reusing that config would have `LOCAL_DEV_BYPASS` set (see slice 2), which would
+  synthesize a local Administrator identity and never actually invoke the service
+  binding at all, letting the smoke check pass even if the real binding or key is
+  broken. The smoke-harness config binds the deployed `IdentityApi` with
+  `LOCAL_DEV_BYPASS` unset/false, and the check must assert the response actually came
+  from `IdentityApi` (e.g. checking for the real `email`/`userId` the provisioning
+  script just created, not a synthetic value) rather than merely a `200`. If this
+  fails, slice 2 is not deployed and the operator is never locked out, since `AdminApi`
+  isn't calling `IdentityApi` yet at that point. This is a deploy-runbook task for
+  slice 1/2's rollout, not something either Worker can enforce in code.
 - The canonical `provider_name` value for Cloudflare Access is the literal string
   `"cloudflare-access"`. Both the provisioning script (slice 1) and `IdentityApi`'s role
   lookup (below) must use this exact, shared value -- defined once (e.g. a constant in a
