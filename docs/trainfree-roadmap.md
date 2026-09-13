@@ -16,7 +16,13 @@ source of truth rather than duplicated here.
 ## Slices
 
 Each slice is a vertical full-stack cut: Worker route(s) + D1 schema/migration + Blazor UI,
-shipped and deployed together. TDD applies within each slice on both stacks.
+shipped and deployed together. TDD applies within each slice on both stacks. Exception:
+slices 8a-8c (identity) are deliberately non-vertical -- 8a is Worker + D1 only (no UI,
+no caller wired up yet), 8b is Worker-to-Worker enforcement only (no UI), and 8c is UI
+only (no new Worker route or migration) -- because the security property they build only
+holds once all three are deployed in order; splitting a vertical identity slice would
+ship either an unenforced UI or enforcement with nothing to configure it, whereas each of
+8a-8c is independently deployable and testable on its own.
 
 1. **`add-programs-crud`** -- Admin CRUD for the `Program` entity only (spreadsheet mockup,
    top-level rows: `[+ Program]`, `[x]` delete). D1 migration: `programs` table. Worker:
@@ -205,3 +211,10 @@ Access *configuration* itself (whitelisting emails, the login flow) -- that stay
   Slice 8b's Administrator-only rule is `AdminApi`'s own policy and doesn't need to
   change for this identity work to ship; this is entirely slice 9's problem to solve
   before it relaxes anything.
+  Filtering alone is also not sufficient: 8b assigns every `programs` row created
+  through `AdminApi` to the calling Administrator's `userId`, and pre-identity rows
+  have `NULL`. There is no assignment/backfill path that ever gives a `User`-role
+  caller ownership of a program, so owner-scoped filtering by itself would return zero
+  programs for every `User`. Slice 9 (or `Trainfree.WorkoutApi`) needs an explicit
+  ownership-assignment or shared/global-program policy in addition to the filtering
+  above -- not designed by this identity change.

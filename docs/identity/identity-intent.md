@@ -39,8 +39,12 @@ Cloudflare Access. This is sufficient for the first version as it will only be o
 handful of users.
 
 If the JWT expires while the user is logged in, Cloudflare Access redirects the user to
-its login page for re-authentication. This is existing Cloudflare Access behavior -- no
-Trainfree-side handling is needed in any slice.
+its login page for re-authentication. This is existing Cloudflare Access behavior and
+requires no Trainfree-side handling for a **top-level navigation** (the browser follows
+the redirect and re-authenticates automatically). It does not cover a `fetch`-style
+`HttpClient` call such as `/api/me`, which receives Access's login-page HTML instead of a
+JSON response and does not itself navigate the browser -- see slice 3's explicit
+expired-session handling for that case.
 
 ## Database schema
 
@@ -65,10 +69,13 @@ column, in the [proposed schema](https://lucid.app/lucidchart/e74e6f97-b0f1-47a2
   read-then-write and not race-proof on its own; the constraint is what actually
   guarantees the pair identifies at most one row, and turns a racing double-run into a
   constraint-violation error on the loser rather than a silent duplicate.
-- `users` -- surrogate `user_id`, 1:1 to `logins` via `login_id`, many:1 to `roles` via
-  `role_id`. `UNIQUE (login_id)` enforces the 1:1 at the schema level (without it,
-  nothing stops two `users` rows pointing at the same `logins` row, which would make
-  the role lookup for that login ambiguous).
+- `users` -- surrogate `user_id`, 1:1 to `logins` via `login_id NOT NULL REFERENCES
+  logins(login_id)`, many:1 to `roles` via `role_id`. `UNIQUE (login_id)` enforces the
+  1:1 at the schema level, but only combined with `NOT NULL` and the FK: a nullable
+  unique column would let SQLite accept multiple `NULL` `login_id` rows (SQLite treats
+  `NULL`s as distinct for `UNIQUE`), and without the FK a non-null `login_id` could still
+  point at no `logins` row at all -- either way the role lookup for that login becomes
+  ambiguous or orphaned.
 - `roles` -- a lookup table of `Administrator`/`User` rows, not a raw enum column. The
   migration that creates this table also seeds exactly those two rows -- the
   provisioning script only ever looks up an existing role by name to get its

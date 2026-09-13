@@ -25,8 +25,9 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
   JWT's `aud` specifically against `Trainfree.Admin`'s Access application because that's
   the caller `AdminApi` names. "Every" is over every route that reads or writes program
   data, not just the CRUD routes -- explicitly including
-  `GET /api/programs-tree` and the nested collection/resource GETs
-  (`src/Trainfree.AdminApi/src/index.js:597-599`), which are non-CRUD reads and would
+  `GET /api/programs-tree` (dispatched at `src/Trainfree.AdminApi/src/index.js:609-610`)
+  and the nested collection/resource GETs (route predicates and handlers at
+  `src/Trainfree.AdminApi/src/index.js:483-557`), which are non-CRUD reads and would
   otherwise let an authenticated non-Administrator read program data. `GET /api/version`
   and `OPTIONS` (below) are the only exceptions. A `401` from `IdentityApi` (request
   could not be authenticated at all) or a `403` (authenticated but unprovisioned email
@@ -75,3 +76,12 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
   same reason (no JWT to check).
 - An administrator can view all Phases, Exercises, and Programs (i.e. once enforcement is
   in place, existing endpoints keep working end-to-end for an Administrator-role caller).
+- **Local dev exemption**: the documented local workflow (`README.md`) runs
+  `Trainfree.Admin` at `localhost:5280` against `wrangler dev`'s unauthenticated
+  `127.0.0.1:9999` -- there is no Cloudflare Access edge in front of `wrangler dev`, so
+  no JWT ever reaches `AdminApi` locally. Enforcement therefore only applies when
+  `AdminApi` is deployed behind Cloudflare Access; `AdminApi` must detect the local
+  `wrangler dev` environment (the same way it already knows to point at the local
+  `IdentityApi` binding) and skip the `IdentityApi` call entirely rather than failing
+  every local request closed. This is a slice 2 task: define the environment check and
+  add a test asserting local requests are not blocked.
