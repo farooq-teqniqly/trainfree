@@ -28,11 +28,13 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
   identity, Administrator or User, by relaying `IdentityApi`'s `200` response as-is. It
   relays `IdentityApi`'s `401`/`403` the same as every other endpoint -- those still mean
   "couldn't authenticate" / "no matching identity" respectively, not "wrong role."
-- Any response from `IdentityApi` other than a clean `200`, `401`, or `403` -- a
-  service-binding call that throws, times out, or returns any other status -- is treated
-  as `403` by `AdminApi`. `AdminApi` fails closed: it never carries out the underlying
-  operation when it cannot positively confirm authorization, even if the failure is on
-  `IdentityApi`'s side rather than the caller's.
+- `IdentityApi`'s `503` (infrastructure failure -- see slice 1) is relayed as `503` by
+  `AdminApi`, not folded into `403`: an outage must stay distinguishable from a denied
+  role so slice 3 can show its "something went wrong, retry" state rather than "no
+  access." A service-binding call that itself throws or times out (rather than
+  returning a `503` cleanly) is likewise surfaced as `503`. In every one of these cases
+  -- `401`, `403`, or `503` -- `AdminApi` still fails closed: it never carries out the
+  underlying operation unless `IdentityApi` positively returned `200`.
 - `GET /api/version` is exempt from this enforcement entirely -- it is not called with a
   `CF_Authorization` cookie at all. `deploy.yaml`'s post-deploy verification step
   (`verify-deployed-version.sh`) calls it with `CF-Access-Client-Id`/

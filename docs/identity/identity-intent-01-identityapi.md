@@ -15,14 +15,14 @@ documented amendment saying exactly this, added as one of this change's tasks.
 `IdentityApi` binds the same physical D1 database as the other Workers, for the
 `logins`/`users`/`roles` tables only -- consistent with this repo's existing "one logical
 dataset, multiple Workers" pattern. A D1 migration adds those tables plus the
-`programs.user_id` column. That migration lives under `src/Trainfree.IdentityApi`'s own
-`migrations/` directory (this slice owns the identity schema, including the
-`programs.user_id` column it introduces even though `programs` itself belongs to
-`AdminApi`), applied exactly once via `wrangler d1 migrations apply` in `IdentityApi`'s
-own deploy step in `deploy.yaml`. `deploy.yaml`'s task to add `IdentityApi`'s deploy/
-verify sequence (see below) includes this migration step, ordered before `AdminApi`'s
-deploy step in the same run so the column exists before any `AdminApi` code that reads
-or writes it.
+`programs.user_id` column. This database already has one migration history, owned and
+applied by `Trainfree.AdminApi`'s existing `wrangler d1 migrations apply` deploy step
+(`deploy.yaml`) -- a second, independently-tracked migration history against the same
+D1 database from `IdentityApi` would risk the two histories conflicting. This slice's
+migration stays under `src/Trainfree.AdminApi/migrations/` and rides that existing
+deploy step; `IdentityApi` itself needs no migration step of its own, only its normal
+deploy/verify sequence (see below) -- it reads tables that `AdminApi`'s migration
+history created, the same way it will read `programs` rows `AdminApi` created.
 
 There is no in-app provisioning UI in this slice (or this whole change). A user's D1
 record (email + role) is added by a script, run after the email is whitelisted in
@@ -36,6 +36,13 @@ Cloudflare Access.
   already-enforced edge policy. The issuer (`iss`) must match the configured Access team
   domain -- signature, audience, and expiry alone don't bind the token to that team, so a
   structurally valid JWT from an unexpected issuer must still be rejected.
+- The audience (`aud`) check is against an explicit allowlist of *caller* Access
+  application audiences -- `Trainfree.Admin`'s Access application now, `Trainfree.Workout`'s
+  later -- configured on `IdentityApi`, not against `IdentityApi`'s own hostname/Access
+  application audience. `AdminApi` forwards the browser's own JWT over the service
+  binding unchanged, so that JWT's `aud` is always the calling app's Access application,
+  never `IdentityApi`'s; checking against the wrong audience would reject every
+  legitimate service-bound call.
 - The JWKS is fetched from Cloudflare's certs endpoint and cached via the Cloudflare Cache
   API (`caches.default`), respecting Cloudflare's own `Cache-Control`/`max-age` on that
   response -- no new binding needed. Tested by injecting the fetcher as a
@@ -56,12 +63,14 @@ Cloudflare Access.
   role" signal within the `403` case -- both are a 403; the 401/403 split exists only to
   distinguish "we don't know who this is" from "we know who this is, and they don't have
   access."
-- Any failure other than a clean `200`/`403` -- JWT signature/expiry check throwing, the
-  JWKS fetch failing with no cached copy available, or the D1 role lookup erroring or
-  timing out -- is also surfaced as a `403 Response`, never a `200` and never an
-  unhandled exception that would propagate as a `5xx` a caller might treat as "try
-  again, then proceed." `IdentityApi` fails closed: it can only ever say "authorized" or
-  "not authorized," never "unknown, so allow."
+- An infrastructure failure -- the JWKS fetch failing with no cached copy available, or
+  the D1 role lookup erroring or timing out -- is surfaced as a `503 Response`, distinct
+  from `401`/`403`. `403`/`401` mean "I evaluated this JWT and it is not authorized" /
+  "not authenticated"; `503` means "I could not evaluate it at all." This distinction
+  matters downstream: slice 3 shows a "something went wrong, retry" state on `5xx`, which
+  would be actively misleading if an infrastructure outage looked identical to a denied
+  login. `IdentityApi` never lets an unhandled exception propagate as an uncaught `5xx`
+  either -- infra failures are caught and turned into an explicit `503`.
 - `IdentityApi` looks up the role from D1 fresh on every call (no caching/session of
   role). This keeps a role change effective immediately and avoids cache-invalidation
   complexity; traffic volume is low enough that the extra read is cheap.

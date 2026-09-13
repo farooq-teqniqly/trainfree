@@ -53,13 +53,19 @@ column, in the [proposed schema](https://lucid.app/lucidchart/e74e6f97-b0f1-47a2
 - `users` -- surrogate `user_id`, 1:1 to `logins` via `login_id`, many:1 to `roles` via
   `role_id`.
 - `roles` -- a lookup table of `Administrator`/`User` rows, not a raw enum column.
-- `programs.user_id` -- links each program to its owning user. Added `NOT NULL` in the
-  same migration as a bootstrap insert: the migration first inserts one `logins`/`users`
-  row for the current sole operator (email taken from the repo owner's whitelisted
-  Cloudflare Access email, the same one already used to configure Access) with the
-  `Administrator` role, then backfills every existing `programs` row to that user's
-  `user_id` before adding the `NOT NULL` constraint. No intermediate state has `programs`
-  rows with an unresolved owner.
+- `programs.user_id` -- links each program to its owning user. Added `NOT NULL DEFAULT 1`
+  via a single `ALTER TABLE programs ADD COLUMN` statement (SQLite/D1 allows adding a
+  `NOT NULL` column to a populated table when a constant `DEFAULT` is given -- no table
+  rebuild needed, unlike a `NOT NULL` add with no default). The literal default `1` is
+  intentional, not a placeholder: the same migration first inserts exactly one bootstrap
+  `logins`/`users` row -- for the current sole operator, email taken from the repo
+  owner's whitelisted Cloudflare Access email, Administrator role -- with an explicit
+  `user_id = 1` (the table is empty beforehand, so this is safe), *before* the
+  `ALTER TABLE`. Every existing `programs` row and every `createProgram` insert that
+  doesn't yet supply `user_id` (i.e. until slice 2 updates that write path) resolves to
+  that same bootstrap user by the column default -- no row is ever left with an
+  unresolved owner, and slice 1 shipping alone does not break `AdminApi`'s existing
+  `createProgram` path.
 
 The [issue #66](https://github.com/farooq-teqniqly/trainfree/issues/66) JWT contains the
 user's email as `email`, used as `provider_id`.

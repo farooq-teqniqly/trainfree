@@ -141,7 +141,9 @@ shipped and deployed together. TDD applies within each slice on both stacks.
     `docs/identity/identity-intent-03-admin-access-gating.md`.
 9. **`add-program-session-select`** -- Client-facing screens 1-2 (Program Select, Session
    Select), built in `Trainfree.Workout`. Read-only against the real API built in slices
-   1, 3, 5, 6, 7, 8. No workout execution yet.
+   1, 3, 5, 6, 7, 8, plus 8a-8c: `Trainfree.Workout` calls `AdminApi`-adjacent identity
+   infrastructure the same way `Trainfree.Admin` does, so it depends on the identity
+   slices too, not just ordering after them. No workout execution yet.
 10. **`add-workout-runner-untimed`** -- Workout execution for untimed exercises only:
     screens 3 (ready to start), 6 (log set -- untimed), 7 (rest timer). State machine:
     ready -> set-in-progress -> log-set -> rest -> next set/exercise. Writes nothing to
