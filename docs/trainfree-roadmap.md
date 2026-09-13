@@ -190,8 +190,17 @@ Access *configuration* itself (whitelisting emails, the login flow) -- that stay
   slice/PR so the drop happens only once the new Worker serving `/api/phases` is
   confirmed live -- doing create+copy and drop in the same deploy would open a window
   where the still-deploying old Worker 500s on `/api/categories`.
-- An authorization policy for the `Trainfree.Workout`-facing API (slice 9+) that admits
-  a `User`-role caller for reads. Slice 8b's Administrator-only rule is `AdminApi`'s
-  policy; it isn't designed to cover the workout app's non-admin users, and slice 9
-  can't ship its read-only screens against an API that 403s every `User` until this is
-  decided.
+- An authorization policy for the `Trainfree.Workout`-facing API (slice 9+). Admitting a
+  `User`-role caller past a role check is necessary but **not sufficient** on its own:
+  today's program/tree queries return every program with no owner filter, and
+  `IdentityApi`'s response carries only `email`/`role`, no `user_id` -- so a `User`
+  admitted past the role check would read every other user's programs (and, through
+  nested queries, their sessions/phases/exercises), not just their own. This isn't
+  resolved by this identity change and shouldn't be treated as resolved by merely
+  depending on 8a-8c: slice 9 (or `Trainfree.WorkoutApi`) still needs to design (a) how
+  a `User`-role caller maps to a `user_id` (`IdentityApi`'s contract likely needs to
+  start returning `user_id`, not just `email`/`role`), and (b) owner-scoped filtering on
+  every read path a `User` can reach, including nested collections. Slice 8b's
+  Administrator-only rule is `AdminApi`'s own policy and doesn't need to change for
+  this identity work to ship; this is entirely slice 9's problem to solve before it
+  relaxes anything.

@@ -29,9 +29,18 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
   (`src/Trainfree.AdminApi/src/index.js:597-599`), which are non-CRUD reads and would
   otherwise let an authenticated non-Administrator read program data. `GET /api/version`
   and `OPTIONS` (below) are the only exceptions. A `401` from `IdentityApi` (request
-  could not be authenticated at all) or a `403` (authenticated but unprovisioned email or
-  non-Administrator role) is relayed verbatim, and the underlying operation is not
-  carried out.
+  could not be authenticated at all) or a `403` (authenticated but unprovisioned email
+  or unresolvable role) is relayed verbatim, and the underlying operation is not carried
+  out. `IdentityApi`'s `200` response does **not** by itself mean "let this through" for
+  these endpoints -- per slice 1's contract, `IdentityApi` returns `200` for *any*
+  provisioned identity, `Administrator` or `User` alike; it only returns `403` for an
+  identity it can't resolve to a role at all, never specifically for "resolved, but
+  wrong role." So for every endpoint except `GET /api/me`, `AdminApi` must inspect the
+  `200` response body itself and return its own `403` (without calling the underlying
+  handler) when `role !== "Administrator"`. Relaying only `IdentityApi`'s own `401`/`403`
+  verbatim -- without this inspection step -- would let a provisioned `User` through to
+  every Administrator-only endpoint, since `IdentityApi` never gives `AdminApi` a `403`
+  for that case.
 - `GET /api/me` is the one exception to the Administrator-only rule: it returns
   `200 { "email": string, "role": "Administrator" | "User" }` for *any* provisioned
   identity, Administrator or User, by relaying `IdentityApi`'s `200` response as-is. It
