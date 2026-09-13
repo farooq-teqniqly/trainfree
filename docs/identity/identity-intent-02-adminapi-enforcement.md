@@ -18,11 +18,16 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
 
 ## Requirements
 
-- Every `Trainfree.AdminApi` CRUD endpoint (Programs, Exercises, Phases, Sessions, etc.)
-  requires the Administrator role, enforced via its service-binding call to
-  `IdentityApi`. A `401` from `IdentityApi` (request could not be authenticated at all)
-  or a `403` (authenticated but unprovisioned email or non-Administrator role) is
-  relayed verbatim, and the underlying operation is not carried out.
+- Every `Trainfree.AdminApi` data endpoint requires the Administrator role, enforced via
+  its service-binding call to `IdentityApi`. "Every" is over every route that reads or
+  writes program data, not just the CRUD routes -- explicitly including
+  `GET /api/programs-tree` and the nested collection/resource GETs
+  (`src/Trainfree.AdminApi/src/index.js:597-599`), which are non-CRUD reads and would
+  otherwise let an authenticated non-Administrator read program data. `GET /api/version`
+  and `OPTIONS` (below) are the only exceptions. A `401` from `IdentityApi` (request
+  could not be authenticated at all) or a `403` (authenticated but unprovisioned email or
+  non-Administrator role) is relayed verbatim, and the underlying operation is not
+  carried out.
 - `GET /api/me` is the one exception to the Administrator-only rule: it returns
   `200 { "email": string, "role": "Administrator" | "User" }` for *any* provisioned
   identity, Administrator or User, by relaying `IdentityApi`'s `200` response as-is. It

@@ -53,19 +53,31 @@ column, in the [proposed schema](https://lucid.app/lucidchart/e74e6f97-b0f1-47a2
 - `users` -- surrogate `user_id`, 1:1 to `logins` via `login_id`, many:1 to `roles` via
   `role_id`.
 - `roles` -- a lookup table of `Administrator`/`User` rows, not a raw enum column.
-- `programs.user_id` -- links each program to its owning user. Added `NOT NULL DEFAULT 1`
-  via a single `ALTER TABLE programs ADD COLUMN` statement (SQLite/D1 allows adding a
-  `NOT NULL` column to a populated table when a constant `DEFAULT` is given -- no table
-  rebuild needed, unlike a `NOT NULL` add with no default). The literal default `1` is
-  intentional, not a placeholder: the same migration first inserts exactly one bootstrap
-  `logins`/`users` row -- for the current sole operator, email taken from the repo
-  owner's whitelisted Cloudflare Access email, Administrator role -- with an explicit
-  `user_id = 1` (the table is empty beforehand, so this is safe), *before* the
-  `ALTER TABLE`. Every existing `programs` row and every `createProgram` insert that
-  doesn't yet supply `user_id` (i.e. until slice 2 updates that write path) resolves to
-  that same bootstrap user by the column default -- no row is ever left with an
-  unresolved owner, and slice 1 shipping alone does not break `AdminApi`'s existing
-  `createProgram` path.
+- `programs.user_id` -- links each program to its owning user, `NOT NULL REFERENCES
+  users(user_id) DEFAULT 1`. SQLite/D1 rejects adding a column with a `REFERENCES`
+  clause via `ALTER TABLE ... ADD COLUMN` while foreign keys are enforced (D1 enforces
+  them, and this repo's existing migrations declare FKs the same way, e.g.
+  `src/Trainfree.AdminApi/migrations/0003_create_sessions.sql:5`) -- so this migration
+  does a table rebuild: create a new `programs` table with the `user_id` column and its
+  `DEFAULT 1`/FK included from the start, copy every existing row across (each row
+  automatically gets `user_id = 1` via the default), drop the old table, rename the new
+  one to `programs`. Every `createProgram` insert that doesn't yet supply `user_id`
+  (i.e. until slice 2 updates that write path) also resolves to `1` by the same default
+  -- no row is ever left with an unresolved owner, and slice 1 shipping alone does not
+  break `AdminApi`'s existing `createProgram` path.
+  The bootstrap `logins`/`users` row that `user_id = 1` refers to is *not* seeded with a
+  real email in this committed migration -- a deployment-specific personal email baked
+  into checked-in SQL would be wrong for every other environment this migration runs
+  against (a second self-hosted deploy, a test D1 instance), and re-running migrations
+  can't change it afterward. Instead the migration inserts one placeholder `logins` row
+  (`provider_name = 'bootstrap'`, `provider_id = 'bootstrap-placeholder'`) and its
+  `users` row (`user_id = 1`, Administrator role). The existing "add a user via script"
+  provisioning step (see slice 1) is how the real operator claims that identity per
+  deployment: for the very first user provisioned in a given environment, the script
+  updates the placeholder `logins` row's `provider_id` to the operator's real
+  Cloudflare Access email in place, rather than inserting a new row -- so `user_id = 1`
+  (and therefore every pre-existing `programs` row) ends up owned by whichever email the
+  operator of that specific deployment provisions first.
 
 The [issue #66](https://github.com/farooq-teqniqly/trainfree/issues/66) JWT contains the
 user's email as `email`, used as `provider_id`.
