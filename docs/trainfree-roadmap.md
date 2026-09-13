@@ -16,7 +16,13 @@ source of truth rather than duplicated here.
 ## Slices
 
 Each slice is a vertical full-stack cut: Worker route(s) + D1 schema/migration + Blazor UI,
-shipped and deployed together. TDD applies within each slice on both stacks.
+shipped and deployed together. TDD applies within each slice on both stacks. Exception:
+slices 8a-8c (identity) are deliberately non-vertical -- 8a is Worker + D1 only (no UI,
+no caller wired up yet), 8b is Worker-to-Worker enforcement only (no UI), and 8c is UI
+only (no new Worker route or migration) -- because the security property they build only
+holds once all three are deployed in order; splitting a vertical identity slice would
+ship either an unenforced UI or enforcement with nothing to configure it, whereas each of
+8a-8c is independently deployable and testable on its own.
 
 1. **`add-programs-crud`** -- Admin CRUD for the `Program` entity only (spreadsheet mockup,
    top-level rows: `[+ Program]`, `[x]` delete). D1 migration: `programs` table. Worker:
@@ -128,9 +134,26 @@ shipped and deployed together. TDD applies within each slice on both stacks.
    dirty-row pattern as other admin rows. This is the last purely-admin slice --
    `Trainfree.Admin` is feature-complete for v0.1 after this, and slice 9 begins the
    workout app.
+8a. **`add-identityapi`** -- New `Trainfree.IdentityApi` Worker: JWT verification, D1
+    `logins`/`users`/`roles` schema plus `programs.user_id`, service-binding contract.
+    Deployable and testable standalone, no callers wired up yet. See
+    `docs/identity/identity-intent-01-identityapi.md`.
+8b. **`adminapi-identity-enforcement`** -- Wires every `Trainfree.AdminApi` endpoint to
+    call `Trainfree.IdentityApi` and enforce the Administrator role; adds
+    `GET /api/me`. Closes the security gap before any UI changes. Depends on 8a. See
+    `docs/identity/identity-intent-02-adminapi-enforcement.md`.
+8c. **`admin-access-gating`** -- `Trainfree.Admin` startup `/api/me` check and "no
+    access" page. Pure UX on top of an already-secure API. Depends on 8b. See
+    `docs/identity/identity-intent-03-admin-access-gating.md`.
 9. **`add-program-session-select`** -- Client-facing screens 1-2 (Program Select, Session
    Select), built in `Trainfree.Workout`. Read-only against the real API built in slices
-   1, 3, 5, 6, 7, 8. No workout execution yet.
+   1, 3, 5, 6, 7, 8, plus 8a-8c for the identity infrastructure it depends on. Slice 8b's
+   Administrator-only policy is `AdminApi`-specific; this slice (or `Trainfree.WorkoutApi`
+   when it exists) must define its own authorization policy that admits a `User`-role
+   caller for reads, since a normal user reading their own program/session data through
+   the `AdminApi`-style Administrator-only contract would get `403`. See "Open items"
+   below -- this policy isn't designed by the identity change and is left for whoever
+   builds this slice. No workout execution yet.
 10. **`add-workout-runner-untimed`** -- Workout execution for untimed exercises only:
     screens 3 (ready to start), 6 (log set -- untimed), 7 (rest timer). State machine:
     ready -> set-in-progress -> log-set -> rest -> next set/exercise. Writes nothing to
@@ -150,13 +173,15 @@ shipped and deployed together. TDD applies within each slice on both stacks.
     to see it rendered live, but is not blocked by 9-13 -- can slot in parallel after
     slice 6 if desired.
 
-No further slice for Cloudflare Access -- Access is already configured manually outside
-this repo; nothing to build unless that decision changes later.
+Slices 8a-8c add Cloudflare Access-backed authorization (D1 role lookup and enforcement)
+on top of the Access authentication already configured manually outside this repo; see
+`docs/identity/identity-intent.md` for the full design. No further slice is planned for
+Access *configuration* itself (whitelisting emails, the login flow) -- that stays manual.
 
 ## Dependency graph
 
 ```
-1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 -> 12 -> 13
+1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 8a -> 8b -> 8c -> 9 -> 10 -> 11 -> 12 -> 13
                        \
                         -> 14 (after 6; independent of 9-13)
 ```
@@ -171,3 +196,25 @@ this repo; nothing to build unless that decision changes later.
   slice/PR so the drop happens only once the new Worker serving `/api/phases` is
   confirmed live -- doing create+copy and drop in the same deploy would open a window
   where the still-deploying old Worker 500s on `/api/categories`.
+- An authorization policy for the `Trainfree.Workout`-facing API (slice 9+). Admitting a
+  `User`-role caller past a role check is necessary but **not sufficient** on its own:
+  today's program/tree queries return every program with no owner filter. `IdentityApi`
+  *does* already return the caller's `user_id` (its `200` response's `userId` field,
+  added in 8a for `AdminApi` to populate `programs.user_id` on create) -- the ID is
+  available, so the missing piece is owner-scoped *filtering*, not identity mapping. A
+  `User` admitted past a role check without that filtering would still read every other
+  user's programs (and, through nested queries, their sessions/phases/exercises), not
+  just their own. This isn't resolved by this identity change and shouldn't be treated
+  as resolved by merely depending on 8a-8c: slice 9 (or `Trainfree.WorkoutApi`) still
+  needs to design owner-scoped filtering on every read path a `User` can reach,
+  including nested collections, using the `userId` `IdentityApi` already provides.
+  Slice 8b's Administrator-only rule is `AdminApi`'s own policy and doesn't need to
+  change for this identity work to ship; this is entirely slice 9's problem to solve
+  before it relaxes anything.
+  Filtering alone is also not sufficient: 8b assigns every `programs` row created
+  through `AdminApi` to the calling Administrator's `userId`, and pre-identity rows
+  have `NULL`. There is no assignment/backfill path that ever gives a `User`-role
+  caller ownership of a program, so owner-scoped filtering by itself would return zero
+  programs for every `User`. Slice 9 (or `Trainfree.WorkoutApi`) needs an explicit
+  ownership-assignment or shared/global-program policy in addition to the filtering
+  above -- not designed by this identity change.

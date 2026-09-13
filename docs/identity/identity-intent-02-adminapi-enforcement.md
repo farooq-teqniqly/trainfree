@@ -1,0 +1,143 @@
+# Trainfree Identity -- Slice 2: AdminApi enforcement
+
+See [identity-intent.md](identity-intent.md) for shared context and
+[identity-intent-01-identityapi.md](identity-intent-01-identityapi.md) for the
+`IdentityApi` Worker this slice depends on and calls.
+
+## Scope
+
+Wire every `Trainfree.AdminApi` endpoint to call `Trainfree.IdentityApi` over a
+[Cloudflare service binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/)
+(Worker-to-Worker, not a public URL) before carrying out its own operation. Add a new
+`GET /api/me` endpoint. No `Trainfree.Admin` UI changes in this slice -- that's slice 3.
+
+The browser only ever calls `Trainfree.AdminApi`, same-origin, at the relative `/api` path
+(per the existing "prod API URL is never configured, per app" convention -- unchanged by
+this design). `AdminApi` serves `GET /api/me` itself and, internally, calls `IdentityApi`
+to verify the request's JWT and look up the caller's role, then proxies the result back.
+
+## Requirements
+
+- Every `Trainfree.AdminApi` data endpoint requires the Administrator role, enforced via
+  its service-binding call to `IdentityApi`, always sending `X-Trainfree-Caller: admin`
+  (see slice 1's contract) -- so a valid `Trainfree.Workout` JWT for an Administrator
+  cannot pass this check via a shared audience allowlist; `IdentityApi` validates the
+  JWT's `aud` specifically against `Trainfree.Admin`'s Access application because that's
+  the caller `AdminApi` names. "Every" is over every route that reads or writes program
+  data, not just the CRUD routes -- explicitly including
+  `GET /api/programs-tree` (dispatched at `src/Trainfree.AdminApi/src/index.js:609-610`)
+  and the nested collection/resource GETs (route predicates and handlers at
+  `src/Trainfree.AdminApi/src/index.js:483-557`), which are non-CRUD reads and would
+  otherwise let an authenticated non-Administrator read program data. `GET /api/version`
+  and `OPTIONS` (below) are the only exceptions. A `401` from `IdentityApi` (request
+  could not be authenticated at all) or a `403` (authenticated but unprovisioned email
+  or unresolvable role) is relayed verbatim, and the underlying operation is not carried
+  out. `IdentityApi`'s `200` response does **not** by itself mean "let this through" for
+  these endpoints -- per slice 1's contract, `IdentityApi` returns `200` for *any*
+  provisioned identity, `Administrator` or `User` alike; it only returns `403` for an
+  identity it can't resolve to a role at all, never specifically for "resolved, but
+  wrong role." So for every endpoint except `GET /api/me`, `AdminApi` must inspect the
+  `200` response body itself and return its own `403` (without calling the underlying
+  handler) when `role !== "Administrator"`. Relaying only `IdentityApi`'s own `401`/`403`
+  verbatim -- without this inspection step -- would let a provisioned `User` through to
+  every Administrator-only endpoint, since `IdentityApi` never gives `AdminApi` a `403`
+  for that case.
+- `GET /api/me` is the one exception to the Administrator-only rule: it returns
+  `200 { "email": string, "role": "Administrator" | "User" }` for *any* provisioned
+  identity, Administrator or User, by relaying `IdentityApi`'s `200` response as-is
+  minus the internal `userId` field (browser-facing, no reason to expose the surrogate
+  key). It relays `IdentityApi`'s `401`/`403` the same as every other endpoint -- those
+  still mean "couldn't authenticate" / "no matching identity" respectively, not "wrong
+  role."
+- Every write endpoint that creates a `programs` row (`createProgram` and any future
+  owner-scoped create) sets `programs.user_id` to the caller's `userId` from
+  `IdentityApi`'s `200` response -- the same response this slice already inspects for
+  the role check above, so no separate D1 lookup is needed to populate it.
+- `IdentityApi`'s `503` (infrastructure failure -- see slice 1) is relayed as `503` by
+  `AdminApi`, not folded into `403`: an outage must stay distinguishable from a denied
+  role so slice 3 can show its "something went wrong, retry" state rather than "no
+  access." A service-binding call that itself throws or times out (rather than
+  returning a `503` cleanly) is likewise surfaced as `503`. Any response from
+  `IdentityApi` other than `200`/`401`/`403`/`503` -- including the `404` it returns for
+  a missing/wrong `X-Trainfree-Internal-Key` (slice 1), which would otherwise indicate a
+  misconfigured or rotated Wrangler secret rather than a real "not found" -- is also
+  treated as `503` by `AdminApi`, never passed through or treated as success. In every
+  one of these cases -- `401`, `403`, or `503` -- `AdminApi` still fails closed: it never
+  carries out the underlying operation unless `IdentityApi` positively returned `200`.
+- `GET /api/version` is exempt from this enforcement entirely, regardless of caller.
+  It's called two ways: same-origin from the browser (`Trainfree.Versioning`'s
+  `VersionCheck`, `src/Trainfree.Versioning/VersionCheck.cs:36-43`), which *does* carry
+  the `CF_Authorization` cookie like any other same-origin request, and from
+  `deploy.yaml`'s post-deploy verification step (`verify-deployed-version.sh`), which
+  authenticates with `CF-Access-Client-Id`/`CF-Access-Client-Secret` service-token
+  headers instead -- a CI credential distinct from a user JWT, and the reason this route
+  can't just rely on the enforcement wrapper rejecting a missing cookie: the CI caller
+  has no cookie to check in the first place, so it would always fail. Routing *either*
+  caller through `IdentityApi`'s per-user JWT check would make the deploy-verification
+  step fail; the version endpoint is therefore excluded from enforcement outright rather
+  than relying on the JWT check to pass or fail correctly for it. `OPTIONS` preflight
+  requests are exempt for the
+  same reason (no JWT to check).
+- An administrator can view all Phases, Exercises, and Programs (i.e. once enforcement is
+  in place, existing endpoints keep working end-to-end for an Administrator-role caller).
+- **Local dev exemption**: the documented local workflow (`README.md`) runs
+  `Trainfree.Admin` at `localhost:5280` against `wrangler dev`'s unauthenticated
+  `127.0.0.1:9999` -- there is no Cloudflare Access edge in front of `wrangler dev`, so
+  no JWT ever reaches `AdminApi` locally. `AdminApi`'s `wrangler.jsonc` today has no
+  `services` binding at all (`IdentityApi` doesn't exist yet), so this slice must add
+  one, plus a `wrangler dev` config for `IdentityApi` on its own local port (distinct
+  from `AdminApi`'s existing 9999) so both Workers can run locally together -- "local
+  dev" cannot be inferred from a missing binding, since a production deployment that is
+  accidentally missing the binding or the internal key must still fail closed rather
+  than silently behaving like local dev. Wrangler has no config-file inheritance
+  (`wrangler.deploy.jsonc`'s own header comment says as much, and duplicates
+  `wrangler.jsonc`'s `main`/`d1_databases`/`observability` for exactly this reason) --
+  so the `services` binding itself (a plain, non-secret config value) must be added to
+  **both** `wrangler.jsonc` (local `wrangler dev`, binding `IdentityApi`'s local port)
+  **and** `wrangler.deploy.jsonc` (production, binding the deployed `IdentityApi`
+  Worker). `ADMIN_INTERNAL_KEY` is a secret and never belongs in either JSON file:
+  locally it's set via `.dev.vars` (Wrangler's local-secret file, gitignored) on
+  **both** `AdminApi` and `IdentityApi`'s local dev configs with the same value, since
+  `AdminApi` sends it and `IdentityApi` validates it; in production it's set via
+  `wrangler secret put ADMIN_INTERNAL_KEY` against **both deployed Workers**
+  individually (`AdminApi` and `IdentityApi`), again with the same value on each side.
+  Adding the `services` binding only to `wrangler.jsonc` would leave the deployed
+  `AdminApi` unable to reach `IdentityApi` at all, unrelated to the `LOCAL_DEV_BYPASS`
+  flag below. Slice 1/2's rollout runbook (above) must verify the production binding
+  directly (the service-binding smoke check already described serves
+  this purpose), not just assume adding it to source is sufficient. Detection of local
+  vs. deployed is an explicit `LOCAL_DEV_BYPASS` environment flag, set only in
+  `wrangler.jsonc`'s local `dev` config (never in `wrangler.deploy.jsonc` or any
+  deployed var), that `AdminApi` checks before calling `IdentityApi`; a deployed
+  environment where the binding or internal key is absent fails closed with `503`, it
+  does not fall back to bypass behavior. When the flag is
+  set, `AdminApi` treats the `IdentityApi` call as having returned a synthetic local
+  `200 { "email": "local-dev@trainfree.local", "role": "Administrator", "userId": ... }`
+  identity, rather than skipping authorization checking altogether: every data endpoint
+  still runs its normal handler exactly as it would for a real `200`, and the
+  Administrator-role check still executes against this synthetic identity (trivially
+  passing, since it's always `Administrator`) -- only `/api/me` itself relays this
+  identity document to the browser. The local bypass is therefore "substitute
+  `IdentityApi`'s response," not "skip the endpoint's own logic": a data endpoint (e.g.
+  `POST /api/programs`) still executes its real create/read/update/delete code against
+  local D1 using this identity's `userId`, it just never makes the network call to
+  `IdentityApi` to obtain that identity.
+  The `userId` in that identity cannot be an arbitrary/synthetic number:
+  `programs.user_id` is a foreign key into `users` (see `identity-intent.md`'s schema
+  section), so a made-up `userId` with no matching `users` row would make every local
+  `POST /api/programs` fail its own FK constraint. This row must not come from the
+  committed D1 migration, though -- `deploy.yaml` applies every migration file to the
+  **production** database via `wrangler d1 migrations apply --remote` on every tag
+  (`README.md:154-158`), so a migration-seeded `local-dev`/`Administrator` row would be
+  a real privileged identity in production too, resolvable by anyone who could ever
+  reach that exact `(provider_name, provider_id)` pair. Instead, this slice adds a
+  local-only setup script (invoked from the documented local dev workflow, never from
+  `deploy.yaml` or any `--remote` path) that inserts this one deterministic
+  `logins`/`users` pair directly into the **local** D1 instance only, the same one
+  `wrangler dev`'s migrations already target; `AdminApi`'s local bypass then reads that
+  row's real `user_id` (a one-time local lookup, or a value the local setup script
+  writes somewhere `AdminApi` can read in `LOCAL_DEV_BYPASS` mode) rather than
+  hardcoding a number. This is a slice 2 task (plus the local-only setup script): define
+  the flag, the synthetic-identity substitution described above, the local-only seed
+  script, and tests asserting the bypass, the fail-closed-when-absent behavior in a
+  deployed context, and that the seed script is never invoked by any `--remote` path.
