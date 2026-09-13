@@ -74,12 +74,24 @@ design; see `identity-intent.md`'s schema section.)
   this only avoids hardcoding Cloudflare-Access-specific parsing at every call site, and
   centralizes it in one Worker instead of duplicating it per app.
 - The service-binding contract: a calling Worker sends a `GET /internal/identity`
-  request (this exact method and path -- distinct from the browser-facing
-  `GET /api/me` that `AdminApi` itself exposes; `/internal/*` is never routed to a
-  browser, only reachable via the service binding) carrying the `CF_Authorization`
-  cookie/JWT and a required `X-Trainfree-Caller` header naming which Access application
-  it's calling on behalf of (`admin` for `AdminApi`, `workout` for the future
-  `WorkoutApi`). `IdentityApi` responds with
+  request carrying the `CF_Authorization` cookie/JWT, a required `X-Trainfree-Caller`
+  header naming which Access application it's calling on behalf of (`admin` for
+  `AdminApi`, `workout` for the future `WorkoutApi`), and a required
+  `X-Trainfree-Internal-Key` header set to a shared secret known only to `IdentityApi`
+  and the Worker-to-Worker callers (stored as a Wrangler secret, injected by
+  `AdminApi`/`WorkoutApi` on every call to `/internal/identity`, never sent to or
+  accepted from a browser). The `/internal/identity` *path* is a naming convention
+  only, not an access boundary: `IdentityApi` also has a public hostname (so CI can
+  reach `GET /api/version`), so any browser or external caller can otherwise reach
+  `/internal/identity` directly and would satisfy the JWT/`X-Trainfree-Caller` checks
+  just as validly as a real service-bound call, since neither of those proves the
+  request came through the service binding rather than the public internet. The shared
+  secret is what actually restricts this endpoint -- `IdentityApi` rejects any request
+  to `/internal/identity` missing or presenting the wrong `X-Trainfree-Internal-Key`
+  with a `404` (not `401`/`403`, so the endpoint's existence isn't confirmed to an
+  unauthenticated public prober) before even looking at the JWT. Slice 1's test suite
+  must include a test asserting a request to `/internal/identity` with a valid JWT but
+  no/wrong internal key is rejected. `IdentityApi` responds with
   `200 { "email": string, "userId": number, "role": "Administrator" | "User" }` only
   when the JWT's `aud` matches the configured audience for the named caller. `userId`
   is included specifically so callers like `AdminApi` can populate owner columns (e.g.
