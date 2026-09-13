@@ -58,31 +58,36 @@ column, in the [proposed schema](https://lucid.app/lucidchart/e74e6f97-b0f1-47a2
   clause via `ALTER TABLE ... ADD COLUMN` while foreign keys are enforced (D1 enforces
   them, and this repo's existing migrations declare FKs the same way, e.g.
   `src/Trainfree.AdminApi/migrations/0003_create_sessions.sql:5`) -- so this migration
-  does a table rebuild. `PRAGMA foreign_keys=OFF` is **not** available on D1 (D1 keeps
-  FK enforcement on regardless of that pragma), so the rebuild instead uses
-  `PRAGMA defer_foreign_keys=TRUE`, which D1 does support: within a single migration
-  transaction, it postpones FK checks until the transaction commits rather than
-  disabling them, which is exactly what a rebuild needs. The sequence: begin the
-  transaction, `PRAGMA defer_foreign_keys=TRUE`, create the new `programs` table with
-  the `user_id` column and its `DEFAULT 1`/FK included from the start, copy every
-  existing row across (each row automatically gets `user_id = 1` via the default), drop
-  the old `programs` table, rename the new one to `programs`, recreate
-  `idx_programs_name_nocase` (migration 0002) against the new table, commit. Deferring
-  (rather than disabling) FK checks means `sessions.program_id`'s `ON DELETE CASCADE`
-  doesn't fire mid-transaction when the old `programs` table is dropped, and by commit
-  time every `sessions`/`session_phases`/`program_exercises` row's FK still resolves
-  against the renamed table -- those tables and their data are otherwise untouched by
-  this migration. Because D1's FK behavior here is a real portability risk (this is
-  exactly the kind of thing that behaves differently locally vs. on the platform), this
-  migration is one of the cases where slice 1's task list must include exercising it
-  against a real Miniflare-backed D1 instance in a `vitest` integration test (per
-  `CLAUDE.md`'s "no mocking layer" rule) that seeds pre-existing `programs`/`sessions`/
-  `session_phases`/`program_exercises` rows, runs the migration, and asserts they all
-  still resolve correctly afterward -- not just that the migration file parses. Every
-  `createProgram` insert that doesn't yet supply `user_id` (i.e. until slice 2 updates
-  that write path) also resolves to `1` by the same default -- no row is ever left with
-  an unresolved owner, and slice 1 shipping alone does not break `AdminApi`'s existing
-  `createProgram` path.
+  does a table rebuild. Dropping just `programs` is not safe at any point in that
+  rebuild, deferred FK checks or not: `sessions.program_id ON DELETE CASCADE` is a
+  cascade *action*, triggered by the `DELETE`/`DROP TABLE` operation itself, not by FK
+  constraint validation -- `PRAGMA defer_foreign_keys` only postpones *checking* that
+  references still resolve, it does not defer or suppress cascade actions. Dropping the
+  old `programs` table while `sessions` (and, through it, `session_phases` and
+  `program_exercises`) still reference it via that cascade would delete those rows
+  immediately, regardless of pragma. The migration instead rebuilds the entire
+  dependent FK graph together, in dependency order, so no old table is dropped until
+  every row it's responsible for has already been copied somewhere safe: create
+  `new_programs` (with `user_id`/`DEFAULT 1`/FK from the start) and copy `programs`'
+  rows into it; create `new_sessions`, `new_session_phases`, `new_program_exercises`
+  with the same columns/FKs as today but referencing `new_programs`/each other, and
+  copy each table's existing rows into its `new_*` counterpart in that order (parent
+  before child); only then drop the old `program_exercises`, `session_phases`,
+  `sessions`, and `programs` tables, in that (child-before-parent) order -- their
+  cascade actions fire, but every row they were responsible for already exists safely
+  in a `new_*` table by that point, so nothing is lost; rename each `new_*` table to
+  its real name; recreate `idx_programs_name_nocase` (migration 0002) and any other
+  indexes on the rebuilt tables. Because getting a multi-table FK rebuild wrong on D1 is
+  a real, non-obvious risk (cascade-vs-defer semantics don't behave the way a
+  single-table mental model expects), this migration is one of the cases where slice
+  1's task list must include exercising it against a real Miniflare-backed D1 instance
+  in a `vitest` integration test (per `CLAUDE.md`'s "no mocking layer" rule) that seeds
+  pre-existing `programs`/`sessions`/`session_phases`/`program_exercises` rows, runs the
+  migration, and asserts every row -- not just `programs`' -- still resolves correctly
+  afterward. Every `createProgram` insert that doesn't yet supply `user_id` (i.e. until
+  slice 2 updates that write path) also resolves to `1` by the same default -- no row is
+  ever left with an unresolved owner, and slice 1 shipping alone does not break
+  `AdminApi`'s existing `createProgram` path.
   The bootstrap `logins`/`users` row that `user_id = 1` refers to is *not* seeded with a
   real email in this committed migration -- a deployment-specific personal email baked
   into checked-in SQL would be wrong for every other environment this migration runs
