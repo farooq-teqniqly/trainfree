@@ -128,6 +128,17 @@ shipped and deployed together. TDD applies within each slice on both stacks.
    dirty-row pattern as other admin rows. This is the last purely-admin slice --
    `Trainfree.Admin` is feature-complete for v0.1 after this, and slice 9 begins the
    workout app.
+8a. **`add-identityapi`** -- New `Trainfree.IdentityApi` Worker: JWT verification, D1
+    `logins`/`users`/`roles` schema plus `programs.user_id`, service-binding contract.
+    Deployable and testable standalone, no callers wired up yet. See
+    `docs/identity/identity-intent-01-identityapi.md`.
+8b. **`adminapi-identity-enforcement`** -- Wires every `Trainfree.AdminApi` endpoint to
+    call `Trainfree.IdentityApi` and enforce the Administrator role; adds
+    `GET /api/me`. Closes the security gap before any UI changes. Depends on 8a. See
+    `docs/identity/identity-intent-02-adminapi-enforcement.md`.
+8c. **`admin-access-gating`** -- `Trainfree.Admin` startup `/api/me` check and "no
+    access" page. Pure UX on top of an already-secure API. Depends on 8b. See
+    `docs/identity/identity-intent-03-admin-access-gating.md`.
 9. **`add-program-session-select`** -- Client-facing screens 1-2 (Program Select, Session
    Select), built in `Trainfree.Workout`. Read-only against the real API built in slices
    1, 3, 5, 6, 7, 8. No workout execution yet.
@@ -150,13 +161,15 @@ shipped and deployed together. TDD applies within each slice on both stacks.
     to see it rendered live, but is not blocked by 9-13 -- can slot in parallel after
     slice 6 if desired.
 
-No further slice for Cloudflare Access -- Access is already configured manually outside
-this repo; nothing to build unless that decision changes later.
+Slices 8a-8c add Cloudflare Access-backed authorization (D1 role lookup and enforcement)
+on top of the Access authentication already configured manually outside this repo; see
+`docs/identity/identity-intent.md` for the full design. No further slice is planned for
+Access *configuration* itself (whitelisting emails, the login flow) -- that stays manual.
 
 ## Dependency graph
 
 ```
-1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 -> 12 -> 13
+1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 8a -> 8b -> 8c -> 9 -> 10 -> 11 -> 12 -> 13
                        \
                         -> 14 (after 6; independent of 9-13)
 ```

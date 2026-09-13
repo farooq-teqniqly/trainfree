@@ -43,11 +43,27 @@ Cloudflare Access.
   `403 Response` when the JWT's email has no matching D1 user record or the record can't
   be resolved to a role. There's no separate "not provisioned" vs. "wrong role" signal in
   this version -- both are a 403.
+- Any failure other than a clean `200`/`403` -- JWT signature/expiry check throwing, the
+  JWKS fetch failing with no cached copy available, or the D1 role lookup erroring or
+  timing out -- is also surfaced as a `403 Response`, never a `200` and never an
+  unhandled exception that would propagate as a `5xx` a caller might treat as "try
+  again, then proceed." `IdentityApi` fails closed: it can only ever say "authorized" or
+  "not authorized," never "unknown, so allow."
 - `IdentityApi` looks up the role from D1 fresh on every call (no caching/session of
   role). This keeps a role change effective immediately and avoids cache-invalidation
   complexity; traffic volume is low enough that the extra read is cheap.
 - `IdentityApi` has no Blazor client of its own, but `deploy.yaml` still stamps it with
-  `APP_VERSION`/`APP_COMMIT` and polls its own `GET /api/version` in CI after deploy, same
-  safety net as the other Workers -- just no client-side comparison/reload banner, since
-  no Blazor app calls it directly. It still needs a public URL (gated by Cloudflare
-  Access) purely so CI can reach it; browsers never call it.
+  `APP_VERSION`/`APP_COMMIT` and polls its own `GET /api/version` in CI after deploy --
+  just no client-side comparison/reload banner, since no Blazor app calls it directly. It
+  still needs a public URL (gated by Cloudflare Access) purely so CI can reach it;
+  browsers never call it. `deploy.yaml` today has exactly one publish/deploy/verify
+  sequence (`Trainfree.Admin`/`Trainfree.AdminApi`); this slice's tasks include
+  restructuring it to add a second deploy/verify sequence for `IdentityApi` (no publish
+  step, since it has no client), each Worker with its own `APP_BASE_URL`-equivalent and
+  Cloudflare Access service token wiring.
+- `IdentityApi`'s public hostname is gated by its own, separately-configured Cloudflare
+  Access application in the Zero Trust dashboard (manual setup, same as the existing
+  `Trainfree.Admin` application) -- distinct from `Trainfree.Admin`'s, since it's a
+  different hostname. This is a one-time manual setup task for this slice, not
+  represented as code, per this repo's existing "Cloudflare Access is configured
+  manually" convention.

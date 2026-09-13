@@ -22,6 +22,11 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
   required for every endpoint in this Worker, enforced via its service-binding call to
   `IdentityApi`. A `403` from `IdentityApi` (unprovisioned email or non-Administrator
   role) is relayed verbatim.
+- Any response from `IdentityApi` other than a clean `200` or `403` -- a service-binding
+  call that throws, times out, or returns any other status -- is treated as `403` by
+  `AdminApi`. `AdminApi` fails closed: it never carries out the underlying operation
+  when it cannot positively confirm authorization, even if the failure is on
+  `IdentityApi`'s side rather than the caller's.
 - An administrator can view all Phases, Exercises, and Programs (i.e. once enforcement is
   in place, existing endpoints keep working end-to-end for an Administrator-role caller).
 - `GET /api/me` returns `200 { "email": string, "role": "Administrator" | "User" }` on

@@ -53,7 +53,13 @@ column, in the [proposed schema](https://lucid.app/lucidchart/e74e6f97-b0f1-47a2
 - `users` -- surrogate `user_id`, 1:1 to `logins` via `login_id`, many:1 to `roles` via
   `role_id`.
 - `roles` -- a lookup table of `Administrator`/`User` rows, not a raw enum column.
-- `programs.user_id` -- links each program to its owning user.
+- `programs.user_id` -- links each program to its owning user. Added `NOT NULL` in the
+  same migration as a bootstrap insert: the migration first inserts one `logins`/`users`
+  row for the current sole operator (email taken from the repo owner's whitelisted
+  Cloudflare Access email, the same one already used to configure Access) with the
+  `Administrator` role, then backfills every existing `programs` row to that user's
+  `user_id` before adding the `NOT NULL` constraint. No intermediate state has `programs`
+  rows with an unresolved owner.
 
 The [issue #66](https://github.com/farooq-teqniqly/trainfree/issues/66) JWT contains the
 user's email as `email`, used as `provider_id`.
