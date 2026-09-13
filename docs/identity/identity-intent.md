@@ -47,30 +47,40 @@ Trainfree-side handling is needed in any slice.
 Identity introduces `logins`, `users`, and `roles` tables, plus a `programs.user_id`
 column, in the [proposed schema](https://lucid.app/lucidchart/e74e6f97-b0f1-47a2-ac12-d8c01765bfc7):
 
-- `logins` -- one row per external identity (`provider_id` + `provider_name`, e.g. the
-  Cloudflare Access email as `provider_id`). A second future provider is just another
-  `logins` row shape, no schema change.
+- `logins` -- one row per external identity (`provider_id` + `provider_name`). For
+  Cloudflare Access, `provider_id` is the whitelisted **email**, not the JWT's `sub`
+  claim -- a deliberate choice, not an oversight: `sub` is the objectively more stable
+  key (immune to email changes/reuse), but keying on it would require a two-phase
+  provisioning flow (create a pending-by-email record before the user's first login,
+  then bind `sub` on their first authenticated request), which this change explicitly
+  doesn't build. Email-as-key means a changed or reassigned email could bind a new
+  person to a previous user's `programs`/history; this repo accepts that risk for v0.1
+  because it's a self-hosted app with a handful of manually-whitelisted users under one
+  operator's control (`CLAUDE.md`'s "self-hosted, single-user" framing, extended here to
+  "single-operator, few users") -- not a multi-tenant SaaS where an attacker could
+  register a freed email. Revisit if a second identity provider or a larger user base
+  changes that calculus. A second future provider is just another `logins` row shape,
+  no schema change.
 - `users` -- surrogate `user_id`, 1:1 to `logins` via `login_id`, many:1 to `roles` via
   `role_id`.
 - `roles` -- a lookup table of `Administrator`/`User` rows, not a raw enum column.
-- `programs.user_id` -- links each program to its owning user. **Nullable**, no `NOT
-  NULL` and no bootstrap-user complexity: existing `programs` rows get `NULL` (meaning
-  "no owner yet -- predates identity"), and stay `NULL` until slice 2's write path
-  starts supplying a real `user_id` on create. This is a deliberate simplification over
-  an earlier NOT-NULL-with-bootstrap-user design that required a placeholder
-  `logins`/`users` row, a claim/idempotency script, and a multi-table FK-graph rebuild
-  to add the column safely under D1's enforced foreign keys -- none of that machinery
-  is needed once the column can just start `NULL`.
-  The column carries no `REFERENCES` clause at the schema level: D1 enforces foreign
-  keys, and SQLite rejects adding a column with a `REFERENCES` clause via
-  `ALTER TABLE ... ADD COLUMN` while FK enforcement is on, regardless of nullability --
-  so a schema-level FK here would still force the same table-rebuild this
-  simplification is meant to avoid. `programs.user_id` is therefore a plain nullable
-  `INTEGER`, added via a single `ALTER TABLE programs ADD COLUMN user_id INTEGER;`, and
-  referential integrity to `users.user_id` is enforced in `AdminApi`'s application code
-  at write time (slice 2), not by the schema. No table rebuild, no dependent-table
-  changes, no bootstrap row, no provisioning-script idempotency requirement tied to
-  this migration.
+- `programs.user_id` -- links each program to its owning user, `INTEGER REFERENCES
+  users(user_id)`, **nullable** (no `NOT NULL`, no default -- an omitted default is
+  `NULL`). SQLite/D1 does allow adding a nullable FK column with no default via a
+  single `ALTER TABLE programs ADD COLUMN user_id INTEGER REFERENCES users(user_id);`
+  even with foreign keys enforced -- the earlier restriction this doc cited (rejecting
+  `ADD COLUMN` with a `REFERENCES` clause under FK enforcement) only applies when
+  combined with `NOT NULL`/a non-`NULL` default, not to a plain nullable FK column. So
+  the FK constraint is kept: dropping it (as an earlier revision of this doc did) would
+  leave `programs.user_id` capable of holding an orphaned/invalid `user_id` with nothing
+  in the schema to prevent it, pushing that guarantee onto every future writer instead.
+  This is still a real simplification over the original NOT-NULL-with-bootstrap-user
+  design: existing `programs` rows just get `NULL` (meaning "no owner yet -- predates
+  identity") with a single-statement migration, no bootstrap row, no claim script, no
+  table rebuild. `user_id` stays `NULL` until slice 2's write path starts supplying it
+  on create -- slice 2 must be able to populate it, which requires `IdentityApi` to
+  return the caller's `user_id`, not just `email`/`role` (see slice 1's contract).
 
 The [issue #66](https://github.com/farooq-teqniqly/trainfree/issues/66) JWT contains the
-user's email as `email`, used as `provider_id`.
+user's email as `email`, used as `provider_id` (see the `logins` note above for why
+email rather than `sub`).

@@ -72,8 +72,11 @@ placeholder row for the first user in an environment -- dropped along with
   carrying the `CF_Authorization` cookie/JWT and a required `X-Trainfree-Caller` header
   naming which Access application it's calling on behalf of (`admin` for `AdminApi`,
   `workout` for the future `WorkoutApi`). `IdentityApi` responds with
-  `200 { "email": string, "role": "Administrator" | "User" }` only when the JWT's `aud`
-  matches the configured audience for the named caller. It responds `401` when it cannot
+  `200 { "email": string, "userId": number, "role": "Administrator" | "User" }` only
+  when the JWT's `aud` matches the configured audience for the named caller. `userId`
+  is included specifically so callers like `AdminApi` can populate owner columns (e.g.
+  `programs.user_id`, see slice 1's schema section) without a separate D1 lookup --
+  `IdentityApi` already resolved it doing the role lookup. It responds `401` when it cannot
   authenticate the request at all -- missing/malformed `X-Trainfree-Caller`, or a
   missing, malformed, expired, wrong-issuer, or wrong-audience-for-the-named-caller JWT.
   It responds `403` only once authentication has succeeded but authorization fails -- the

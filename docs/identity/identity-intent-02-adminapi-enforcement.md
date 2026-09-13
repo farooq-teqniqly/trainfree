@@ -43,9 +43,15 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
   for that case.
 - `GET /api/me` is the one exception to the Administrator-only rule: it returns
   `200 { "email": string, "role": "Administrator" | "User" }` for *any* provisioned
-  identity, Administrator or User, by relaying `IdentityApi`'s `200` response as-is. It
-  relays `IdentityApi`'s `401`/`403` the same as every other endpoint -- those still mean
-  "couldn't authenticate" / "no matching identity" respectively, not "wrong role."
+  identity, Administrator or User, by relaying `IdentityApi`'s `200` response as-is
+  minus the internal `userId` field (browser-facing, no reason to expose the surrogate
+  key). It relays `IdentityApi`'s `401`/`403` the same as every other endpoint -- those
+  still mean "couldn't authenticate" / "no matching identity" respectively, not "wrong
+  role."
+- Every write endpoint that creates a `programs` row (`createProgram` and any future
+  owner-scoped create) sets `programs.user_id` to the caller's `userId` from
+  `IdentityApi`'s `200` response -- the same response this slice already inspects for
+  the role check above, so no separate D1 lookup is needed to populate it.
 - `IdentityApi`'s `503` (infrastructure failure -- see slice 1) is relayed as `503` by
   `AdminApi`, not folded into `403`: an outage must stay distinguishable from a denied
   role so slice 3 can show its "something went wrong, retry" state rather than "no
