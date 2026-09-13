@@ -1,0 +1,38 @@
+{
+    "name": "trainfree-identity-api",
+    "main": "src/index.js",
+    // Keep in sync with Trainfree.AdminApi/wrangler.jsonc's compatibility_date -- see
+    // that file's comment for why this exact date is pinned.
+    "compatibility_date": "2025-09-06",
+    // 9998, not AdminApi's 9999 and not wrangler's stock 8787 (see CLAUDE.md: 8787 has
+    // been observed to leak orphaned listener processes on Windows across restarts).
+    // Distinct from 9999 so both Workers' dev servers can run at once.
+    "dev": {
+        "port": 9998
+    },
+    "d1_databases": [
+        {
+            "binding": "DB",
+            "database_name": "trainfree_db",
+            // Same physical database as AdminApi's binding -- see CLAUDE.md: one logical
+            // dataset, two Workers reading/writing it. IdentityApi reads/writes only
+            // logins/users/roles; the migration that creates them lives under
+            // Trainfree.AdminApi/migrations (owned by AdminApi), not here.
+            "database_id": "f99013f2-e1c9-48d7-9f63-cfb3c853f421"
+        }
+    ],
+    "observability": {
+        "logs": {
+            "enabled": true,
+            "invocation_logs": true
+        },
+        "traces": {
+            "enabled": true,
+            "head_sampling_rate": 1,
+            "persist": true
+        }
+    }
+    // No `assets` block: IdentityApi has no Blazor client of its own -- it is
+    // service-binding-only, reached by other Workers, never a browser. See
+    // CLAUDE.md's "Two apps, one Worker each" rule for the third-Worker exception.
+}

@@ -1,14 +1,14 @@
 ## 1. Worker scaffolding
 
-- [ ] 1.1 Create `src/Trainfree.IdentityApi/` as a sibling Worker folder (vanilla
+- [x] 1.1 Create `src/Trainfree.IdentityApi/` as a sibling Worker folder (vanilla
       JavaScript, outside the .NET solution), with `package.json`, `wrangler.jsonc`,
       and a `vitest.config.js` wired to `@cloudflare/vitest-pool-workers`, mirroring
       `Trainfree.AdminApi`'s existing layout. Verify: `npm test` runs (0 tests) with
       no config errors.
-- [ ] 1.2 Bind the existing `trainfree_db` D1 database (same `database_id` as
+- [x] 1.2 Bind the existing `trainfree_db` D1 database (same `database_id` as
       `AdminApi`'s binding) in `IdentityApi`'s `wrangler.jsonc`. Verify: `wrangler dev`
       starts locally with the D1 binding present in its startup log.
-- [ ] 1.3 Add a dedicated local dev port (distinct from `AdminApi`'s 9999) to
+- [x] 1.3 Add a dedicated local dev port (distinct from `AdminApi`'s 9999) to
       `IdentityApi`'s `wrangler.jsonc` `dev.port` and a matching `predev`
       `Kill-Port.ps1` script, per the repo's port-9999 convention. Verify: `npm run dev`
       starts without a port conflict when `AdminApi`'s dev server is also running.
