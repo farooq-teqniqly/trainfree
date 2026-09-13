@@ -60,9 +60,15 @@ column, in the [proposed schema](https://lucid.app/lucidchart/e74e6f97-b0f1-47a2
   "single-operator, few users") -- not a multi-tenant SaaS where an attacker could
   register a freed email. Revisit if a second identity provider or a larger user base
   changes that calculus. A second future provider is just another `logins` row shape,
-  no schema change.
+  no schema change. `UNIQUE (provider_name, provider_id)` at the schema level -- the
+  provisioning script's own "does this pair already exist" check (slice 1) is
+  read-then-write and not race-proof on its own; the constraint is what actually
+  guarantees the pair identifies at most one row, and turns a racing double-run into a
+  constraint-violation error on the loser rather than a silent duplicate.
 - `users` -- surrogate `user_id`, 1:1 to `logins` via `login_id`, many:1 to `roles` via
-  `role_id`.
+  `role_id`. `UNIQUE (login_id)` enforces the 1:1 at the schema level (without it,
+  nothing stops two `users` rows pointing at the same `logins` row, which would make
+  the role lookup for that login ambiguous).
 - `roles` -- a lookup table of `Administrator`/`User` rows, not a raw enum column. The
   migration that creates this table also seeds exactly those two rows -- the
   provisioning script only ever looks up an existing role by name to get its
