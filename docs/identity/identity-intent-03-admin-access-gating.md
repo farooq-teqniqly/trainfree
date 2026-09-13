@@ -14,8 +14,12 @@ instead of the normal app shell.
 ## Requirements
 
 - `Trainfree.Admin` determines whether to show the app or the "no access" page by calling
-  `GET /api/me` at startup. This mirrors the existing `VersionStamp` startup-check
-  pattern.
+  `GET /api/me` at startup. Unlike `VersionIndicator`, which renders inside
+  `MainLayout` -- *after* `App.razor`'s `<Router>` has already rendered the matched page
+  (`App.razor:1-3`) -- this check must gate rendering itself: it runs before the
+  `<Router>` renders any page, in `App.razor` (or an equivalent root component wrapping
+  it), so an unauthorized user's browser never briefly renders the normal app shell or
+  fires any protected page's own API requests while the check is in flight.
 - It renders normally only on `200` with `role == "Administrator"`.
 - A `401` or `403` **JSON** response shows the "no access" page -- both mean "you don't
   get in," whether because the request couldn't be authenticated at all or because it

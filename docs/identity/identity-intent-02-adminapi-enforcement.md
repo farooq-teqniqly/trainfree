@@ -57,9 +57,13 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
   `AdminApi`, not folded into `403`: an outage must stay distinguishable from a denied
   role so slice 3 can show its "something went wrong, retry" state rather than "no
   access." A service-binding call that itself throws or times out (rather than
-  returning a `503` cleanly) is likewise surfaced as `503`. In every one of these cases
-  -- `401`, `403`, or `503` -- `AdminApi` still fails closed: it never carries out the
-  underlying operation unless `IdentityApi` positively returned `200`.
+  returning a `503` cleanly) is likewise surfaced as `503`. Any response from
+  `IdentityApi` other than `200`/`401`/`403`/`503` -- including the `404` it returns for
+  a missing/wrong `X-Trainfree-Internal-Key` (slice 1), which would otherwise indicate a
+  misconfigured or rotated Wrangler secret rather than a real "not found" -- is also
+  treated as `503` by `AdminApi`, never passed through or treated as success. In every
+  one of these cases -- `401`, `403`, or `503` -- `AdminApi` still fails closed: it never
+  carries out the underlying operation unless `IdentityApi` positively returned `200`.
 - `GET /api/version` is exempt from this enforcement entirely, regardless of caller.
   It's called two ways: same-origin from the browser (`Trainfree.Versioning`'s
   `VersionCheck`, `src/Trainfree.Versioning/VersionCheck.cs:36-43`), which *does* carry
@@ -79,9 +83,23 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
 - **Local dev exemption**: the documented local workflow (`README.md`) runs
   `Trainfree.Admin` at `localhost:5280` against `wrangler dev`'s unauthenticated
   `127.0.0.1:9999` -- there is no Cloudflare Access edge in front of `wrangler dev`, so
-  no JWT ever reaches `AdminApi` locally. Enforcement therefore only applies when
-  `AdminApi` is deployed behind Cloudflare Access; `AdminApi` must detect the local
-  `wrangler dev` environment (the same way it already knows to point at the local
-  `IdentityApi` binding) and skip the `IdentityApi` call entirely rather than failing
-  every local request closed. This is a slice 2 task: define the environment check and
-  add a test asserting local requests are not blocked.
+  no JWT ever reaches `AdminApi` locally. `AdminApi`'s `wrangler.jsonc` today has no
+  `services` binding at all (`IdentityApi` doesn't exist yet), so this slice must add
+  one, plus a `wrangler dev` config for `IdentityApi` on its own local port (distinct
+  from `AdminApi`'s existing 9999) so both Workers can run locally together -- "local
+  dev" cannot be inferred from a missing binding, since a production deployment that is
+  accidentally missing the binding or the internal key must still fail closed rather
+  than silently behaving like local dev. Detection is instead an explicit
+  `LOCAL_DEV_BYPASS` environment flag, set only in `wrangler.jsonc`'s local `dev`
+  config (never in the deployed production vars), that `AdminApi` checks before calling
+  `IdentityApi`; a deployed environment where the binding or internal key is absent
+  fails closed with `503`, it does not fall back to bypass behavior. When the flag is
+  set, `AdminApi` skips the `IdentityApi` call and, for every endpoint including
+  `GET /api/me`, returns a synthetic local `200` response
+  (`{ "email": "local-dev@trainfree.local", "role": "Administrator" }`, plus `userId`
+  where the endpoint needs it) rather than nothing -- slice 3's startup gate requires a
+  `200`/`Administrator` `/api/me` response to render the app at all, and a bypass that
+  skipped `IdentityApi` without also defining `/api/me`'s local response would leave
+  local development unable to pass its own gate. This is a slice 2 task: define the
+  flag, the synthetic response, and tests asserting both the bypass and its
+  fail-closed-when-absent behavior in a deployed context.

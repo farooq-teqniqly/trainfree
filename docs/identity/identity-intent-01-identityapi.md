@@ -21,8 +21,11 @@ applied by `Trainfree.AdminApi`'s existing `wrangler d1 migrations apply` deploy
 D1 database from `IdentityApi` would risk the two histories conflicting. This slice's
 migration stays under `src/Trainfree.AdminApi/migrations/` and rides that existing
 deploy step; `IdentityApi` itself needs no migration step of its own, only its normal
-deploy/verify sequence (see below) -- it reads tables that `AdminApi`'s migration
-history created, the same way it will read `programs` rows `AdminApi` created.
+deploy/verify sequence (see below) -- it reads the `logins`/`users`/`roles` tables that
+`AdminApi`'s migration history created. `IdentityApi` never reads or writes `programs`
+rows; `programs.user_id` is populated and read by `AdminApi` alone (slice 2), the same
+way `AdminApi` already owns every other `programs` column -- `IdentityApi`'s role is
+limited to identity resolution, not program data access.
 
 There is no in-app provisioning UI in this slice (or this whole change). A user's D1
 record (email + role) is added by a provisioning script, run after the email is
@@ -43,6 +46,20 @@ design; see `identity-intent.md`'s schema section.)
 
 ## Requirements
 
+- **Rollout order**: a `403` from `IdentityApi` means "authenticated but unprovisioned,"
+  and slice 2's `AdminApi` enforcement (including `GET /api/me`) relays that `403`
+  verbatim -- so deploying slice 2 before any D1 identity exists locks out every
+  administrator, including the operator, with no in-app way to recover (no provisioning
+  UI in this change). The rollout must run the provisioning script against the deployed
+  D1 database, creating at least one `Administrator` identity, and confirm a real
+  authenticated `GET /api/me` call succeeds against that identity, *before* slice 2 is
+  enabled in production. This is a deploy-runbook task for slice 1/2's rollout, not
+  something `IdentityApi` itself can enforce in code.
+- The canonical `provider_name` value for Cloudflare Access is the literal string
+  `"cloudflare-access"`. Both the provisioning script (slice 1) and `IdentityApi`'s role
+  lookup (below) must use this exact, shared value -- defined once (e.g. a constant in a
+  shared module both import) rather than typed independently in two places, since a
+  spelling mismatch between them would make every otherwise-valid login resolve to `403`.
 - `IdentityApi` verifies the Cloudflare Access JWT itself (signature, issuer, audience,
   expiry) against Cloudflare's published JWKS for the Access team domain, rather than
   trusting that a request could only have reached the origin Worker via an
@@ -103,7 +120,12 @@ design; see `identity-intent.md`'s schema section.)
   JWT's email has no matching D1 user record, or the record can't be resolved to a role.
   There's no separate "unprovisioned" vs. "wrong role" signal within the `403` case --
   both are a 403; the 401/403 split exists only to distinguish "we don't know who this
-  is" from "we know who this is, and they don't have access."
+  is" from "we know who this is, and they don't have access." Every non-`200` response
+  (`401`, `403`, `503`) is `application/json` with a stable `{ "error": string }` body,
+  same as the `200` shape's content type -- never an empty body or plain text. This
+  matters because slice 3 treats a non-JSON response from `/api/me` as a sign of an
+  expired Access session (see `identity-intent.md`); a denial response that isn't valid
+  JSON would be misread as an expired session instead of "no access."
 - An infrastructure failure -- the JWKS fetch failing with no cached copy available, or
   the D1 role lookup erroring or timing out -- is surfaced as a `503 Response`, distinct
   from `401`/`403`. `403`/`401` mean "I evaluated this JWT and it is not authorized" /
