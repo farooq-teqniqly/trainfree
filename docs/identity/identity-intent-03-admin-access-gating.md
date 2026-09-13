@@ -17,6 +17,10 @@ instead of the normal app shell.
   `GET /api/me` at startup. This mirrors the existing `VersionStamp` startup-check
   pattern.
 - It renders normally only on `200` with `role == "Administrator"`.
-- A `403` shows the "no access" page.
+- A `401` or `403` shows the "no access" page -- both mean "you don't get in," whether
+  because the request couldn't be authenticated at all or because it authenticated to a
+  non-Administrator/unprovisioned identity. The page doesn't need to distinguish the two
+  since Cloudflare Access, not this slice, already handles re-authentication for an
+  expired session (see identity-intent.md's Cloudflare Access section).
 - A network failure or `5xx` shows a distinct "something went wrong, retry" state, rather
   than implying the user lacks permission.

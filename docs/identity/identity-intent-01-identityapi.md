@@ -15,7 +15,14 @@ documented amendment saying exactly this, added as one of this change's tasks.
 `IdentityApi` binds the same physical D1 database as the other Workers, for the
 `logins`/`users`/`roles` tables only -- consistent with this repo's existing "one logical
 dataset, multiple Workers" pattern. A D1 migration adds those tables plus the
-`programs.user_id` column.
+`programs.user_id` column. That migration lives under `src/Trainfree.IdentityApi`'s own
+`migrations/` directory (this slice owns the identity schema, including the
+`programs.user_id` column it introduces even though `programs` itself belongs to
+`AdminApi`), applied exactly once via `wrangler d1 migrations apply` in `IdentityApi`'s
+own deploy step in `deploy.yaml`. `deploy.yaml`'s task to add `IdentityApi`'s deploy/
+verify sequence (see below) includes this migration step, ordered before `AdminApi`'s
+deploy step in the same run so the column exists before any `AdminApi` code that reads
+or writes it.
 
 There is no in-app provisioning UI in this slice (or this whole change). A user's D1
 record (email + role) is added by a script, run after the email is whitelisted in
@@ -23,10 +30,12 @@ Cloudflare Access.
 
 ## Requirements
 
-- `IdentityApi` verifies the Cloudflare Access JWT itself (signature, audience, expiry)
-  against Cloudflare's published JWKS for the Access team domain, rather than trusting
-  that a request could only have reached the origin Worker via an already-enforced edge
-  policy.
+- `IdentityApi` verifies the Cloudflare Access JWT itself (signature, issuer, audience,
+  expiry) against Cloudflare's published JWKS for the Access team domain, rather than
+  trusting that a request could only have reached the origin Worker via an
+  already-enforced edge policy. The issuer (`iss`) must match the configured Access team
+  domain -- signature, audience, and expiry alone don't bind the token to that team, so a
+  structurally valid JWT from an unexpected issuer must still be rejected.
 - The JWKS is fetched from Cloudflare's certs endpoint and cached via the Cloudflare Cache
   API (`caches.default`), respecting Cloudflare's own `Cache-Control`/`max-age` on that
   response -- no new binding needed. Tested by injecting the fetcher as a
@@ -39,10 +48,14 @@ Cloudflare Access.
   centralizes it in one Worker instead of duplicating it per app.
 - The service-binding contract: a calling Worker sends a plain `fetch`-style request
   carrying the `CF_Authorization` cookie/JWT. `IdentityApi` responds with
-  `200 { "email": string, "role": "Administrator" | "User" }` on success, or a
-  `403 Response` when the JWT's email has no matching D1 user record or the record can't
-  be resolved to a role. There's no separate "not provisioned" vs. "wrong role" signal in
-  this version -- both are a 403.
+  `200 { "email": string, "role": "Administrator" | "User" }` on success. It responds
+  `401` when it cannot authenticate the request at all -- missing, malformed, expired,
+  or wrong-issuer/wrong-audience JWT. It responds `403` only once authentication has
+  succeeded but authorization fails -- the JWT's email has no matching D1 user record, or
+  the record can't be resolved to a role. There's no separate "unprovisioned" vs. "wrong
+  role" signal within the `403` case -- both are a 403; the 401/403 split exists only to
+  distinguish "we don't know who this is" from "we know who this is, and they don't have
+  access."
 - Any failure other than a clean `200`/`403` -- JWT signature/expiry check throwing, the
   JWKS fetch failing with no cached copy available, or the D1 role lookup erroring or
   timing out -- is also surfaced as a `403 Response`, never a `200` and never an
