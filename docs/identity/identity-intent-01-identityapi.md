@@ -28,13 +28,18 @@ There is no in-app provisioning UI in this slice (or this whole change). A user'
 record (email + role) is added by a provisioning script, run after the email is
 whitelisted in Cloudflare Access. That script does not exist in this repo yet -- it is
 an explicit deliverable of this slice, not a prerequisite assumed to already exist. It
-must be idempotent: it first checks whether a `logins` row already exists for the
-target `(provider_name, provider_id)` and, if so, does nothing; otherwise it inserts a
-new `logins`/`users` row. That existing-row check first is what makes re-running the
-script for an already-provisioned identity a no-op instead of a duplicate insert. (An
-earlier version of this doc had the script claiming a migration-seeded bootstrap
-placeholder row for the first user in an environment -- dropped along with
-`programs.user_id`'s bootstrap-user design; see `identity-intent.md`'s schema section.)
+must be idempotent and failure-safe: it first checks whether a *fully provisioned*
+identity -- a `logins` row **and** its paired `users` row -- already exists for the
+target `(provider_name, provider_id)`; if so, it does nothing. Otherwise it inserts both
+the `logins` row and its paired `users` row inside a single D1 transaction/batch, so a
+crash or failure partway through can only ever leave "neither row exists" (the next run
+retries cleanly) or "both exist" (the next run's existing-pair check catches it) --
+never an orphaned `logins` row with no `users` row, which could never resolve a role and
+would be stuck permanently unauthenticatable if the script only checked `logins` for
+idempotency (as an earlier version of this requirement did). (An earlier version of this
+doc had the script claiming a migration-seeded bootstrap placeholder row for the first
+user in an environment -- dropped along with `programs.user_id`'s bootstrap-user
+design; see `identity-intent.md`'s schema section.)
 
 ## Requirements
 
@@ -68,10 +73,13 @@ placeholder row for the first user in an environment -- dropped along with
   implementation in this change. No second provider (e.g. Google) is implemented now --
   this only avoids hardcoding Cloudflare-Access-specific parsing at every call site, and
   centralizes it in one Worker instead of duplicating it per app.
-- The service-binding contract: a calling Worker sends a plain `fetch`-style request
-  carrying the `CF_Authorization` cookie/JWT and a required `X-Trainfree-Caller` header
-  naming which Access application it's calling on behalf of (`admin` for `AdminApi`,
-  `workout` for the future `WorkoutApi`). `IdentityApi` responds with
+- The service-binding contract: a calling Worker sends a `GET /internal/identity`
+  request (this exact method and path -- distinct from the browser-facing
+  `GET /api/me` that `AdminApi` itself exposes; `/internal/*` is never routed to a
+  browser, only reachable via the service binding) carrying the `CF_Authorization`
+  cookie/JWT and a required `X-Trainfree-Caller` header naming which Access application
+  it's calling on behalf of (`admin` for `AdminApi`, `workout` for the future
+  `WorkoutApi`). `IdentityApi` responds with
   `200 { "email": string, "userId": number, "role": "Administrator" | "User" }` only
   when the JWT's `aud` matches the configured audience for the named caller. `userId`
   is included specifically so callers like `AdminApi` can populate owner columns (e.g.

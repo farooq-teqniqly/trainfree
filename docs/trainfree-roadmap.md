@@ -192,15 +192,16 @@ Access *configuration* itself (whitelisting emails, the login flow) -- that stay
   where the still-deploying old Worker 500s on `/api/categories`.
 - An authorization policy for the `Trainfree.Workout`-facing API (slice 9+). Admitting a
   `User`-role caller past a role check is necessary but **not sufficient** on its own:
-  today's program/tree queries return every program with no owner filter, and
-  `IdentityApi`'s response carries only `email`/`role`, no `user_id` -- so a `User`
-  admitted past the role check would read every other user's programs (and, through
-  nested queries, their sessions/phases/exercises), not just their own. This isn't
-  resolved by this identity change and shouldn't be treated as resolved by merely
-  depending on 8a-8c: slice 9 (or `Trainfree.WorkoutApi`) still needs to design (a) how
-  a `User`-role caller maps to a `user_id` (`IdentityApi`'s contract likely needs to
-  start returning `user_id`, not just `email`/`role`), and (b) owner-scoped filtering on
-  every read path a `User` can reach, including nested collections. Slice 8b's
-  Administrator-only rule is `AdminApi`'s own policy and doesn't need to change for
-  this identity work to ship; this is entirely slice 9's problem to solve before it
-  relaxes anything.
+  today's program/tree queries return every program with no owner filter. `IdentityApi`
+  *does* already return the caller's `user_id` (its `200` response's `userId` field,
+  added in 8a for `AdminApi` to populate `programs.user_id` on create) -- the ID is
+  available, so the missing piece is owner-scoped *filtering*, not identity mapping. A
+  `User` admitted past a role check without that filtering would still read every other
+  user's programs (and, through nested queries, their sessions/phases/exercises), not
+  just their own. This isn't resolved by this identity change and shouldn't be treated
+  as resolved by merely depending on 8a-8c: slice 9 (or `Trainfree.WorkoutApi`) still
+  needs to design owner-scoped filtering on every read path a `User` can reach,
+  including nested collections, using the `userId` `IdentityApi` already provides.
+  Slice 8b's Administrator-only rule is `AdminApi`'s own policy and doesn't need to
+  change for this identity work to ship; this is entirely slice 9's problem to solve
+  before it relaxes anything.

@@ -63,7 +63,11 @@ column, in the [proposed schema](https://lucid.app/lucidchart/e74e6f97-b0f1-47a2
   no schema change.
 - `users` -- surrogate `user_id`, 1:1 to `logins` via `login_id`, many:1 to `roles` via
   `role_id`.
-- `roles` -- a lookup table of `Administrator`/`User` rows, not a raw enum column.
+- `roles` -- a lookup table of `Administrator`/`User` rows, not a raw enum column. The
+  migration that creates this table also seeds exactly those two rows -- the
+  provisioning script only ever looks up an existing role by name to get its
+  `role_id`, it never creates one, so a fresh database with an empty `roles` table
+  would leave every identity unable to resolve a role and stuck at `403`.
 - `programs.user_id` -- links each program to its owning user, `INTEGER REFERENCES
   users(user_id)`, **nullable** (no `NOT NULL`, no default -- an omitted default is
   `NULL`). SQLite/D1 does allow adding a nullable FK column with no default via a
