@@ -28,11 +28,13 @@ There is no in-app provisioning UI in this slice (or this whole change). A user'
 record (email + role) is added by a provisioning script, run after the email is
 whitelisted in Cloudflare Access. That script does not exist in this repo yet -- it is
 an explicit deliverable of this slice, not a prerequisite assumed to already exist. It
-must be idempotent: for the first user provisioned in a given environment, it claims the
-migration's placeholder bootstrap `logins` row in place (see the schema section in
-`identity-intent.md`) by updating both `provider_name` and `provider_id`; for every
-subsequent user (or a re-run once the placeholder is already claimed), it inserts a new
-`logins`/`users` row instead.
+must be idempotent: it first checks whether a `logins` row already exists for the
+target `(provider_name, provider_id)` and, if so, does nothing; otherwise, for the first
+user provisioned in a given environment, it claims the migration's placeholder bootstrap
+`logins` row in place (see the schema section in `identity-intent.md`) by updating both
+`provider_name` and `provider_id`; otherwise it inserts a new `logins`/`users` row. That
+existing-row check first is what makes re-running the script for an already-provisioned
+operator a no-op instead of a duplicate insert.
 
 ## Requirements
 
@@ -42,13 +44,20 @@ subsequent user (or a re-run once the placeholder is already claimed), it insert
   already-enforced edge policy. The issuer (`iss`) must match the configured Access team
   domain -- signature, audience, and expiry alone don't bind the token to that team, so a
   structurally valid JWT from an unexpected issuer must still be rejected.
-- The audience (`aud`) check is against an explicit allowlist of *caller* Access
-  application audiences -- `Trainfree.Admin`'s Access application now, `Trainfree.Workout`'s
-  later -- configured on `IdentityApi`, not against `IdentityApi`'s own hostname/Access
-  application audience. `AdminApi` forwards the browser's own JWT over the service
-  binding unchanged, so that JWT's `aud` is always the calling app's Access application,
-  never `IdentityApi`'s; checking against the wrong audience would reject every
-  legitimate service-bound call.
+- The audience (`aud`) check is against the *specific* caller audience the request
+  claims to be from, not an allowlist accepted for every call. The service-binding
+  contract (below) requires the calling Worker to state which Access application it's
+  calling on behalf of (`AdminApi` always states its own -- `Trainfree.Admin`'s -- audience;
+  `WorkoutApi` will state `Trainfree.Workout`'s once it exists), and `IdentityApi`
+  verifies the JWT's `aud` matches *that* stated audience, not merely that it matches
+  *some* audience on a shared allowlist. Without this, a valid `Trainfree.Workout` JWT
+  for an Administrator-role user could satisfy an accept-any-listed-audience check if it
+  ever reached `AdminApi`'s service binding, collapsing the two Access applications'
+  boundary and letting a Workout-side identity gain Admin-side access via
+  role alone. `AdminApi` forwards the browser's own JWT over the service binding
+  unchanged, so that JWT's `aud` is always the calling app's own Access application,
+  never `IdentityApi`'s; that's still the reason the check isn't against
+  `IdentityApi`'s own hostname/Access application audience.
 - The JWKS is fetched from Cloudflare's certs endpoint and cached via the Cloudflare Cache
   API (`caches.default`), respecting Cloudflare's own `Cache-Control`/`max-age` on that
   response -- no new binding needed. Tested by injecting the fetcher as a
@@ -60,15 +69,18 @@ subsequent user (or a re-run once the placeholder is already claimed), it insert
   this only avoids hardcoding Cloudflare-Access-specific parsing at every call site, and
   centralizes it in one Worker instead of duplicating it per app.
 - The service-binding contract: a calling Worker sends a plain `fetch`-style request
-  carrying the `CF_Authorization` cookie/JWT. `IdentityApi` responds with
-  `200 { "email": string, "role": "Administrator" | "User" }` on success. It responds
-  `401` when it cannot authenticate the request at all -- missing, malformed, expired,
-  or wrong-issuer/wrong-audience JWT. It responds `403` only once authentication has
-  succeeded but authorization fails -- the JWT's email has no matching D1 user record, or
-  the record can't be resolved to a role. There's no separate "unprovisioned" vs. "wrong
-  role" signal within the `403` case -- both are a 403; the 401/403 split exists only to
-  distinguish "we don't know who this is" from "we know who this is, and they don't have
-  access."
+  carrying the `CF_Authorization` cookie/JWT and a required `X-Trainfree-Caller` header
+  naming which Access application it's calling on behalf of (`admin` for `AdminApi`,
+  `workout` for the future `WorkoutApi`). `IdentityApi` responds with
+  `200 { "email": string, "role": "Administrator" | "User" }` only when the JWT's `aud`
+  matches the configured audience for the named caller. It responds `401` when it cannot
+  authenticate the request at all -- missing/malformed `X-Trainfree-Caller`, or a
+  missing, malformed, expired, wrong-issuer, or wrong-audience-for-the-named-caller JWT.
+  It responds `403` only once authentication has succeeded but authorization fails -- the
+  JWT's email has no matching D1 user record, or the record can't be resolved to a role.
+  There's no separate "unprovisioned" vs. "wrong role" signal within the `403` case --
+  both are a 403; the 401/403 split exists only to distinguish "we don't know who this
+  is" from "we know who this is, and they don't have access."
 - An infrastructure failure -- the JWKS fetch failing with no cached copy available, or
   the D1 role lookup erroring or timing out -- is surfaced as a `503 Response`, distinct
   from `401`/`403`. `403`/`401` mean "I evaluated this JWT and it is not authorized" /

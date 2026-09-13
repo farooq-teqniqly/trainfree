@@ -58,17 +58,27 @@ column, in the [proposed schema](https://lucid.app/lucidchart/e74e6f97-b0f1-47a2
   clause via `ALTER TABLE ... ADD COLUMN` while foreign keys are enforced (D1 enforces
   them, and this repo's existing migrations declare FKs the same way, e.g.
   `src/Trainfree.AdminApi/migrations/0003_create_sessions.sql:5`) -- so this migration
-  does a table rebuild, following SQLite's documented "12 steps" pattern for changing a
-  table referenced by other tables' foreign keys: `PRAGMA foreign_keys=OFF`, create the
-  new `programs` table with the `user_id` column and its `DEFAULT 1`/FK included from
-  the start, copy every existing row across (each row automatically gets `user_id = 1`
-  via the default), drop the old table, rename the new one to `programs`, recreate
-  `idx_programs_name_nocase` (migration 0002) against the new table, then
-  `PRAGMA foreign_keys=ON` and a `PRAGMA foreign_key_check` before committing. Turning
-  foreign keys off for the rebuild -- rather than a bare `DROP TABLE` -- is what keeps
-  `sessions.program_id`'s `ON DELETE CASCADE` from firing and cascading through
-  `sessions`, `session_phases`, and `program_exercises` when the old `programs` table is
-  dropped; those tables and their data are otherwise untouched by this migration. Every
+  does a table rebuild. `PRAGMA foreign_keys=OFF` is **not** available on D1 (D1 keeps
+  FK enforcement on regardless of that pragma), so the rebuild instead uses
+  `PRAGMA defer_foreign_keys=TRUE`, which D1 does support: within a single migration
+  transaction, it postpones FK checks until the transaction commits rather than
+  disabling them, which is exactly what a rebuild needs. The sequence: begin the
+  transaction, `PRAGMA defer_foreign_keys=TRUE`, create the new `programs` table with
+  the `user_id` column and its `DEFAULT 1`/FK included from the start, copy every
+  existing row across (each row automatically gets `user_id = 1` via the default), drop
+  the old `programs` table, rename the new one to `programs`, recreate
+  `idx_programs_name_nocase` (migration 0002) against the new table, commit. Deferring
+  (rather than disabling) FK checks means `sessions.program_id`'s `ON DELETE CASCADE`
+  doesn't fire mid-transaction when the old `programs` table is dropped, and by commit
+  time every `sessions`/`session_phases`/`program_exercises` row's FK still resolves
+  against the renamed table -- those tables and their data are otherwise untouched by
+  this migration. Because D1's FK behavior here is a real portability risk (this is
+  exactly the kind of thing that behaves differently locally vs. on the platform), this
+  migration is one of the cases where slice 1's task list must include exercising it
+  against a real Miniflare-backed D1 instance in a `vitest` integration test (per
+  `CLAUDE.md`'s "no mocking layer" rule) that seeds pre-existing `programs`/`sessions`/
+  `session_phases`/`program_exercises` rows, runs the migration, and asserts they all
+  still resolve correctly afterward -- not just that the migration file parses. Every
   `createProgram` insert that doesn't yet supply `user_id` (i.e. until slice 2 updates
   that write path) also resolves to `1` by the same default -- no row is ever left with
   an unresolved owner, and slice 1 shipping alone does not break `AdminApi`'s existing
@@ -82,17 +92,20 @@ column, in the [proposed schema](https://lucid.app/lucidchart/e74e6f97-b0f1-47a2
   `users` row (`user_id = 1`, Administrator role). The provisioning script (see slice 1;
   this doc previously implied the script already existed -- it's an explicit slice-1
   deliverable, not yet built) is how the real operator claims that identity per
-  deployment: for the very first user provisioned in a given environment, the script
-  performs an idempotent claim -- if a `logins` row with `provider_name = 'bootstrap'`
-  still exists, update *both* `provider_name` and `provider_id` to the operator's real
-  provider name (`"cloudflare-access"`) and email in place, rather than inserting a new
-  row (leaving `provider_name` as `'bootstrap'` would make every subsequent lookup by
-  the real `(provider_name, provider_id)` pair fail to find this row, rejecting the
-  operator as unprovisioned). If no `'bootstrap'` row remains (already claimed), the
-  script inserts a normal new `logins`/`users` row instead -- so re-running the script
-  is always safe. `user_id = 1` (and therefore every pre-existing `programs` row) ends
-  up owned by whichever identity the operator of that specific deployment provisions
-  first.
+  deployment. Its idempotency check runs in this order, so re-running it for the same
+  operator is always a no-op rather than a duplicate insert: (1) if a `logins` row
+  already exists for the target `(provider_name, provider_id)` -- the operator's real
+  provider name and email -- do nothing, they're already provisioned; (2) otherwise, if
+  a `logins` row with `provider_name = 'bootstrap'` still exists, claim it by updating
+  *both* `provider_name` and `provider_id` to the operator's real values in place
+  (leaving `provider_name` as `'bootstrap'` would make the real-pair lookup in step (1)
+  never find it, so both fields must change together); (3) otherwise (bootstrap already
+  claimed by someone else, or never existed), insert a normal new `logins`/`users` row.
+  Step (1) is what makes the whole sequence idempotent -- without it, a rerun for an
+  already-claimed operator would fall through to step (3) and insert a second row for
+  the same real identity. `user_id = 1` (and therefore every pre-existing `programs`
+  row) ends up owned by whichever identity the operator of that specific deployment
+  provisions first.
 
 The [issue #66](https://github.com/farooq-teqniqly/trainfree/issues/66) JWT contains the
 user's email as `email`, used as `provider_id`.

@@ -19,8 +19,12 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
 ## Requirements
 
 - Every `Trainfree.AdminApi` data endpoint requires the Administrator role, enforced via
-  its service-binding call to `IdentityApi`. "Every" is over every route that reads or
-  writes program data, not just the CRUD routes -- explicitly including
+  its service-binding call to `IdentityApi`, always sending `X-Trainfree-Caller: admin`
+  (see slice 1's contract) -- so a valid `Trainfree.Workout` JWT for an Administrator
+  cannot pass this check via a shared audience allowlist; `IdentityApi` validates the
+  JWT's `aud` specifically against `Trainfree.Admin`'s Access application because that's
+  the caller `AdminApi` names. "Every" is over every route that reads or writes program
+  data, not just the CRUD routes -- explicitly including
   `GET /api/programs-tree` and the nested collection/resource GETs
   (`src/Trainfree.AdminApi/src/index.js:597-599`), which are non-CRUD reads and would
   otherwise let an authenticated non-Administrator read program data. `GET /api/version`
