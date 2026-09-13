@@ -15,7 +15,7 @@
 
 ## 2. Shared provider_name constant
 
-- [ ] 2.1 Write a failing vitest test asserting a shared module exports
+- [x] 2.1 Write a failing vitest test asserting a shared module exports
       `PROVIDER_NAME_CLOUDFLARE_ACCESS === "cloudflare-access"`, then add the module
       (e.g. `src/shared/providers.js`) to pass it. Verify: test goes red then green.
 
