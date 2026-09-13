@@ -94,23 +94,33 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
   config (never in the deployed production vars), that `AdminApi` checks before calling
   `IdentityApi`; a deployed environment where the binding or internal key is absent
   fails closed with `503`, it does not fall back to bypass behavior. When the flag is
-  set, `AdminApi` skips the `IdentityApi` call and, for every endpoint including
-  `GET /api/me`, returns a local `200` response
-  (`{ "email": "local-dev@trainfree.local", "role": "Administrator" }`, plus `userId`
-  where the endpoint needs it) rather than nothing -- slice 3's startup gate requires a
-  `200`/`Administrator` `/api/me` response to render the app at all, and a bypass that
-  skipped `IdentityApi` without also defining `/api/me`'s local response would leave
-  local development unable to pass its own gate. The `userId` in that response cannot
-  be an arbitrary/synthetic number: `programs.user_id` is a foreign key into `users`
-  (see `identity-intent.md`'s schema section), and the local workflow only applies
-  migrations, it never runs the provisioning script -- so a made-up `userId` with no
-  matching `users` row would make every local `POST /api/programs` fail its own FK
-  constraint. The migration that seeds the `roles` table (slice 1) also seeds one
-  deterministic local `logins`/`users` pair (fixed `provider_name`/`provider_id`, e.g.
-  `local-dev`/`local-dev@trainfree.local`, `Administrator` role) purely for this bypass
-  to reference by its real `user_id` -- this row only exists because the migration
-  ships it; it is not a production concern since `LOCAL_DEV_BYPASS` is never set outside
-  `wrangler dev`. This is a slice 2 task (plus the seed row as a slice 1 migration
-  addition): define the flag, the local response using the seeded row's real `userId`,
-  and tests asserting both the bypass and its
-  fail-closed-when-absent behavior in a deployed context.
+  set, `AdminApi` treats the `IdentityApi` call as having returned a synthetic local
+  `200 { "email": "local-dev@trainfree.local", "role": "Administrator", "userId": ... }`
+  identity, rather than skipping authorization checking altogether: every data endpoint
+  still runs its normal handler exactly as it would for a real `200`, and the
+  Administrator-role check still executes against this synthetic identity (trivially
+  passing, since it's always `Administrator`) -- only `/api/me` itself relays this
+  identity document to the browser. The local bypass is therefore "substitute
+  `IdentityApi`'s response," not "skip the endpoint's own logic": a data endpoint (e.g.
+  `POST /api/programs`) still executes its real create/read/update/delete code against
+  local D1 using this identity's `userId`, it just never makes the network call to
+  `IdentityApi` to obtain that identity.
+  The `userId` in that identity cannot be an arbitrary/synthetic number:
+  `programs.user_id` is a foreign key into `users` (see `identity-intent.md`'s schema
+  section), so a made-up `userId` with no matching `users` row would make every local
+  `POST /api/programs` fail its own FK constraint. This row must not come from the
+  committed D1 migration, though -- `deploy.yaml` applies every migration file to the
+  **production** database via `wrangler d1 migrations apply --remote` on every tag
+  (`README.md:154-158`), so a migration-seeded `local-dev`/`Administrator` row would be
+  a real privileged identity in production too, resolvable by anyone who could ever
+  reach that exact `(provider_name, provider_id)` pair. Instead, this slice adds a
+  local-only setup script (invoked from the documented local dev workflow, never from
+  `deploy.yaml` or any `--remote` path) that inserts this one deterministic
+  `logins`/`users` pair directly into the **local** D1 instance only, the same one
+  `wrangler dev`'s migrations already target; `AdminApi`'s local bypass then reads that
+  row's real `user_id` (a one-time local lookup, or a value the local setup script
+  writes somewhere `AdminApi` can read in `LOCAL_DEV_BYPASS` mode) rather than
+  hardcoding a number. This is a slice 2 task (plus the local-only setup script): define
+  the flag, the synthetic-identity substitution described above, the local-only seed
+  script, and tests asserting the bypass, the fail-closed-when-absent behavior in a
+  deployed context, and that the seed script is never invoked by any `--remote` path.

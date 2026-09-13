@@ -56,14 +56,25 @@ design; see `identity-intent.md`'s schema section.)
   Access-gated hostname (the same one CI calls for `GET /api/version`). The rollout
   runbook is: (1) deploy slice 1 (`IdentityApi` live, `AdminApi` not yet calling it);
   (2) run the provisioning script against the deployed D1 database, creating at least
-  one `Administrator` identity; (3) call `IdentityApi`'s own
-  `GET /internal/identity`-equivalent check directly with that administrator's real
-  JWT and internal key (a manual or scripted call, not through `AdminApi`) and confirm
-  it returns `200`/`Administrator`; only then (4) deploy slice 2 with enforcement
-  enabled. If step 3 fails, slice 2 is not deployed and the operator is never locked
-  out, since `AdminApi` isn't calling `IdentityApi` yet at that point. This is a
-  deploy-runbook task for slice 1/2's rollout, not something either Worker can enforce
-  in code.
+  one `Administrator` identity; (3) confirm `/internal/identity` resolves that identity
+  to `200`/`Administrator`; only then (4) deploy slice 2 with enforcement enabled. Step
+  3 cannot be a plain curl/browser call to `IdentityApi`'s public hostname: that
+  hostname is gated by `IdentityApi`'s *own*, separately-configured Access application
+  (below), whose edge policy the administrator is not necessarily whitelisted into (only
+  `Trainfree.Admin`'s Access application is), so the edge would reject the request
+  before `IdentityApi`'s Worker code ever runs -- and even if it didn't, the JWT that
+  edge issues would carry `IdentityApi`'s own audience, which fails the named-caller
+  audience check regardless (`AdminApi`'s stated caller must present `Trainfree.Admin`'s
+  audience specifically). The check must instead go through the service binding, the
+  same path `AdminApi` uses in production, bypassing the public edge entirely: run a
+  short one-off script via `wrangler dev --remote` (or an equivalent local Wrangler
+  session bound to the deployed `IdentityApi` over the real service binding) that sends
+  the administrator's own `Trainfree.Admin`-issued JWT (captured from their existing
+  browser session's `CF_Authorization` cookie) to `/internal/identity` with
+  `X-Trainfree-Caller: admin` and the internal key. If this fails, slice 2 is not
+  deployed and the operator is never locked out, since `AdminApi` isn't calling
+  `IdentityApi` yet at that point. This is a deploy-runbook task for slice 1/2's
+  rollout, not something either Worker can enforce in code.
 - The canonical `provider_name` value for Cloudflare Access is the literal string
   `"cloudflare-access"`. Both the provisioning script (slice 1) and `IdentityApi`'s role
   lookup (below) must use this exact, shared value -- defined once (e.g. a constant in a
@@ -76,12 +87,18 @@ design; see `identity-intent.md`'s schema section.)
   domain -- signature, audience, and expiry alone don't bind the token to that team, so a
   structurally valid JWT from an unexpected issuer must still be rejected.
 - The audience (`aud`) check is against the *specific* caller audience the request
-  claims to be from, not an allowlist accepted for every call. The service-binding
-  contract (below) requires the calling Worker to state which Access application it's
-  calling on behalf of (`AdminApi` always states its own -- `Trainfree.Admin`'s -- audience;
-  `WorkoutApi` will state `Trainfree.Workout`'s once it exists), and `IdentityApi`
-  verifies the JWT's `aud` matches *that* stated audience, not merely that it matches
-  *some* audience on a shared allowlist. Without this, a valid `Trainfree.Workout` JWT
+  claims to be from, not an allowlist accepted for every call. Cloudflare Access JWTs
+  carry `aud` as an **array** of audience tags, not a single scalar string -- the check
+  must verify the named caller's configured audience is a member of that array
+  (`aud.includes(expectedAudience)`), never a strict equality comparison against the
+  whole claim, which would reject every structurally valid token. Slice 1's test suite
+  must include a test using a JWT with a multi-element `aud` array to cover this. The
+  service-binding contract (below) requires the calling Worker to state which Access
+  application it's calling on behalf of (`AdminApi` always states its own --
+  `Trainfree.Admin`'s -- audience; `WorkoutApi` will state `Trainfree.Workout`'s once it
+  exists), and `IdentityApi` verifies the named caller's configured audience is present
+  in the JWT's `aud` array, not merely that *some* audience on a shared allowlist is
+  present. Without this, a valid `Trainfree.Workout` JWT
   for an Administrator-role user could satisfy an accept-any-listed-audience check if it
   ever reached `AdminApi`'s service binding, collapsing the two Access applications'
   boundary and letting a Workout-side identity gain Admin-side access via
@@ -103,21 +120,29 @@ design; see `identity-intent.md`'s schema section.)
   request carrying the `CF_Authorization` cookie/JWT, a required `X-Trainfree-Caller`
   header naming which Access application it's calling on behalf of (`admin` for
   `AdminApi`, `workout` for the future `WorkoutApi`), and a required
-  `X-Trainfree-Internal-Key` header set to a shared secret known only to `IdentityApi`
-  and the Worker-to-Worker callers (stored as a Wrangler secret, injected by
-  `AdminApi`/`WorkoutApi` on every call to `/internal/identity`, never sent to or
-  accepted from a browser). The `/internal/identity` *path* is a naming convention
-  only, not an access boundary: `IdentityApi` also has a public hostname (so CI can
-  reach `GET /api/version`), so any browser or external caller can otherwise reach
+  `X-Trainfree-Internal-Key` header. Each caller has its **own** internal-key secret
+  (`ADMIN_INTERNAL_KEY`, and later `WORKOUT_INTERNAL_KEY`), stored as a distinct
+  Wrangler secret in `IdentityApi` and injected only into its one legitimate caller
+  Worker -- not one secret shared across every caller. `IdentityApi` looks up which key
+  is expected for the `X-Trainfree-Caller` the request names and checks the presented
+  key against *that specific* secret, not against a pool of any-valid-key: a single
+  shared secret would let any key-holding Worker claim to be `admin` (`X-Trainfree-
+  Caller` is just a self-reported label) and obtain `Trainfree.Admin`-audience
+  validation for whatever JWT it forwards, regardless of which Worker actually holds
+  the key. The `/internal/identity` *path* is a naming convention only, not an access
+  boundary: `IdentityApi` also has a public hostname (so CI can reach
+  `GET /api/version`), so any browser or external caller can otherwise reach
   `/internal/identity` directly and would satisfy the JWT/`X-Trainfree-Caller` checks
   just as validly as a real service-bound call, since neither of those proves the
-  request came through the service binding rather than the public internet. The shared
-  secret is what actually restricts this endpoint -- `IdentityApi` rejects any request
-  to `/internal/identity` missing or presenting the wrong `X-Trainfree-Internal-Key`
-  with a `404` (not `401`/`403`, so the endpoint's existence isn't confirmed to an
-  unauthenticated public prober) before even looking at the JWT. Slice 1's test suite
-  must include a test asserting a request to `/internal/identity` with a valid JWT but
-  no/wrong internal key is rejected. `IdentityApi` responds with
+  request came through the service binding rather than the public internet. The
+  per-caller key is what actually restricts this endpoint -- `IdentityApi` rejects any
+  request to `/internal/identity` missing or presenting the wrong key for the named
+  caller with a `404` (not `401`/`403`, so the endpoint's existence isn't confirmed to
+  an unauthenticated public prober) before even looking at the JWT. Slice 1's test
+  suite must include a test asserting a request to `/internal/identity` with a valid
+  JWT but no/wrong internal key is rejected, and a test asserting `admin`'s key cannot
+  be used to claim `workout` (or vice versa) once `WorkoutApi` exists. `IdentityApi`
+  responds with
   `200 { "email": string, "userId": number, "role": "Administrator" | "User" }` only
   when the JWT's `aud` matches the configured audience for the named caller. `userId`
   is included specifically so callers like `AdminApi` can populate owner columns (e.g.
