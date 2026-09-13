@@ -102,7 +102,16 @@ design; see `identity-intent.md`'s schema section.)
   either -- infra failures are caught and turned into an explicit `503`.
 - `IdentityApi` looks up the role from D1 fresh on every call (no caching/session of
   role). This keeps a role change effective immediately and avoids cache-invalidation
-  complexity; traffic volume is low enough that the extra read is cheap.
+  complexity; traffic volume is low enough that the extra read is cheap. The lookup
+  matches on **both** `provider_name` and `provider_id` together (Cloudflare Access's
+  own fixed provider name plus the JWT's email) -- the schema's `UNIQUE (provider_name,
+  provider_id)` constraint (see `identity-intent.md`) exists precisely because the same
+  `provider_id` string is permitted to recur under a different `provider_name` once a
+  second provider exists; matching on the JWT's email alone, without also constraining
+  `provider_name` to Cloudflare Access, could select a different provider's `logins`
+  row for the same identifier and grant its role instead. Slice 1's test suite must
+  include a collision test seeding two `logins` rows with the same `provider_id` under
+  different `provider_name`s and asserting the lookup resolves the correct one.
 - `IdentityApi` has no Blazor client of its own, but `deploy.yaml` still stamps it with
   `APP_VERSION`/`APP_COMMIT` and polls its own `GET /api/version` in CI after deploy --
   just no client-side comparison/reload banner, since no Blazor app calls it directly. It
