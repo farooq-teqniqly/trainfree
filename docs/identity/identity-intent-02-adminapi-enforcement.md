@@ -40,12 +40,19 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
   returning a `503` cleanly) is likewise surfaced as `503`. In every one of these cases
   -- `401`, `403`, or `503` -- `AdminApi` still fails closed: it never carries out the
   underlying operation unless `IdentityApi` positively returned `200`.
-- `GET /api/version` is exempt from this enforcement entirely -- it is not called with a
-  `CF_Authorization` cookie at all. `deploy.yaml`'s post-deploy verification step
-  (`verify-deployed-version.sh`) calls it with `CF-Access-Client-Id`/
-  `CF-Access-Client-Secret` service-token headers, a CI credential distinct from a user
-  JWT; routing that call through `IdentityApi`'s per-user JWT check would make the
-  deploy-verification step itself fail. `OPTIONS` preflight requests are exempt for the
+- `GET /api/version` is exempt from this enforcement entirely, regardless of caller.
+  It's called two ways: same-origin from the browser (`Trainfree.Versioning`'s
+  `VersionCheck`, `src/Trainfree.Versioning/VersionCheck.cs:36-43`), which *does* carry
+  the `CF_Authorization` cookie like any other same-origin request, and from
+  `deploy.yaml`'s post-deploy verification step (`verify-deployed-version.sh`), which
+  authenticates with `CF-Access-Client-Id`/`CF-Access-Client-Secret` service-token
+  headers instead -- a CI credential distinct from a user JWT, and the reason this route
+  can't just rely on the enforcement wrapper rejecting a missing cookie: the CI caller
+  has no cookie to check in the first place, so it would always fail. Routing *either*
+  caller through `IdentityApi`'s per-user JWT check would make the deploy-verification
+  step fail; the version endpoint is therefore excluded from enforcement outright rather
+  than relying on the JWT check to pass or fail correctly for it. `OPTIONS` preflight
+  requests are exempt for the
   same reason (no JWT to check).
 - An administrator can view all Phases, Exercises, and Programs (i.e. once enforcement is
   in place, existing endpoints keep working end-to-end for an Administrator-role caller).

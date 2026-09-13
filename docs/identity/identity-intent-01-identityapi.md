@@ -25,8 +25,14 @@ deploy/verify sequence (see below) -- it reads tables that `AdminApi`'s migratio
 history created, the same way it will read `programs` rows `AdminApi` created.
 
 There is no in-app provisioning UI in this slice (or this whole change). A user's D1
-record (email + role) is added by a script, run after the email is whitelisted in
-Cloudflare Access.
+record (email + role) is added by a provisioning script, run after the email is
+whitelisted in Cloudflare Access. That script does not exist in this repo yet -- it is
+an explicit deliverable of this slice, not a prerequisite assumed to already exist. It
+must be idempotent: for the first user provisioned in a given environment, it claims the
+migration's placeholder bootstrap `logins` row in place (see the schema section in
+`identity-intent.md`) by updating both `provider_name` and `provider_id`; for every
+subsequent user (or a re-run once the placeholder is already claimed), it inserts a new
+`logins`/`users` row instead.
 
 ## Requirements
 

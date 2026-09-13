@@ -58,26 +58,41 @@ column, in the [proposed schema](https://lucid.app/lucidchart/e74e6f97-b0f1-47a2
   clause via `ALTER TABLE ... ADD COLUMN` while foreign keys are enforced (D1 enforces
   them, and this repo's existing migrations declare FKs the same way, e.g.
   `src/Trainfree.AdminApi/migrations/0003_create_sessions.sql:5`) -- so this migration
-  does a table rebuild: create a new `programs` table with the `user_id` column and its
-  `DEFAULT 1`/FK included from the start, copy every existing row across (each row
-  automatically gets `user_id = 1` via the default), drop the old table, rename the new
-  one to `programs`. Every `createProgram` insert that doesn't yet supply `user_id`
-  (i.e. until slice 2 updates that write path) also resolves to `1` by the same default
-  -- no row is ever left with an unresolved owner, and slice 1 shipping alone does not
-  break `AdminApi`'s existing `createProgram` path.
+  does a table rebuild, following SQLite's documented "12 steps" pattern for changing a
+  table referenced by other tables' foreign keys: `PRAGMA foreign_keys=OFF`, create the
+  new `programs` table with the `user_id` column and its `DEFAULT 1`/FK included from
+  the start, copy every existing row across (each row automatically gets `user_id = 1`
+  via the default), drop the old table, rename the new one to `programs`, recreate
+  `idx_programs_name_nocase` (migration 0002) against the new table, then
+  `PRAGMA foreign_keys=ON` and a `PRAGMA foreign_key_check` before committing. Turning
+  foreign keys off for the rebuild -- rather than a bare `DROP TABLE` -- is what keeps
+  `sessions.program_id`'s `ON DELETE CASCADE` from firing and cascading through
+  `sessions`, `session_phases`, and `program_exercises` when the old `programs` table is
+  dropped; those tables and their data are otherwise untouched by this migration. Every
+  `createProgram` insert that doesn't yet supply `user_id` (i.e. until slice 2 updates
+  that write path) also resolves to `1` by the same default -- no row is ever left with
+  an unresolved owner, and slice 1 shipping alone does not break `AdminApi`'s existing
+  `createProgram` path.
   The bootstrap `logins`/`users` row that `user_id = 1` refers to is *not* seeded with a
   real email in this committed migration -- a deployment-specific personal email baked
   into checked-in SQL would be wrong for every other environment this migration runs
   against (a second self-hosted deploy, a test D1 instance), and re-running migrations
   can't change it afterward. Instead the migration inserts one placeholder `logins` row
   (`provider_name = 'bootstrap'`, `provider_id = 'bootstrap-placeholder'`) and its
-  `users` row (`user_id = 1`, Administrator role). The existing "add a user via script"
-  provisioning step (see slice 1) is how the real operator claims that identity per
+  `users` row (`user_id = 1`, Administrator role). The provisioning script (see slice 1;
+  this doc previously implied the script already existed -- it's an explicit slice-1
+  deliverable, not yet built) is how the real operator claims that identity per
   deployment: for the very first user provisioned in a given environment, the script
-  updates the placeholder `logins` row's `provider_id` to the operator's real
-  Cloudflare Access email in place, rather than inserting a new row -- so `user_id = 1`
-  (and therefore every pre-existing `programs` row) ends up owned by whichever email the
-  operator of that specific deployment provisions first.
+  performs an idempotent claim -- if a `logins` row with `provider_name = 'bootstrap'`
+  still exists, update *both* `provider_name` and `provider_id` to the operator's real
+  provider name (`"cloudflare-access"`) and email in place, rather than inserting a new
+  row (leaving `provider_name` as `'bootstrap'` would make every subsequent lookup by
+  the real `(provider_name, provider_id)` pair fail to find this row, rejecting the
+  operator as unprovisioned). If no `'bootstrap'` row remains (already claimed), the
+  script inserts a normal new `logins`/`users` row instead -- so re-running the script
+  is always safe. `user_id = 1` (and therefore every pre-existing `programs` row) ends
+  up owned by whichever identity the operator of that specific deployment provisions
+  first.
 
 The [issue #66](https://github.com/farooq-teqniqly/trainfree/issues/66) JWT contains the
 user's email as `email`, used as `provider_id`.

@@ -141,9 +141,13 @@ shipped and deployed together. TDD applies within each slice on both stacks.
     `docs/identity/identity-intent-03-admin-access-gating.md`.
 9. **`add-program-session-select`** -- Client-facing screens 1-2 (Program Select, Session
    Select), built in `Trainfree.Workout`. Read-only against the real API built in slices
-   1, 3, 5, 6, 7, 8, plus 8a-8c: `Trainfree.Workout` calls `AdminApi`-adjacent identity
-   infrastructure the same way `Trainfree.Admin` does, so it depends on the identity
-   slices too, not just ordering after them. No workout execution yet.
+   1, 3, 5, 6, 7, 8, plus 8a-8c for the identity infrastructure it depends on. Slice 8b's
+   Administrator-only policy is `AdminApi`-specific; this slice (or `Trainfree.WorkoutApi`
+   when it exists) must define its own authorization policy that admits a `User`-role
+   caller for reads, since a normal user reading their own program/session data through
+   the `AdminApi`-style Administrator-only contract would get `403`. See "Open items"
+   below -- this policy isn't designed by the identity change and is left for whoever
+   builds this slice. No workout execution yet.
 10. **`add-workout-runner-untimed`** -- Workout execution for untimed exercises only:
     screens 3 (ready to start), 6 (log set -- untimed), 7 (rest timer). State machine:
     ready -> set-in-progress -> log-set -> rest -> next set/exercise. Writes nothing to
@@ -186,3 +190,8 @@ Access *configuration* itself (whitelisting emails, the login flow) -- that stay
   slice/PR so the drop happens only once the new Worker serving `/api/phases` is
   confirmed live -- doing create+copy and drop in the same deploy would open a window
   where the still-deploying old Worker 500s on `/api/categories`.
+- An authorization policy for the `Trainfree.Workout`-facing API (slice 9+) that admits
+  a `User`-role caller for reads. Slice 8b's Administrator-only rule is `AdminApi`'s
+  policy; it isn't designed to cover the workout app's non-admin users, and slice 9
+  can't ship its read-only screens against an API that 403s every `User` until this is
+  decided.
