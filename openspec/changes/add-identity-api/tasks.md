@@ -95,15 +95,15 @@
 
 ## 7. Provisioning script
 
-- [ ] 7.1 Write a failing vitest test for the provisioning script's idempotency
+- [x] 7.1 Write a failing vitest test for the provisioning script's idempotency
       check: given an existing `logins` + `users` pair for a `(provider_name,
       provider_id)`, running the script again makes no D1 writes (assert via a spy on
       the D1 batch/exec call). Implement the check to pass.
-- [ ] 7.2 Write a failing vitest test asserting the script inserts the `logins` and
+- [x] 7.2 Write a failing vitest test asserting the script inserts the `logins` and
       `users` rows in a single D1 transaction/batch when no identity exists yet
       (assert both inserts are part of one `db.batch()` call, not two separate
       `db.prepare().run()` calls). Implement to pass. Verify: tests green.
-- [ ] 7.3 Wire the script to accept email, `provider_name` (defaulting to the shared
+- [x] 7.3 Wire the script to accept email, `provider_name` (defaulting to the shared
       `"cloudflare-access"` constant from 2.1), and role name as CLI args, looking up
       `role_id` by name (never creating a role). Verify: running the script against a
       local D1 instance with an unknown role name fails loudly rather than silently
