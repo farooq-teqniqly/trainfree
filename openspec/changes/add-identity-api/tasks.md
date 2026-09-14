@@ -111,12 +111,12 @@
 
 ## 8. CI/deploy wiring
 
-- [ ] 8.1 Restructure `deploy.yaml` to add a second deploy/verify sequence for
+- [x] 8.1 Restructure `deploy.yaml` to add a second deploy/verify sequence for
       `IdentityApi` (no publish step) alongside the existing `Trainfree.Admin`/
       `AdminApi` sequence, each with its own `APP_BASE_URL`-equivalent variable and
       Cloudflare Access service-token secrets. Verify: a dry run / workflow syntax
       check (`gh workflow view` or `actionlint`) shows no errors.
-- [ ] 8.2 Stamp `IdentityApi` with `APP_VERSION`/`APP_COMMIT` on deploy and poll its
+- [x] 8.2 Stamp `IdentityApi` with `APP_VERSION`/`APP_COMMIT` on deploy and poll its
       `GET /api/version` in CI, failing the job if the reported stamp doesn't match.
       Verify: a tagged deploy to a test/staging tag shows the version-poll step
       passing in the Actions run log.
