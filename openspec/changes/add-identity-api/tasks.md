@@ -57,13 +57,13 @@
 
 ## 5. Role lookup
 
-- [ ] 5.1 Write a failing vitest test seeding two `logins` rows with the same
+- [x] 5.1 Write a failing vitest test seeding two `logins` rows with the same
       `provider_id` under two different `provider_name` values, asserting the role
       lookup for the Cloudflare Access identity returns the role tied to the
       `"cloudflare-access"` row specifically (using the shared constant from 2.1).
       Implement the D1 query (matching `provider_name` AND `provider_id`) to pass.
       Verify: collision test green.
-- [ ] 5.2 Write a failing vitest test confirming no role caching: change a seeded
+- [x] 5.2 Write a failing vitest test confirming no role caching: change a seeded
       user's `role_id` in D1 between two lookups and assert the second lookup
       reflects the new role. Verify: test green with a fresh D1 query per call, no
       memoization.
