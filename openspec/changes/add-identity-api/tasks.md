@@ -38,19 +38,19 @@
 
 ## 4. JWT verification and JWKS caching seam
 
-- [ ] 4.1 Write failing vitest tests for a JWKS-fetcher seam (injectable
+- [x] 4.1 Write failing vitest tests for a JWKS-fetcher seam (injectable
       dependency/module) covering: JWKS served from `caches.default` when a fresh
       cached entry exists, and a fetch to Cloudflare's certs endpoint made only when
       the cache is stale/absent, honoring the response's `Cache-Control`/`max-age`
       by using a fake fetcher and locally generated JWKS, no real network calls.
       Implement the seam to pass. Verify: tests green.
-- [ ] 4.2 Write failing vitest tests for JWT verification: valid signature/issuer/
+- [x] 4.2 Write failing vitest tests for JWT verification: valid signature/issuer/
       audience/expiry accepted; wrong issuer rejected; expired token rejected; a
       multi-element `aud` array containing the expected audience accepted; an `aud`
       array not containing the expected audience rejected. Use test-signed JWTs
       against the fake JWKS from 4.1. Implement verification to pass. Verify: tests
       green, including the multi-element-`aud` case called out in the spec.
-- [ ] 4.3 Extract identity extraction behind a single provider interface/module with
+- [x] 4.3 Extract identity extraction behind a single provider interface/module with
       Cloudflare Access as its only implementation; no call site parses Access claims
       directly. Verify: a grep for JWT-claim field names (`email`, `aud`, `iss`)
       outside the provider module returns no hits.
