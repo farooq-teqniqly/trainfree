@@ -10,6 +10,17 @@
     "dev": {
         "port": 9998
     },
+    // Non-secret Access config: the internal-key secrets (ADMIN_INTERNAL_KEY,
+    // WORKOUT_INTERNAL_KEY) are never here -- set locally via `.dev.vars` (gitignored)
+    // and in production via `wrangler secret put`, per CLAUDE.md/identity-intent-02's
+    // convention. ACCESS_TEAM_DOMAIN and the per-caller audiences come from the
+    // Cloudflare Access applications created manually in task 9.3; these are
+    // placeholders until that setup exists.
+    "vars": {
+        "ACCESS_TEAM_DOMAIN": "REPLACE_WITH_ACCESS_TEAM_DOMAIN",
+        "ADMIN_AUDIENCE": "REPLACE_WITH_TRAINFREE_ADMIN_ACCESS_AUDIENCE",
+        "WORKOUT_AUDIENCE": "REPLACE_WITH_TRAINFREE_WORKOUT_ACCESS_AUDIENCE"
+    },
     "d1_databases": [
         {
             "binding": "DB",

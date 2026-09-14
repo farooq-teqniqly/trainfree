@@ -431,6 +431,11 @@ FodyWeavers.xsd
 # Wrangler local dev state (local D1 sqlite, cache)
 .wrangler/
 
+# Wrangler local secrets (per identity-intent-02: ADMIN_INTERNAL_KEY etc. go here
+# locally, never in wrangler.jsonc); .dev.vars.example stays tracked as a template.
+.dev.vars
+!.dev.vars.example
+
 # PR review docs (generated locally, not for repo)
 docs/pr-reviews/
 **/PR_REVIEW*

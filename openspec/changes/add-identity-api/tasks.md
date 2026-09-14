@@ -70,24 +70,24 @@
 
 ## 6. /internal/identity endpoint
 
-- [ ] 6.1 Implement `GET /internal/identity` requiring `CF_Authorization`,
+- [x] 6.1 Implement `GET /internal/identity` requiring `CF_Authorization`,
       `X-Trainfree-Caller`, and `X-Trainfree-Internal-Key`, with per-caller secrets
       (`ADMIN_INTERNAL_KEY`, `WORKOUT_INTERNAL_KEY` placeholder) configured as
       Wrangler secrets. Verify: `wrangler secret list` (local) shows both keys after
       `wrangler secret put`.
-- [ ] 6.2 Write failing vitest tests for the internal-key check ordering: missing key
+- [x] 6.2 Write failing vitest tests for the internal-key check ordering: missing key
       -> `404` with `{ "error": string }` JSON body, without evaluating the JWT
       (assert via a spy/seam that JWT verification was not invoked); wrong key for
       the named caller -> `404`; `admin`'s key presented for caller `workout` -> `404`.
       Implement the check-before-JWT ordering to pass. Verify: all three tests green.
-- [ ] 6.3 Write failing vitest tests for the full success/failure response matrix:
+- [x] 6.3 Write failing vitest tests for the full success/failure response matrix:
       valid key + valid JWT + provisioned identity -> `200` with `email`, `userId`,
       `role`; valid key + unauthenticatable JWT (missing/malformed/expired/wrong-
       issuer/wrong-audience) -> `401`; valid key + authenticated JWT with no matching
       `logins`/`users` pair -> `403`; missing/malformed `X-Trainfree-Caller` -> `401`.
       Implement to pass. Verify: all cases green, every non-200 body is
       `application/json` `{ "error": string }`.
-- [ ] 6.4 Write failing vitest tests for infrastructure failure handling: JWKS fetch
+- [x] 6.4 Write failing vitest tests for infrastructure failure handling: JWKS fetch
       throws with no cached copy -> `503`; D1 role-lookup query throws/times out ->
       `503`; assert no unhandled exception escapes as an uncaught 5xx (wrap the
       handler in a try/catch and assert on a forced-throw fake). Implement to pass.
