@@ -3,7 +3,20 @@
 // to target the deployed database (mirrors `wrangler d1 execute`'s own --local/--remote
 // convention). Uses `getPlatformProxy` so it reads the same wrangler.jsonc binding
 // IdentityApi's Worker uses at runtime, rather than a second, independently configured
-// D1 connection.
+// D1 connection. Local runs share AdminApi's local D1 persistence directory (see
+// README.md's "Local development" section) since that's where the logins/users/roles
+// tables actually get created.
+//
+// KNOWN LIMITATION: `--remote` alone does not yet reach the real deployed database.
+// `getPlatformProxy`'s `remoteBindings` option only takes effect for a binding that
+// itself declares `"remote": true` in the config file passed via `configPath`; this
+// project's shared wrangler.jsonc deliberately does not set that (it would make plain
+// `wrangler dev`/local `npm run provision` hit production D1 by default). Reaching the
+// real database from this script needs its own dedicated config with `remote: true` on
+// the D1 binding, mirroring smoke-harness/wrangler.jsonc's separate-config pattern --
+// tracked in the verify-identity-api-rollout change, since task 2.2 there is exactly
+// where this gap would otherwise surface as "provisioning against --remote silently
+// wrote to the wrong database."
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPlatformProxy } from "wrangler";
@@ -46,7 +59,8 @@ async function main() {
 
     const { env, dispose } = await getPlatformProxy({
         configPath: path.join(__dirname, "..", "wrangler.jsonc"),
-        experimental: { remoteBindings: remote },
+        persist: { path: path.join(__dirname, "..", "..", ".wrangler-shared", "v3") },
+        remoteBindings: remote,
     });
 
     try {
