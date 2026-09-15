@@ -163,15 +163,24 @@ jobs:
           echo "commit=$(git rev-parse --short=7 "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
 
       # wrangler.jsonc's ACCESS_TEAM_DOMAIN/ADMIN_AUDIENCE/WORKOUT_AUDIENCE are
-      # REPLACE_WITH_... placeholders until task 9.3's Cloudflare Access application
-      # is provisioned -- deploying with them still in place would silently accept any
-      # correctly-signed Access JWT for the wrong team/audience. Fail before deploying
-      # rather than shipping a Worker that can't actually authenticate anyone.
+      # REPLACE_WITH_... placeholders until each caller's Cloudflare Access application
+      # is provisioned -- deploying with ACCESS_TEAM_DOMAIN/ADMIN_AUDIENCE still in
+      # place would silently accept any correctly-signed Access JWT for the wrong
+      # team/audience. Only these two are checked: WORKOUT_AUDIENCE stays a deliberate
+      # placeholder until WorkoutApi (and its own Access application) exists in a later
+      # slice, and this Worker must still be deployable for the admin caller before
+      # then -- checking it here would make every slice-1 deploy fail forever.
       - name: Verify no placeholder Access config values remain
         timeout-minutes: 2
         run: |
-          if grep -q "REPLACE_WITH_" src/Trainfree.IdentityApi/wrangler.jsonc; then
-            echo "::error::src/Trainfree.IdentityApi/wrangler.jsonc still has REPLACE_WITH_ placeholder(s) -- provision the Cloudflare Access application (task 9.3) and set the real values before deploying."
+          missing=""
+          for var in ACCESS_TEAM_DOMAIN ADMIN_AUDIENCE; do
+            if grep -qE "\"$var\":\s*\"REPLACE_WITH_" src/Trainfree.IdentityApi/wrangler.jsonc; then
+              missing="$missing $var"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::src/Trainfree.IdentityApi/wrangler.jsonc still has REPLACE_WITH_ placeholder(s) for:$missing -- provision the Cloudflare Access application and set the real values before deploying."
             exit 1
           fi
 
