@@ -10,13 +10,23 @@ import { importJWK } from "jose";
 // `importJWK` is jose's own key-import routine, so asking it to import every key is a
 // direct test of "can this actually verify a token," not a hand-rolled re-check of
 // jose's internal requirements.
-async function isUsableJwks(jwks) {
+//
+// Filters out unimportable keys rather than rejecting the whole document: Cloudflare
+// Access can publish multiple keys at once (e.g. during key rotation), and one
+// malformed/unsupported entry must not take every other, genuinely valid key offline
+// with it. Returns `null` only when *no* key in the set is usable.
+async function sanitizeJwks(jwks) {
     if (!jwks || !Array.isArray(jwks.keys) || jwks.keys.length === 0) {
-        return false;
+        return null;
     }
 
-    const imports = await Promise.allSettled(jwks.keys.map((key) => importJWK(key, key?.alg)));
-    return imports.every((result) => result.status === "fulfilled");
+    const results = await Promise.allSettled(jwks.keys.map((key) => importJWK(key, key?.alg)));
+    const usableKeys = jwks.keys.filter((_key, index) => results[index].status === "fulfilled");
+    if (usableKeys.length === 0) {
+        return null;
+    }
+
+    return { ...jwks, keys: usableKeys };
 }
 
 // Fetches Cloudflare Access's JWKS and caches it via the Cache API, honoring the
@@ -35,8 +45,9 @@ export function createJwksFetcher({ certsUrl, fetcher = fetch, cache = caches.de
             // previously-cached-but-now-invalid document into an immediate, retryable
             // error rather than a silent, prolonged authentication outage that looks
             // like "every JWT is rejected" with no obvious cause.
-            if (await isUsableJwks(cachedJwks)) {
-                return cachedJwks;
+            const sanitized = await sanitizeJwks(cachedJwks);
+            if (sanitized) {
+                return sanitized;
             }
         }
 
@@ -49,13 +60,24 @@ export function createJwksFetcher({ certsUrl, fetcher = fetch, cache = caches.de
         // usable JWKS document would turn one bad upstream response into an outage for
         // the response's entire cache lifetime, since every subsequent call would keep
         // serving the poisoned cache entry instead of retrying upstream.
-        const cacheable = response.clone();
         const jwks = await response.json().catch(() => null);
-        if (!(await isUsableJwks(jwks))) {
+        const sanitized = await sanitizeJwks(jwks);
+        if (!sanitized) {
             throw new Error("JWKS response did not contain a valid, non-empty keys array");
         }
 
-        await cache.put(cacheKey, cacheable);
-        return jwks;
+        // Cache the sanitized set, not the raw response -- caching the original body
+        // would re-attempt (and re-fail) importing the same unusable key on every future
+        // cache hit's re-validation, for no benefit over dropping it once here.
+        await cache.put(
+            cacheKey,
+            new Response(JSON.stringify(sanitized), {
+                headers: {
+                    "content-type": "application/json",
+                    "cache-control": response.headers.get("cache-control") ?? "",
+                },
+            }),
+        );
+        return sanitized;
     };
 }

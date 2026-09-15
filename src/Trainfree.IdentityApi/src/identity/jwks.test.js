@@ -2,7 +2,7 @@ import { exportJWK, generateKeyPair } from "jose";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { createJwksFetcher } from "./jwks.js";
 
-// A real, importable RSA public key -- isUsableJwks now actually imports each key via
+// A real, importable RSA public key -- sanitizeJwks now actually imports each key via
 // jose's importJWK, so a placeholder like `{ n: "abc", e: "AQAB" }` (not real key
 // material) would fail that import and make every "valid JWKS" test fail too.
 let fakeJwks;
@@ -144,6 +144,23 @@ describe("createJwksFetcher", () => {
 
         expect(jwks).toEqual(fakeJwks);
         expect(fetcher).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps the valid keys and drops only the unusable one from a mixed response", async () => {
+        const unusableKey = { kty: "RSA", kid: "bad-key" };
+        const fetcher = vi.fn().mockResolvedValue(
+            new Response(JSON.stringify({ keys: [unusableKey, ...fakeJwks.keys] }), {
+                headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" },
+            }),
+        );
+        const getJwks = createJwksFetcher({
+            certsUrl: "https://example.cloudflareaccess.com/cdn-cgi/access/certs/mixed-keys",
+            fetcher,
+        });
+
+        const jwks = await getJwks();
+
+        expect(jwks.keys).toEqual(fakeJwks.keys);
     });
 
     it("re-fetches instead of serving a cached entry that is no longer a usable JWKS", async () => {
