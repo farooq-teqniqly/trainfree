@@ -23,53 +23,94 @@ export class UnknownRoleError extends Error {
     }
 }
 
+function isUniqueConstraintViolation(err) {
+    return typeof err?.message === "string" && err.message.includes("UNIQUE constraint failed");
+}
+
 // Adds a user's D1 identity (a logins row and its paired users row) after their email
-// is whitelisted in Cloudflare Access. Idempotent on the fully provisioned pair for
-// serial calls -- a logins row alone (with no paired users row) would never resolve a
-// role and would be permanently unauthenticatable, so the check covers both, never just
-// `logins`. When no identity exists yet, both rows are inserted in a single db.batch()
-// call so a failure partway through leaves neither row present rather than an orphaned
-// `logins` row. This is a manually-run, single-operator script: the existence check and
-// the insert are separate round trips, so two concurrent invocations for the same email
-// can both pass the check and race on `db.batch()` -- the losing call surfaces a raw D1
-// unique-constraint error rather than resolving to `{ created: false }`. Acceptable
-// because nothing calls this concurrently today; revisit if it grows a concurrent
-// caller (e.g. an admin UI).
+// is whitelisted in Cloudflare Access. Idempotent on the fully provisioned pair -- a
+// logins row alone (with no paired users row) would never resolve a role and would be
+// permanently unauthenticatable, so a fully-provisioned result requires both. Three
+// cases:
+//   1. Both rows already exist -- no-op, `{ created: false }`.
+//   2. A `logins` row exists with no paired `users` row (an orphan -- e.g. a previous
+//      provisioning attempt raced and lost, see case 3) -- attach the missing `users`
+//      row to the existing login rather than trying to re-insert `logins`, which would
+//      violate its own uniqueness constraint and make the orphan permanently
+//      unrepairable.
+//   3. Neither row exists -- insert both in a single db.batch() so a failure partway
+//      through leaves neither row present. If a concurrent call wins the race on the
+//      `logins` unique constraint, re-read the pair the winner completed and converge
+//      on `{ created: false }` instead of surfacing the raw constraint error.
 export async function provisionIdentity(db, { email, providerName, roleName }) {
     const role = await db.prepare("SELECT role_id as roleId FROM roles WHERE name = ?").bind(roleName).first();
     if (!role) {
         throw new UnknownRoleError(roleName);
     }
 
-    const existing = await db
+    const existingLogin = await db
         .prepare(
-            `SELECT users.user_id as userId
+            `SELECT logins.id as loginId, users.user_id as userId
              FROM logins
-             JOIN users ON users.login_id = logins.id
+             LEFT JOIN users ON users.login_id = logins.id
              WHERE logins.provider_name = ? AND logins.provider_id = ?`,
         )
         .bind(providerName, email)
         .first();
-    if (existing) {
+
+    const now = new Date().toISOString();
+
+    if (existingLogin?.userId) {
         return { created: false };
     }
 
-    const userId = generateUserId();
-    const now = new Date().toISOString();
+    if (existingLogin) {
+        const userId = generateUserId();
+        await db
+            .prepare(
+                "INSERT INTO users (user_id, login_id, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            )
+            .bind(userId, existingLogin.loginId, role.roleId, now, now)
+            .run();
+        return { created: true, userId };
+    }
 
-    await db.batch([
-        db
+    const userId = generateUserId();
+
+    try {
+        await db.batch([
+            db
+                .prepare(
+                    "INSERT INTO logins (provider_name, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                )
+                .bind(providerName, email, now, now),
+            db
+                .prepare(
+                    `INSERT INTO users (user_id, login_id, role_id, created_at, updated_at)
+                     SELECT ?, id, ?, ?, ? FROM logins WHERE provider_name = ? AND provider_id = ?`,
+                )
+                .bind(userId, role.roleId, now, now, providerName, email),
+        ]);
+    } catch (err) {
+        if (!isUniqueConstraintViolation(err)) {
+            throw err;
+        }
+
+        const winner = await db
             .prepare(
-                "INSERT INTO logins (provider_name, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                `SELECT users.user_id as userId
+                 FROM logins
+                 JOIN users ON users.login_id = logins.id
+                 WHERE logins.provider_name = ? AND logins.provider_id = ?`,
             )
-            .bind(providerName, email, now, now),
-        db
-            .prepare(
-                `INSERT INTO users (user_id, login_id, role_id, created_at, updated_at)
-                 SELECT ?, id, ?, ?, ? FROM logins WHERE provider_name = ? AND provider_id = ?`,
-            )
-            .bind(userId, role.roleId, now, now, providerName, email),
-    ]);
+            .bind(providerName, email)
+            .first();
+        if (!winner) {
+            throw err;
+        }
+
+        return { created: false };
+    }
 
     return { created: true, userId };
 }

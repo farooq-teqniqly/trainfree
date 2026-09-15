@@ -7,17 +7,22 @@ const ADMINISTRATOR_ROLE_NAME = "Administrator";
 
 async function seedIdentity(db, { providerName, providerId, roleId }) {
     const now = new Date().toISOString();
-    const loginResult = await db
-        .prepare(
-            "INSERT INTO logins (provider_name, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?)",
-        )
-        .bind(providerName, providerId, now, now)
-        .run();
+    const loginResult = await seedOrphanLogin(db, { providerName, providerId });
     await db
         .prepare(
             "INSERT INTO users (user_id, login_id, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
         )
         .bind("USR-EXIST01", loginResult.meta.last_row_id, roleId, now, now)
+        .run();
+}
+
+async function seedOrphanLogin(db, { providerName, providerId }) {
+    const now = new Date().toISOString();
+    return db
+        .prepare(
+            "INSERT INTO logins (provider_name, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+        .bind(providerName, providerId, now, now)
         .run();
 }
 
@@ -71,6 +76,72 @@ describe("provisionIdentity", () => {
             .bind(PROVIDER_NAME_CLOUDFLARE_ACCESS, email)
             .first();
         expect(row).toEqual({ userId: result.userId, role: ADMINISTRATOR_ROLE_NAME });
+    });
+
+    it("attaches a users row to an existing orphaned logins row instead of re-inserting logins", async () => {
+        // Arrange
+        const email = "orphan@example.com";
+        await seedOrphanLogin(env.DB, { providerName: PROVIDER_NAME_CLOUDFLARE_ACCESS, providerId: email });
+        const batchSpy = vi.spyOn(env.DB, "batch");
+
+        // Act
+        const result = await provisionIdentity(env.DB, {
+            email,
+            providerName: PROVIDER_NAME_CLOUDFLARE_ACCESS,
+            roleName: ADMINISTRATOR_ROLE_NAME,
+        });
+
+        // Assert
+        expect(result.created).toBe(true);
+        expect(batchSpy).not.toHaveBeenCalled();
+        const loginCount = await env.DB.prepare(
+            "SELECT COUNT(*) as count FROM logins WHERE provider_name = ? AND provider_id = ?",
+        )
+            .bind(PROVIDER_NAME_CLOUDFLARE_ACCESS, email)
+            .first();
+        expect(loginCount.count).toBe(1);
+    });
+
+    it("resolves to created:false when a concurrent call wins the race on the same login", async () => {
+        // Arrange
+        const email = "racing@example.com";
+        const batchSpy = vi.spyOn(env.DB, "batch").mockImplementationOnce(async () => {
+            await seedIdentity(env.DB, {
+                providerName: PROVIDER_NAME_CLOUDFLARE_ACCESS,
+                providerId: email,
+                roleId: "ROL-A3F7K2",
+            });
+            throw new Error("D1_ERROR: UNIQUE constraint failed: logins.provider_name, logins.provider_id");
+        });
+
+        // Act
+        const result = await provisionIdentity(env.DB, {
+            email,
+            providerName: PROVIDER_NAME_CLOUDFLARE_ACCESS,
+            roleName: ADMINISTRATOR_ROLE_NAME,
+        });
+
+        // Assert
+        expect(result).toEqual({ created: false });
+        batchSpy.mockRestore();
+    });
+
+    it("re-throws a db.batch() error that is not a unique-constraint violation", async () => {
+        // Arrange
+        const email = "infra-failure@example.com";
+        const batchSpy = vi
+            .spyOn(env.DB, "batch")
+            .mockRejectedValueOnce(new Error("D1 connection reset"));
+
+        // Act / Assert
+        await expect(
+            provisionIdentity(env.DB, {
+                email,
+                providerName: PROVIDER_NAME_CLOUDFLARE_ACCESS,
+                roleName: ADMINISTRATOR_ROLE_NAME,
+            }),
+        ).rejects.toThrow("D1 connection reset");
+        batchSpy.mockRestore();
     });
 
     it("throws UnknownRoleError and writes nothing when the role name does not exist", async () => {
