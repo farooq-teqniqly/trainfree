@@ -1,4 +1,5 @@
 import { handleInternalIdentity } from "./identity/internal-identity.js";
+import { jsonError } from "./shared/http.js";
 import { versionStamp } from "./version.js";
 
 function jsonResponse(data, status = 200) {
@@ -6,10 +7,6 @@ function jsonResponse(data, status = 200) {
         status,
         headers: { "content-type": "application/json" },
     });
-}
-
-function jsonError(message, status) {
-    return jsonResponse({ error: message }, status);
 }
 
 function handleVersion(request, env) {
