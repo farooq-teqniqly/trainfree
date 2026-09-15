@@ -60,11 +60,73 @@ describe("createJwksFetcher", () => {
             fetcher,
         });
 
-        await expect(getJwks()).rejects.toThrow(/valid keys array/);
+        await expect(getJwks()).rejects.toThrow(/valid, non-empty keys array/);
         const jwks = await getJwks();
 
         expect(jwks).toEqual(fakeJwks);
         expect(fetcher).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not cache a 200 response with an empty keys array, and retries upstream on the next call", async () => {
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(
+                new Response(JSON.stringify({ keys: [] }), {
+                    headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" },
+                }),
+            )
+            .mockResolvedValueOnce(fakeJwksResponse());
+        const getJwks = createJwksFetcher({
+            certsUrl: "https://example.cloudflareaccess.com/cdn-cgi/access/certs/empty-keys",
+            fetcher,
+        });
+
+        await expect(getJwks()).rejects.toThrow(/valid, non-empty keys array/);
+        const jwks = await getJwks();
+
+        expect(jwks).toEqual(fakeJwks);
+        expect(fetcher).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not cache a key entry missing kty/kid, and retries upstream on the next call", async () => {
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(
+                new Response(JSON.stringify({ keys: [{ n: "abc", e: "AQAB" }] }), {
+                    headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" },
+                }),
+            )
+            .mockResolvedValueOnce(fakeJwksResponse());
+        const getJwks = createJwksFetcher({
+            certsUrl: "https://example.cloudflareaccess.com/cdn-cgi/access/certs/unusable-key",
+            fetcher,
+        });
+
+        await expect(getJwks()).rejects.toThrow(/valid, non-empty keys array/);
+        const jwks = await getJwks();
+
+        expect(jwks).toEqual(fakeJwks);
+        expect(fetcher).toHaveBeenCalledTimes(2);
+    });
+
+    it("re-fetches instead of serving a cached entry that is no longer a usable JWKS", async () => {
+        const certsUrl = "https://example.cloudflareaccess.com/cdn-cgi/access/certs/stale-cache";
+        // Bypasses createJwksFetcher's own validated write path to simulate a cache
+        // entry that was valid when written but would no longer pass validation --
+        // exactly the scenario re-validating on a cache hit exists to catch.
+        await caches.default.put(
+            new Request(certsUrl),
+            new Response(JSON.stringify({ keys: [] }), {
+                headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" },
+            }),
+        );
+        const fetcher = vi.fn().mockResolvedValue(fakeJwksResponse());
+        const getJwks = createJwksFetcher({ certsUrl, fetcher });
+
+        const jwks = await getJwks();
+
+        expect(jwks).toEqual(fakeJwks);
+        expect(fetcher).toHaveBeenCalledTimes(1);
     });
 
     it("still resolves the JWKS on every call when the upstream response carries no Cache-Control", async () => {
