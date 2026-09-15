@@ -175,6 +175,22 @@ jobs:
             exit 1
           fi
 
+      # Unlike AdminApi, IdentityApi imports a runtime npm dependency (jose) that
+      # wrangler must bundle from node_modules -- a clean runner has no node_modules
+      # without this step, and the deploy would fail resolving the import.
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        timeout-minutes: 5
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: src/Trainfree.IdentityApi/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/Trainfree.IdentityApi
+        timeout-minutes: 5
+        run: npm ci
+
       - name: Deploy
         id: deploy
         timeout-minutes: 10
