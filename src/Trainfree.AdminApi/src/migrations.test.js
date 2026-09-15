@@ -11,13 +11,29 @@ async function insertProgram(db, { programId, userId }) {
 }
 
 describe("0015_add_programs_user_id migration", () => {
-    it("adds a nullable user_id column that a pre-existing/owner-less program row keeps as NULL", async () => {
-        await insertProgram(env.DB, { programId: "PGM-NOOWNER1", userId: null });
+    it("adds a nullable user_id column that a program row created before this migration ran keeps as NULL", async () => {
+        // Reverses just this migration's effect (not tracked as its own migration --
+        // SQLite/D1 support DROP COLUMN, but this repo has no migration that undoes
+        // 0015, so the drop happens here in test setup only) to genuinely recreate a
+        // pre-migration table shape, rather than just inserting a row and omitting the
+        // column on an already-migrated table -- the two are observably identical once
+        // the column exists, so the first version of this test never actually exercised
+        // the migration's own backfill behavior against a non-empty table.
+        await env.DB.prepare("ALTER TABLE programs DROP COLUMN user_id").run();
+        await env.DB.prepare("DELETE FROM d1_migrations WHERE name = ?")
+            .bind("0015_add_programs_user_id.sql")
+            .run();
+        await env.DB.prepare(
+            "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+            .bind("PGM-PREMIGRATION1", "Pre-existing Program", "2026-09-01T00:00:00.000Z", "2026-09-01T00:00:00.000Z")
+            .run();
+
+        await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
 
         const row = await env.DB.prepare("SELECT user_id FROM programs WHERE program_id = ?")
-            .bind("PGM-NOOWNER1")
+            .bind("PGM-PREMIGRATION1")
             .first();
-
         expect(row).toEqual({ user_id: null });
     });
 
