@@ -69,22 +69,27 @@ column, in the [proposed schema](https://lucid.app/lucidchart/e74e6f97-b0f1-47a2
   read-then-write and not race-proof on its own; the constraint is what actually
   guarantees the pair identifies at most one row, and turns a racing double-run into a
   constraint-violation error on the loser rather than a silent duplicate.
-- `users` -- surrogate `user_id`, 1:1 to `logins` via `login_id NOT NULL REFERENCES
-  logins(login_id)`, many:1 to `roles` via `role_id`. `UNIQUE (login_id)` enforces the
-  1:1 at the schema level, but only combined with `NOT NULL` and the FK: a nullable
-  unique column would let SQLite accept multiple `NULL` `login_id` rows (SQLite treats
-  `NULL`s as distinct for `UNIQUE`), and without the FK a non-null `login_id` could still
-  point at no `logins` row at all -- either way the role lookup for that login becomes
-  ambiguous or orphaned.
-- `roles` -- a lookup table of `Administrator`/`User` rows, not a raw enum column. The
+- `users` -- surrogate integer `id` primary key plus a `user_id TEXT NOT NULL UNIQUE`
+  Crockford Base32 business id (`USR-...`, matching the surrogate-id-plus-business-id
+  pattern already used by `programs`/`sessions`/`phases`/etc.), 1:1 to `logins` via
+  `login_id INTEGER NOT NULL UNIQUE REFERENCES logins(id)`, many:1 to `roles` via
+  `role_id TEXT REFERENCES roles(role_id)` (also a business id, not the surrogate `id`).
+  `UNIQUE (login_id)` enforces the 1:1 at the schema level, but only combined with
+  `NOT NULL` and the FK: a nullable unique column would let SQLite accept multiple
+  `NULL` `login_id` rows (SQLite treats `NULL`s as distinct for `UNIQUE`), and without
+  the FK a non-null `login_id` could still point at no `logins` row at all -- either way
+  the role lookup for that login becomes ambiguous or orphaned.
+- `roles` -- a lookup table of `Administrator`/`User` rows, not a raw enum column, keyed
+  by the same surrogate-`id`-plus-business-`role_id` (`ROL-...`) pattern as `users`. The
   migration that creates this table also seeds exactly those two rows -- the
   provisioning script only ever looks up an existing role by name to get its
   `role_id`, it never creates one, so a fresh database with an empty `roles` table
   would leave every identity unable to resolve a role and stuck at `403`.
-- `programs.user_id` -- links each program to its owning user, `INTEGER REFERENCES
-  users(user_id)`, **nullable** (no `NOT NULL`, no default -- an omitted default is
+- `programs.user_id` -- links each program to its owning user, `TEXT REFERENCES
+  users(user_id)` (the business id, matching `users.user_id`'s type -- not the surrogate
+  integer `id`), **nullable** (no `NOT NULL`, no default -- an omitted default is
   `NULL`). SQLite/D1 does allow adding a nullable FK column with no default via a
-  single `ALTER TABLE programs ADD COLUMN user_id INTEGER REFERENCES users(user_id);`
+  single `ALTER TABLE programs ADD COLUMN user_id TEXT REFERENCES users(user_id);`
   even with foreign keys enforced -- the earlier restriction this doc cited (rejecting
   `ADD COLUMN` with a `REFERENCES` clause under FK enforcement) only applies when
   combined with `NOT NULL`/a non-`NULL` default, not to a plain nullable FK column. So

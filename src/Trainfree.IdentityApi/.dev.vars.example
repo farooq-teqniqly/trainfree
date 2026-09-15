@@ -1,0 +1,6 @@
+# Copy to .dev.vars (gitignored) for local `wrangler dev`. In production these are set
+# via `wrangler secret put <NAME>` against the deployed Worker, never committed here or
+# in wrangler.jsonc. WORKOUT_INTERNAL_KEY is a placeholder until Trainfree.WorkoutApi
+# exists (see CLAUDE.md's "Two apps, one Worker each" rule).
+ADMIN_INTERNAL_KEY=
+WORKOUT_INTERNAL_KEY=

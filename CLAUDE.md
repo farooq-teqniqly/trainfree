@@ -41,6 +41,19 @@ conventions were chosen.
   class libraries both apps reference, so slice 8 doesn't duplicate what `Trainfree.Admin`
   already built. The `.NET everywhere` convention in the baseline applies to all of these
   client-side projects; the Workers stay JavaScript.
+  A third Worker, `src/Trainfree.IdentityApi`, is a deliberate exception to the "one
+  Worker per app" half of this rule: unlike `AdminApi`/`WorkoutApi` it serves no Blazor
+  client and has no `[assets]` binding -- it centralizes Cloudflare Access JWT
+  verification and D1 role lookup so neither app Worker duplicates that logic, reached
+  only via service binding (`X-Trainfree-Caller: admin`/`workout` on
+  `GET /internal/identity`), never directly by a browser. It still needs a public
+  hostname, gated by its own Cloudflare Access application, solely so `deploy.yaml` can
+  poll its `GET /api/version` in CI. It binds the same physical `trainfree_db` D1
+  database as the other two Workers but reads/writes only the `logins`, `users`, and
+  `roles` tables, never `programs`; the migration that creates those tables lives under
+  `src/Trainfree.AdminApi/migrations/` (`AdminApi`'s existing migration history), not a
+  second, independently tracked one against the same database. Its local dev port is
+  9998, distinct from `AdminApi`'s 9999, so both Workers' dev servers can run at once.
 - **Prod API URL is never configured, per app.** Same-origin design means each app's API
   base address is the relative path `/api` in production, resolved against that app's own
   Worker -- no environment-specific URL, no secret. Only each app's
@@ -92,8 +105,14 @@ conventions were chosen.
   Zero Trust dashboard, like the rest of the Access config.
 - **Online-only for v0.1.** No offline queuing or local-first sync for set logging/history
   writes; explicitly deferred to a future version (see roadmap's "Open items").
-- **Cloudflare Access is configured manually** in the dashboard (owner's email only) --
-  not represented as code in this repo unless that decision changes.
+- **Cloudflare Access applications are provisioned via the Cloudflare API as a one-time
+  setup step**, not represented as code in this repo -- same category as `wrangler d1
+  create`/`r2 bucket create` (owner's email only for identity-based policies). Each app
+  (Blazor client Workers, plus `IdentityApi`'s own public hostname per its "Third Worker"
+  paragraph above) reuses the account's two existing reusable Access policies
+  (`trainfree-ci` for CI's service token, `trainfree - Production` for the owner's email)
+  by ID rather than duplicating policies per app -- see README.md's "Cloudflare Access
+  application (production, one-time)" section.
 - **Bootstrap and Bootstrap Icons are CDN-pinned with SRI**, no vendored `wwwroot/lib`
   copy -- see `CLAUDE-blazor-ui.md`'s Asset delivery rule for the pattern this follows.
 - **Brand values for the Blazor UI conventions:** Inter as the typeface, black
