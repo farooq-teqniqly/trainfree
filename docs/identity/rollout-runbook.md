@@ -30,14 +30,19 @@ this runbook implements). Do not skip step 3.
 
    ```sh
    cd src/Trainfree.IdentityApi
-   export SMOKE_CHECK_INTERNAL_KEY=<ADMIN_INTERNAL_KEY's deployed value>
-   export SMOKE_CHECK_JWT=<CF_Authorization cookie value from your own logged-in Trainfree.Admin browser session>
+   read -rs SMOKE_CHECK_INTERNAL_KEY  # paste ADMIN_INTERNAL_KEY's deployed value, then Enter
+   export SMOKE_CHECK_INTERNAL_KEY
+   read -rs SMOKE_CHECK_JWT  # paste the CF_Authorization cookie value, then Enter
+   export SMOKE_CHECK_JWT
    npm run smoke-check -- --expect-email <the email step 2 provisioned>
    unset SMOKE_CHECK_INTERNAL_KEY SMOKE_CHECK_JWT
    ```
 
-   The internal key and JWT are read from `SMOKE_CHECK_INTERNAL_KEY`/`SMOKE_CHECK_JWT`
-   environment variables, not CLI flags, so they never land in shell history or a
+   `read -rs` reads each secret silently from the terminal (not echoed, not passed as
+   command text) rather than typing `export VAR=<value>`, which a shell records in its
+   history the same way it would a CLI argument. The internal key and JWT are read from
+   `SMOKE_CHECK_INTERNAL_KEY`/`SMOKE_CHECK_JWT` environment variables, not CLI flags, so
+   they never land in shell history or a
    process listing; `unset` them once the check completes. This uses the dedicated
    config at `src/Trainfree.IdentityApi/smoke-harness/wrangler.jsonc`
    (script: `src/Trainfree.IdentityApi/smoke-harness/check.js`), which sends:
