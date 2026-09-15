@@ -96,6 +96,13 @@ This starts `wrangler dev` on `http://127.0.0.1:9999`. The `predev` step runs
 has been observed to leak orphaned listeners on port 8787 across restarts on Windows,
 which is why this project pins to 9999 instead (see `wrangler.jsonc`'s `dev.port`).
 
+`npm run dev`/`npm run db:migrate:local` both pass `--persist-to ../.wrangler-shared`,
+a directory shared with `IdentityApi`'s own local dev (see step 3) -- each Worker's
+`wrangler dev` otherwise creates its own separate `.wrangler/state` SQLite file even
+though both bind the same `database_id`, so without a shared `--persist-to`,
+`IdentityApi` would never see the `logins`/`users`/`roles` tables this migration
+creates.
+
 ### 2. Blazor client
 
 In a second terminal, from the repo root:
@@ -111,7 +118,11 @@ client's API calls at `http://127.0.0.1:9999/api/`; no further setup needed.
 
 `IdentityApi` has no migration step of its own -- it reads the `logins`/`users`/`roles`
 tables that `AdminApi`'s migration (`npm run db:migrate:local` above) owns, so run that
-first if you haven't. In a third terminal:
+first if you haven't. Its own `npm run dev` also passes `--persist-to
+../.wrangler-shared` (the same directory step 1 migrated), which is what actually makes
+those tables visible here -- without it, `IdentityApi` would read its own separate,
+empty local D1 state and every provisioning/lookup would fail with missing tables. In a
+third terminal:
 
 ```sh
 cd src/Trainfree.IdentityApi
@@ -180,16 +191,18 @@ remote one, and it works without Cloudflare credentials. Run it on first checkou
 every `git pull` that adds a migration. `wrangler` tracks which files have already run, so
 re-running is a no-op.
 
-The local database is a plain SQLite file, written by Miniflare to:
+The local database is a plain SQLite file, written by Miniflare to the shared
+`--persist-to` directory both `AdminApi` and `IdentityApi` point their local dev at (see
+"Local development" step 1 above):
 
 ```text
-src/Trainfree.AdminApi/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/
+src/.wrangler-shared/v3/d1/miniflare-D1DatabaseObject/
 ```
 
 The `.sqlite` file with the long hex name is the database itself (`metadata.sqlite` next to
 it is Miniflare's own bookkeeping, not your data). Open it with any SQLite client to inspect
-tables or rows directly. The whole `.wrangler` directory is generated and git-ignored --
-never commit it, and deleting it is a safe reset (see
+tables or rows directly. The whole `.wrangler-shared` directory is generated and
+git-ignored -- never commit it, and deleting it is a safe reset (see
 [Reset the local database](#reset-the-local-database)).
 
 Note that the local database is separate from the one the tests use: `vitest` applies the
@@ -218,7 +231,8 @@ credentials, is `npm run db:migrate:remote`.
 ### Reset the local database
 
 ```sh
-rm -rf .wrangler
+rm -rf src/.wrangler-shared
+cd src/Trainfree.AdminApi
 npm run db:migrate:local
 ```
 
