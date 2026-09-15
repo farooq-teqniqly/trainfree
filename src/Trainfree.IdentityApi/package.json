@@ -6,7 +6,8 @@
     "predev": "powershell -NoProfile -ExecutionPolicy Bypass -File ../../scripts/Kill-Port.ps1 -Port 9998",
     "dev": "wrangler dev",
     "test": "vitest run",
-    "provision": "node scripts/provision-identity.js"
+    "provision": "node scripts/provision-identity.js",
+    "smoke-check": "node smoke-harness/check.js"
   },
   "dependencies": {
     "jose": "^6.2.12"

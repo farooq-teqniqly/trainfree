@@ -105,8 +105,14 @@ conventions were chosen.
   Zero Trust dashboard, like the rest of the Access config.
 - **Online-only for v0.1.** No offline queuing or local-first sync for set logging/history
   writes; explicitly deferred to a future version (see roadmap's "Open items").
-- **Cloudflare Access is configured manually** in the dashboard (owner's email only) --
-  not represented as code in this repo unless that decision changes.
+- **Cloudflare Access applications are provisioned via the Cloudflare API as a one-time
+  setup step**, not represented as code in this repo -- same category as `wrangler d1
+  create`/`r2 bucket create` (owner's email only for identity-based policies). Each app
+  (Blazor client Workers, plus `IdentityApi`'s own public hostname per its "Third Worker"
+  paragraph above) reuses the account's two existing reusable Access policies
+  (`trainfree-ci` for CI's service token, `trainfree - Production` for the owner's email)
+  by ID rather than duplicating policies per app -- see README.md's "Cloudflare Access
+  application (production, one-time)" section.
 - **Bootstrap and Bootstrap Icons are CDN-pinned with SRI**, no vendored `wwwroot/lib`
   copy -- see `CLAUDE-blazor-ui.md`'s Asset delivery rule for the pattern this follows.
 - **Brand values for the Blazor UI conventions:** Inter as the typeface, black

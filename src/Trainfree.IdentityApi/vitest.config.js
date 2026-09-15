@@ -23,10 +23,10 @@ export default defineWorkersConfig(async () => {
                     miniflare: {
                         bindings: {
                             TEST_MIGRATIONS: migrations,
-                            // Stand in for the real per-caller secrets/vars task 9.3's
-                            // manual Access setup provides in production; the audience
-                            // and issuer values here match the constants the JWT/
-                            // provider unit tests sign their test JWTs against.
+                            // Stand in for the real per-caller secrets/vars the Access
+                            // applications (task 9.3) provide in production; the
+                            // audience and issuer values here match the constants the
+                            // JWT/provider unit tests sign their test JWTs against.
                             ACCESS_TEAM_DOMAIN: "trainfree",
                             ADMIN_AUDIENCE: "trainfree-admin-audience",
                             WORKOUT_AUDIENCE: "trainfree-workout-audience",

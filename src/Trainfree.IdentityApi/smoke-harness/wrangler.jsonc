@@ -1,0 +1,22 @@
+{
+    // Dedicated rollout smoke-check config (tasks 9.4/10.2) -- never deployed, and
+    // deliberately separate from IdentityApi's own wrangler.jsonc and from AdminApi's
+    // local wrangler.jsonc. AdminApi's local config carries LOCAL_DEV_BYPASS in slice 2,
+    // which would synthesize a local Administrator identity and never actually invoke
+    // the service binding, letting this check pass even if the real binding or internal
+    // key is broken. This config has no such var, so `check.js`'s call always goes
+    // through the real binding to the deployed `trainfree-identity-api` Worker. See
+    // docs/identity/identity-intent-01-identityapi.md's "Rollout order" requirement.
+    "name": "trainfree-identity-smoke-harness",
+    // Present only because wrangler's config schema requires it; `check.js` reaches this
+    // config through `getPlatformProxy`, not `wrangler dev`/`deploy`, so `index.js`'s
+    // handler is never invoked.
+    "main": "index.js",
+    "compatibility_date": "2025-09-06",
+    "services": [
+        {
+            "binding": "IDENTITY",
+            "service": "trainfree-identity-api"
+        }
+    ]
+}

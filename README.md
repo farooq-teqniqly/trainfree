@@ -133,9 +133,31 @@ curl -i http://127.0.0.1:9998/internal/identity -H "X-Trainfree-Caller: admin"
 ```
 
 Getting a real `200` additionally requires a valid Cloudflare Access JWT and a
-provisioned identity (a manual Cloudflare Access application plus a run of
-`npm run provision` -- see `src/Trainfree.IdentityApi/scripts/provision-identity.js`) --
-the two responses above are enough to confirm the Worker itself is running correctly.
+provisioned identity (a run of `npm run provision` -- see
+`src/Trainfree.IdentityApi/scripts/provision-identity.js`) -- the two responses above are
+enough to confirm the Worker itself is running correctly.
+
+### Cloudflare Access application (production, one-time)
+
+`IdentityApi`'s own public hostname (`trainfree-identity-api.<workers.dev subdomain>`,
+distinct from `Trainfree.Admin`'s) is gated by its own Cloudflare Access application --
+this is what `deploy.yaml`'s post-deploy `GET /api/version` poll authenticates against.
+It was created once via the Cloudflare API (self-hosted app, reusing the account's two
+existing reusable Access policies rather than duplicating them):
+
+- `trainfree-ci` (non-identity, `any_valid_service_token`) -- lets CI's service token
+  through. It's the *same* reusable policy already attached to `trainfree-admin`, so
+  `IDENTITY_API_CF_ACCESS_CLIENT_ID`/`IDENTITY_API_CF_ACCESS_CLIENT_SECRET` (the repo
+  secrets `deploy.yaml`'s `deploy-identity-api` job reads) should hold the same service
+  token credentials already used for `CF_ACCESS_CLIENT_ID`/`CF_ACCESS_CLIENT_SECRET`, not
+  a newly minted token.
+- `trainfree - Production` (allow, owner's email) -- browser access for manual checks.
+
+This is a one-time setup step, not part of the deploy pipeline (same category as
+`wrangler d1 create`/`r2 bucket create` -- see `CLAUDE.md`). If it ever needs recreating,
+use the Cloudflare API/dashboard, reusing those same two reusable policies by ID rather
+than creating new ones; also set an `IDENTITY_API_BASE_URL` repo variable if you want to
+pin the poll's URL instead of relying on the deploy step's own output.
 
 ### 4. Open the app
 

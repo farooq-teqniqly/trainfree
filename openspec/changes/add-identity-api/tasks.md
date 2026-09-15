@@ -138,15 +138,19 @@
       after tasks 1-8, adjusting wording if the implementation diverged). Verify: a
       reviewer can trace every claim in that `CLAUDE.md` paragraph to a merged file in
       this change.
-- [ ] 9.3 Manually create `IdentityApi`'s own Cloudflare Access application in the
-      Zero Trust dashboard, gating its public hostname, distinct from
-      `Trainfree.Admin`'s. Verify: an unwhitelisted email is challenged by Access when
+- [x] 9.3 Create `IdentityApi`'s own Cloudflare Access application, gating its public
+      hostname, distinct from `Trainfree.Admin`'s -- provisioned via the Cloudflare API
+      (reusing the account's two existing reusable policies by ID) rather than by hand
+      in the dashboard. Verify: an unwhitelisted email is challenged by Access when
       browsing to `IdentityApi`'s hostname directly.
-- [ ] 9.4 Document the slice 1/2 rollout runbook (deploy slice 1, run the
+- [x] 9.4 Document the slice 1/2 rollout runbook (deploy slice 1, run the
       provisioning script, confirm `/internal/identity` resolves via the dedicated
       smoke-harness Wrangler config with `LOCAL_DEV_BYPASS` unset, only then deploy
       slice 2) as a repo doc or PR description checklist. Verify: the doc names the
       exact smoke-harness config file path and the header/key values the check sends.
+      Runbook: `docs/identity/rollout-runbook.md`. Smoke-harness config:
+      `src/Trainfree.IdentityApi/smoke-harness/wrangler.jsonc` (script:
+      `smoke-harness/check.js`, run via `npm run smoke-check`).
 
 ## 10. End-to-end verification
 
