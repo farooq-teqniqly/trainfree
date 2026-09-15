@@ -10,21 +10,11 @@ import { getPlatformProxy } from "wrangler";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-function toFlagName(argName) {
-    return `--${argName.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
-}
-
 function parseArgs(argv) {
     const args = {};
     for (let i = 0; i < argv.length; i += 1) {
         const arg = argv[i];
         switch (arg) {
-            case "--internal-key":
-                args.internalKey = argv[++i];
-                break;
-            case "--jwt":
-                args.jwt = argv[++i];
-                break;
             case "--expect-email":
                 args.expectEmail = argv[++i];
                 break;
@@ -33,17 +23,28 @@ function parseArgs(argv) {
         }
     }
 
-    for (const name of ["internalKey", "jwt", "expectEmail"]) {
-        if (!args[name]) {
-            throw new Error(`${toFlagName(name)} is required`);
-        }
+    if (!args.expectEmail) {
+        throw new Error("--expect-email is required");
     }
 
     return args;
 }
 
+// The internal key and JWT are secrets: they come from SMOKE_CHECK_INTERNAL_KEY /
+// SMOKE_CHECK_JWT environment variables rather than CLI flags so they never land in
+// shell history or a process listing.
+function readSecretEnv(name) {
+    const value = process.env[name];
+    if (!value) {
+        throw new Error(`${name} environment variable is required`);
+    }
+    return value;
+}
+
 async function main() {
-    const { internalKey, jwt, expectEmail } = parseArgs(process.argv.slice(2));
+    const { expectEmail } = parseArgs(process.argv.slice(2));
+    const internalKey = readSecretEnv("SMOKE_CHECK_INTERNAL_KEY");
+    const jwt = readSecretEnv("SMOKE_CHECK_JWT");
 
     const { env, dispose } = await getPlatformProxy({
         configPath: path.join(__dirname, "wrangler.jsonc"),
