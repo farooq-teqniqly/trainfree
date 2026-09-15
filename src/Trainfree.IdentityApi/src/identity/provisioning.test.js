@@ -102,6 +102,45 @@ describe("provisionIdentity", () => {
         expect(loginCount.count).toBe(1);
     });
 
+    it("resolves to created:false when a concurrent call wins the race repairing the same orphan", async () => {
+        // Arrange
+        const email = "orphan-racing@example.com";
+        const loginResult = await seedOrphanLogin(env.DB, {
+            providerName: PROVIDER_NAME_CLOUDFLARE_ACCESS,
+            providerId: email,
+        });
+        const originalPrepare = env.DB.prepare.bind(env.DB);
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockImplementation((sql) => {
+            if (!sql.startsWith("INSERT INTO users")) {
+                return originalPrepare(sql);
+            }
+            return {
+                bind: () => ({
+                    run: async () => {
+                        const now = new Date().toISOString();
+                        await originalPrepare(
+                            "INSERT INTO users (user_id, login_id, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                        )
+                            .bind("USR-WINNER1", loginResult.meta.last_row_id, "ROL-A3F7K2", now, now)
+                            .run();
+                        throw new Error("D1_ERROR: UNIQUE constraint failed: users.login_id");
+                    },
+                }),
+            };
+        });
+
+        // Act
+        const result = await provisionIdentity(env.DB, {
+            email,
+            providerName: PROVIDER_NAME_CLOUDFLARE_ACCESS,
+            roleName: ADMINISTRATOR_ROLE_NAME,
+        });
+
+        // Assert
+        expect(result).toEqual({ created: false });
+        prepareSpy.mockRestore();
+    });
+
     it("resolves to created:false when a concurrent call wins the race on the same login", async () => {
         // Arrange
         const email = "racing@example.com";

@@ -27,6 +27,32 @@ function isUniqueConstraintViolation(err) {
     return typeof err?.message === "string" && err.message.includes("UNIQUE constraint failed");
 }
 
+// Re-reads the fully provisioned pair after a unique-constraint violation, for when a
+// concurrent call won the race this one lost. Returns `{ created: false }` if the pair
+// is now complete, otherwise rethrows the original error -- the violation was for some
+// other reason (e.g. two different concurrent identities happened to collide on
+// generated `user_id`s, which this can't repair).
+async function convergeOnConcurrentWinner(db, err, { providerName, email }) {
+    if (!isUniqueConstraintViolation(err)) {
+        throw err;
+    }
+
+    const winner = await db
+        .prepare(
+            `SELECT users.user_id as userId
+             FROM logins
+             JOIN users ON users.login_id = logins.id
+             WHERE logins.provider_name = ? AND logins.provider_id = ?`,
+        )
+        .bind(providerName, email)
+        .first();
+    if (!winner) {
+        throw err;
+    }
+
+    return { created: false };
+}
+
 // Adds a user's D1 identity (a logins row and its paired users row) after their email
 // is whitelisted in Cloudflare Access. Idempotent on the fully provisioned pair -- a
 // logins row alone (with no paired users row) would never resolve a role and would be
@@ -37,7 +63,9 @@ function isUniqueConstraintViolation(err) {
 //      provisioning attempt raced and lost, see case 3) -- attach the missing `users`
 //      row to the existing login rather than trying to re-insert `logins`, which would
 //      violate its own uniqueness constraint and make the orphan permanently
-//      unrepairable.
+//      unrepairable. Two concurrent repairs of the same orphan race on `users.login_id`
+//      (also unique), so this insert gets the same converge-on-the-winner recovery as
+//      case 3.
 //   3. Neither row exists -- insert both in a single db.batch() so a failure partway
 //      through leaves neither row present. If a concurrent call wins the race on the
 //      `logins` unique constraint, re-read the pair the winner completed and converge
@@ -66,12 +94,16 @@ export async function provisionIdentity(db, { email, providerName, roleName }) {
 
     if (existingLogin) {
         const userId = generateUserId();
-        await db
-            .prepare(
-                "INSERT INTO users (user_id, login_id, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-            )
-            .bind(userId, existingLogin.loginId, role.roleId, now, now)
-            .run();
+        try {
+            await db
+                .prepare(
+                    "INSERT INTO users (user_id, login_id, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                )
+                .bind(userId, existingLogin.loginId, role.roleId, now, now)
+                .run();
+        } catch (err) {
+            return await convergeOnConcurrentWinner(db, err, { providerName, email });
+        }
         return { created: true, userId };
     }
 
@@ -92,24 +124,7 @@ export async function provisionIdentity(db, { email, providerName, roleName }) {
                 .bind(userId, role.roleId, now, now, providerName, email),
         ]);
     } catch (err) {
-        if (!isUniqueConstraintViolation(err)) {
-            throw err;
-        }
-
-        const winner = await db
-            .prepare(
-                `SELECT users.user_id as userId
-                 FROM logins
-                 JOIN users ON users.login_id = logins.id
-                 WHERE logins.provider_name = ? AND logins.provider_id = ?`,
-            )
-            .bind(providerName, email)
-            .first();
-        if (!winner) {
-            throw err;
-        }
-
-        return { created: false };
+        return await convergeOnConcurrentWinner(db, err, { providerName, email });
     }
 
     return { created: true, userId };
