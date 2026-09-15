@@ -13,7 +13,7 @@ import { provisionIdentity, UnknownRoleError } from "../src/identity/provisionin
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function parseArgs(argv) {
-    const args = { providerName: PROVIDER_NAME_CLOUDFLARE_ACCESS, remote: false };
+    const args = { remote: false };
     for (let i = 0; i < argv.length; i += 1) {
         const arg = argv[i];
         switch (arg) {
@@ -22,9 +22,6 @@ function parseArgs(argv) {
                 break;
             case "--role":
                 args.roleName = argv[++i];
-                break;
-            case "--provider-name":
-                args.providerName = argv[++i];
                 break;
             case "--remote":
                 args.remote = true;
@@ -45,7 +42,7 @@ function parseArgs(argv) {
 }
 
 async function main() {
-    const { email, roleName, providerName, remote } = parseArgs(process.argv.slice(2));
+    const { email, roleName, remote } = parseArgs(process.argv.slice(2));
 
     const { env, dispose } = await getPlatformProxy({
         configPath: path.join(__dirname, "..", "wrangler.jsonc"),
@@ -53,7 +50,11 @@ async function main() {
     });
 
     try {
-        const result = await provisionIdentity(env.DB, { email, providerName, roleName });
+        const result = await provisionIdentity(env.DB, {
+            email,
+            providerName: PROVIDER_NAME_CLOUDFLARE_ACCESS,
+            roleName,
+        });
         if (result.created) {
             console.log(`Provisioned ${email} as ${roleName} (${result.userId}).`);
         } else {
