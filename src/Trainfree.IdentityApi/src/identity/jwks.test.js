@@ -50,6 +50,23 @@ describe("createJwksFetcher", () => {
         await expect(getJwks()).rejects.toThrow(/JWKS fetch failed/);
     });
 
+    it("does not cache a 200 response with a malformed body, and retries upstream on the next call", async () => {
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(new Response("not json", { status: 200 }))
+            .mockResolvedValueOnce(fakeJwksResponse());
+        const getJwks = createJwksFetcher({
+            certsUrl: "https://example.cloudflareaccess.com/cdn-cgi/access/certs/malformed",
+            fetcher,
+        });
+
+        await expect(getJwks()).rejects.toThrow(/valid keys array/);
+        const jwks = await getJwks();
+
+        expect(jwks).toEqual(fakeJwks);
+        expect(fetcher).toHaveBeenCalledTimes(2);
+    });
+
     it("still resolves the JWKS on every call when the upstream response carries no Cache-Control", async () => {
         const fetcher = vi.fn().mockImplementation(
             async () =>

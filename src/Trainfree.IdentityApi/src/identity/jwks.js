@@ -16,9 +16,17 @@ export function createJwksFetcher({ certsUrl, fetcher = fetch, cache = caches.de
             throw new Error(`JWKS fetch failed with status ${response.status}`);
         }
 
-        // Cache the response before reading its body, since Cache API stores the
-        // response object as-provided and a consumed body would leave nothing to cache.
-        await cache.put(cacheKey, response.clone());
-        return response.json();
+        // Validate before caching -- caching an HTTP-success response whose body isn't a
+        // usable JWKS document would turn one bad upstream response into an outage for
+        // the response's entire cache lifetime, since every subsequent call would keep
+        // serving the poisoned cache entry instead of retrying upstream.
+        const cacheable = response.clone();
+        const jwks = await response.json().catch(() => null);
+        if (!jwks || !Array.isArray(jwks.keys)) {
+            throw new Error("JWKS response did not contain a valid keys array");
+        }
+
+        await cache.put(cacheKey, cacheable);
+        return jwks;
     };
 }
