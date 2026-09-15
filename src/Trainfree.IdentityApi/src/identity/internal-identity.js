@@ -19,6 +19,10 @@ function jsonError(message, status) {
 function timingSafeEqual(a, b) {
     const aBytes = new TextEncoder().encode(a);
     const bBytes = new TextEncoder().encode(b);
+    // A length mismatch still returns early, leaking key length via timing --
+    // accepted, since both keys are fixed-length generated secrets (same
+    // trade-off Node's own crypto.timingSafeEqual makes by requiring equal-length
+    // buffers up front).
     if (aBytes.length !== bBytes.length) {
         return false;
     }

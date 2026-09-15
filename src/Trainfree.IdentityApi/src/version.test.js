@@ -29,3 +29,20 @@ describe("GET /api/version", () => {
         expect(response.status).toBe(405);
     });
 });
+
+describe("unmatched routes", () => {
+    it("responds 404 with the same stable JSON error shape as every other non-200 response", async () => {
+        const response = await SELF.fetch("http://worker/no-such-route");
+
+        expect(response.status).toBe(404);
+        expect(response.headers.get("content-type")).toContain("application/json");
+        expect(await response.json()).toEqual({ error: "not found" });
+    });
+
+    it("responds 404 with the same JSON shape for a non-GET request to /internal/identity", async () => {
+        const response = await SELF.fetch("http://worker/internal/identity", { method: "POST" });
+
+        expect(response.status).toBe(404);
+        expect(await response.json()).toEqual({ error: "not found" });
+    });
+});

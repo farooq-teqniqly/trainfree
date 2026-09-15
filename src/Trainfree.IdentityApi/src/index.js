@@ -8,6 +8,10 @@ function jsonResponse(data, status = 200) {
     });
 }
 
+function jsonError(message, status) {
+    return jsonResponse({ error: message }, status);
+}
+
 function handleVersion(request, env) {
     if (request.method !== "GET") {
         return new Response("Method not allowed", { status: 405 });
@@ -33,6 +37,6 @@ export default {
             return handleVersion(request, env);
         }
 
-        return new Response("Not Found", { status: 404 });
+        return jsonError("not found", 404);
     },
 };

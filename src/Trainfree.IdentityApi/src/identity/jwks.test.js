@@ -49,4 +49,23 @@ describe("createJwksFetcher", () => {
 
         await expect(getJwks()).rejects.toThrow(/JWKS fetch failed/);
     });
+
+    it("still resolves the JWKS on every call when the upstream response carries no Cache-Control", async () => {
+        const fetcher = vi.fn().mockImplementation(
+            async () =>
+                new Response(JSON.stringify(fakeJwks), {
+                    headers: { "content-type": "application/json" },
+                }),
+        );
+        const getJwks = createJwksFetcher({
+            certsUrl: "https://example.cloudflareaccess.com/cdn-cgi/access/certs/no-cache-control",
+            fetcher,
+        });
+
+        const firstResult = await getJwks();
+        const secondResult = await getJwks();
+
+        expect(firstResult).toEqual(fakeJwks);
+        expect(secondResult).toEqual(fakeJwks);
+    });
 });
