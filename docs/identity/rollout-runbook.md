@@ -21,12 +21,27 @@ this runbook implements). Do not skip step 3.
    npm run provision -- --email <owner's email> --role Administrator --remote
    ```
 
+   > **Do not run this step until `verify-identity-api-rollout`'s task 2.2 has
+   > confirmed `--remote` actually reaches the deployed database.** As shipped,
+   > `provision-identity.js` loads the shared `wrangler.jsonc`, whose D1 binding has no
+   > `"remote": true` -- `--remote` currently provisions the *local* `.wrangler-shared`
+   > database, not production, with no error to indicate that happened. Running this
+   > step as written today would silently do nothing useful and step 3 would then fail
+   > for the right reason (no identity exists) but the wrong reason (this step never
+   > reached the database it claims to).
+
    Note the email it prints -- step 3 asserts the smoke check's response names this exact
    identity.
 3. **Run the rollout smoke check** and confirm it passes before proceeding. This is the
    only step that actually exercises the real service-binding path `AdminApi` will use in
    production; see [Why the smoke check needs its own config](#why-the-smoke-check-needs-its-own-config)
    below for why it cannot be a plain `curl`/browser request.
+
+   > **Same caveat as step 2:** `smoke-harness/wrangler.jsonc`'s `IDENTITY` service
+   > binding also has no `"remote": true`, so this check does not yet actually reach
+   > the deployed `IdentityApi` Worker either. Do not treat a pass here as proof the
+   > real service binding works until `verify-identity-api-rollout`'s task 2.4 has
+   > confirmed and fixed this.
 
    ```sh
    cd src/Trainfree.IdentityApi
