@@ -123,7 +123,7 @@
 
 ## 9. Documentation and manual setup
 
-- [ ] 9.1 Update README.md's "Local development" section to add a third subsection
+- [x] 9.1 Update README.md's "Local development" section to add a third subsection
       for running `IdentityApi` locally (`cd src/Trainfree.IdentityApi`, `npm install`,
       `npm run dev` on its own dev port from task 1.3), noting it has no migration step
       of its own (it reads tables `AdminApi`'s migration owns) and, since no caller is
@@ -132,7 +132,7 @@
       following the updated steps from a clean checkout can reach `/internal/identity`
       locally and get a `404`/`401` response without consulting anything beyond the
       README.
-- [ ] 9.2 Amend `CLAUDE.md`'s "Two apps, one Worker each" rule to document
+- [x] 9.2 Amend `CLAUDE.md`'s "Two apps, one Worker each" rule to document
       `IdentityApi` as the explicit third, service-binding-only Worker exception (the
       current draft already describes this; confirm it matches what actually ships
       after tasks 1-8, adjusting wording if the implementation diverged). Verify: a

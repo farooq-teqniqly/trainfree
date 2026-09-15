@@ -77,7 +77,10 @@ can't silently break a test elsewhere; bypass with `git push --no-verify` if it 
 
 ## Local development
 
-Two servers run side by side: the Worker (D1-backed API) and the Blazor dev server.
+Two servers run side by side to use the admin UI: the Worker (D1-backed API) and the
+Blazor dev server. A third, `IdentityApi`, runs independently -- no caller is wired up
+to it yet in this slice, so it's optional unless you're testing `/internal/identity`
+directly.
 
 ### 1. Worker API
 
@@ -104,7 +107,37 @@ dotnet run --project src/Trainfree.Admin/Trainfree.Admin.csproj --launch-profile
 Serves on `http://localhost:5280`. `appsettings.Development.json` already points the
 client's API calls at `http://127.0.0.1:9999/api/`; no further setup needed.
 
-### 3. Open the app
+### 3. IdentityApi (optional)
+
+`IdentityApi` has no migration step of its own -- it reads the `logins`/`users`/`roles`
+tables that `AdminApi`'s migration (`npm run db:migrate:local` above) owns, so run that
+first if you haven't. In a third terminal:
+
+```sh
+cd src/Trainfree.IdentityApi
+npm install         # first time only
+cp .dev.vars.example .dev.vars   # first time only; fill in ADMIN_INTERNAL_KEY locally
+npm run dev
+```
+
+This starts `wrangler dev` on `http://127.0.0.1:9998` (`AdminApi`'s dev server can stay
+running on 9999 at the same time). Since no app Worker calls it yet in this slice,
+exercise `/internal/identity` directly with `curl` to confirm it's up:
+
+```sh
+curl -i http://127.0.0.1:9998/internal/identity
+# -> 401, missing X-Trainfree-Caller
+
+curl -i http://127.0.0.1:9998/internal/identity -H "X-Trainfree-Caller: admin"
+# -> 404, missing/wrong X-Trainfree-Internal-Key (checked before the JWT)
+```
+
+Getting a real `200` additionally requires a valid Cloudflare Access JWT and a
+provisioned identity (a manual Cloudflare Access application plus a run of
+`npm run provision` -- see `src/Trainfree.IdentityApi/scripts/provision-identity.js`) --
+the two responses above are enough to confirm the Worker itself is running correctly.
+
+### 4. Open the app
 
 Navigate to `http://localhost:5280/admin` for the admin UI (programs CRUD).
 
