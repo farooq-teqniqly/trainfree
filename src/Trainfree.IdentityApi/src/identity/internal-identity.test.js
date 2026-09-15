@@ -228,6 +228,21 @@ describe("handleInternalIdentity -- response matrix", () => {
         expect(response.status).toBe(401);
     });
 
+    it.each(["constructor", "toString", "__proto__", "hasOwnProperty"])(
+        "responds 401, not 404, when X-Trainfree-Caller is the inherited property name %s",
+        async (callerName) => {
+            const token = await signToken();
+
+            const response = await handleInternalIdentity(
+                requestFor({ token, caller: callerName, key: env.ADMIN_INTERNAL_KEY }),
+                env,
+                { fetcher: fakeJwksFetcher() },
+            );
+
+            expect(response.status).toBe(401);
+        },
+    );
+
     it("responds 403 when the JWT authenticates but no logins/users pair matches", async () => {
         const token = await signToken({ email: "unprovisioned@example.com" });
 
