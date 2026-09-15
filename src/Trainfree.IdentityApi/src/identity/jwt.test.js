@@ -150,4 +150,26 @@ describe("verifyAccessJwt", () => {
         ).rejects.toThrow(JwtVerificationError);
         expect(stillStaleGetJwks).toHaveBeenCalledTimes(2);
     });
+
+    it("propagates a forced-refresh infrastructure failure unwrapped, not as JwtVerificationError", async () => {
+        const token = await new SignJWT({ email: "user@example.com" })
+            .setProtectedHeader({ alg: "RS256", kid: "never-published" })
+            .setIssuer(ISSUER)
+            .setAudience(AUDIENCE)
+            .setIssuedAt()
+            .setExpirationTime(Math.floor(Date.now() / 1000) + 3600)
+            .sign(privateKey);
+        const refreshFailure = new Error("JWKS fetch failed with status 500");
+        const getJwksWithFailingRefresh = vi.fn(async (options) =>
+            options?.forceRefresh ? Promise.reject(refreshFailure) : getJwks(),
+        );
+
+        await expect(
+            verifyAccessJwt(token, {
+                getJwks: getJwksWithFailingRefresh,
+                expectedIssuer: ISSUER,
+                expectedAudience: AUDIENCE,
+            }),
+        ).rejects.toBe(refreshFailure);
+    });
 });

@@ -57,8 +57,14 @@ export async function verifyAccessJwt(token, { getJwks, expectedIssuer, expected
             throw new JwtVerificationError(err);
         }
 
+        // The forced refresh itself can fail for infrastructure reasons (upstream
+        // fetch/HTTP failure, a malformed response) that have nothing to do with this
+        // token -- those must not be misclassified as "token rejected" (401 via
+        // JwtVerificationError). Only a failure verifying against the successfully
+        // refreshed key set is a real property of the token.
+        const freshJwks = await getJwks({ forceRefresh: true });
+
         try {
-            const freshJwks = await getJwks({ forceRefresh: true });
             return await verifyWithKeySet(token, createLocalJWKSet(freshJwks), {
                 expectedIssuer,
                 expectedAudience,
