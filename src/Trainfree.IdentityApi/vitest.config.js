@@ -14,8 +14,6 @@ export default defineWorkersConfig(async () => {
 
     return {
         test: {
-            // No test files exist yet this task group; later slices add them.
-            passWithNoTests: true,
             setupFiles: ["./test/apply-migrations.js"],
             poolOptions: {
                 workers: {
@@ -32,6 +30,10 @@ export default defineWorkersConfig(async () => {
                             WORKOUT_AUDIENCE: "trainfree-workout-audience",
                             ADMIN_INTERNAL_KEY: "test-admin-internal-key",
                             WORKOUT_INTERNAL_KEY: "test-workout-internal-key",
+                            // Mirrors AdminApi's vitest.config.js -- exercises the actual
+                            // deploy-stamped path, not just the local-build fallback.
+                            APP_VERSION: "v9.9.9",
+                            APP_COMMIT: "abc1234",
                         },
                     },
                 },
