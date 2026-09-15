@@ -9,9 +9,11 @@ this runbook implements). Do not skip step 3.
 
 ## Steps
 
-1. **Deploy slice 1.** Push a `v0.0.N` tag (or merge to `main`, per `deploy.yaml`'s
-   `deploy-identity-api` job) with `IdentityApi` live. `AdminApi` does not call it yet, so
-   there is nothing to lock out at this point.
+1. **Deploy slice 1.** Push a `v0.0.N` tag (or run `deploy.yaml` manually via
+   `workflow_dispatch`) with `IdentityApi` live. Merging this change's PR to `main` alone
+   does **not** deploy anything -- `deploy.yaml` only triggers on a `v*.*.*` tag push or a
+   manual dispatch. `AdminApi` does not call `IdentityApi` yet, so there is nothing to
+   lock out at this point.
 2. **Provision at least one `Administrator` identity** against the deployed D1 database:
 
    ```sh
