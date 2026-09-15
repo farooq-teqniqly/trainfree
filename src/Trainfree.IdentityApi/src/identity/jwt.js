@@ -15,6 +15,10 @@ export class JwtVerificationError extends Error {
 // than strict equality against the whole claim, which is required since Cloudflare
 // Access JWTs carry `aud` as an array.
 export async function verifyAccessJwt(token, { getJwks, expectedIssuer, expectedAudience }) {
+    if (!expectedAudience) {
+        throw new JwtVerificationError(new Error("No audience configured for this caller"));
+    }
+
     const jwks = await getJwks();
     const keySet = createLocalJWKSet(jwks);
 

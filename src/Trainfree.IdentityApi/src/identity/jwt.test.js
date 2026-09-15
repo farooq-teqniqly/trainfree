@@ -78,4 +78,12 @@ describe("verifyAccessJwt", () => {
             verifyAccessJwt(token, { getJwks, expectedIssuer: ISSUER, expectedAudience: AUDIENCE }),
         ).rejects.toThrow(JwtVerificationError);
     });
+
+    it("rejects when no audience is configured for the caller, without checking any JWT claim", async () => {
+        const token = await sign();
+
+        await expect(
+            verifyAccessJwt(token, { getJwks, expectedIssuer: ISSUER, expectedAudience: undefined }),
+        ).rejects.toThrow(JwtVerificationError);
+    });
 });
