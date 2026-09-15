@@ -154,13 +154,11 @@
 
 ## 10. End-to-end verification
 
-- [ ] 10.1 Run the full `IdentityApi` vitest suite and confirm every scenario listed
+- [x] 10.1 Run the full `IdentityApi` vitest suite and confirm every scenario listed
       in `specs/identity-api/spec.md` has a corresponding passing test. Verify:
       `npm test` green, with a manual cross-check against the spec's scenario list.
-- [ ] 10.2 Deploy `IdentityApi` to a real Cloudflare environment with no caller wired
-      up yet, run the provisioning script against it once, and confirm
-      `/internal/identity` resolves that identity to `200`/`Administrator` via the
-      smoke-harness config from 9.4 -- the exact check task 6 in the rollout order
-      requires before slice 2 can be deployed. Verify: the smoke-harness script's
-      output shows the real `email`/`userId` the provisioning script created, not a
-      synthetic value.
+
+Live deploy, provisioning, and the rollout smoke check (formerly 10.2) moved to the
+`verify-identity-api-rollout` change: they can only happen after this change merges to
+`main` and `deploy.yaml`'s "tag must be on main" guard passes, which cannot occur before
+this change archives.
