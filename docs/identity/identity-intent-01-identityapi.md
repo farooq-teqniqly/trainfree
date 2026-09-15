@@ -154,7 +154,7 @@ design; see `identity-intent.md`'s schema section.)
   JWT but no/wrong internal key is rejected, and a test asserting `admin`'s key cannot
   be used to claim `workout` (or vice versa) once `WorkoutApi` exists. `IdentityApi`
   responds with
-  `200 { "email": string, "userId": number, "role": "Administrator" | "User" }` only
+  `200 { "email": string, "userId": string, "role": "Administrator" | "User" }` only
   when the JWT's `aud` matches the configured audience for the named caller. `userId`
   is included specifically so callers like `AdminApi` can populate owner columns (e.g.
   `programs.user_id`, see slice 1's schema section) without a separate D1 lookup --
