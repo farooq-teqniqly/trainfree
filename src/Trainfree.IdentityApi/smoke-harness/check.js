@@ -73,8 +73,17 @@ async function main() {
         // email the provisioning script created came back, not a synthetic value. The
         // role must be Administrator too: step 4 of the runbook enables Administrator-
         // only enforcement next, so a passing check against a lesser-privileged identity
-        // would lock the operator out immediately after that step.
-        if (response.status !== 200 || body?.email !== expectEmail || body?.role !== "Administrator") {
+        // would lock the operator out immediately after that step. userId is required
+        // by the /internal/identity success contract and is what slice 2 will persist
+        // as programs.user_id -- a response missing it would still look like a pass
+        // here while being unusable for that purpose.
+        if (
+            response.status !== 200 ||
+            body?.email !== expectEmail ||
+            body?.role !== "Administrator" ||
+            typeof body?.userId !== "string" ||
+            body.userId.length === 0
+        ) {
             console.error(`Smoke check FAILED: status=${response.status} body=${JSON.stringify(body)}`);
             process.exitCode = 1;
             return;
