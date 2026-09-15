@@ -186,10 +186,14 @@ jobs:
           cache: "npm"
           cache-dependency-path: src/Trainfree.IdentityApi/package-lock.json
 
+      # Only jose (a runtime dependency) needs to be present for wrangler to bundle it --
+      # vitest/wrangler devDependencies aren't needed to deploy. --ignore-scripts blocks
+      # arbitrary install-time code execution from any dependency's lifecycle scripts,
+      # which this deploy step has no reason to allow.
       - name: Install dependencies
         working-directory: src/Trainfree.IdentityApi
         timeout-minutes: 5
-        run: npm ci
+        run: npm ci --omit=dev --ignore-scripts
 
       - name: Deploy
         id: deploy
