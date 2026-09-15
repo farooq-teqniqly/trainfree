@@ -65,8 +65,11 @@ async function main() {
         const body = await response.json().catch(() => null);
 
         // A bare 200 isn't proof this went through the real binding -- assert the real
-        // email the provisioning script created came back, not a synthetic value.
-        if (response.status !== 200 || body?.email !== expectEmail) {
+        // email the provisioning script created came back, not a synthetic value. The
+        // role must be Administrator too: step 4 of the runbook enables Administrator-
+        // only enforcement next, so a passing check against a lesser-privileged identity
+        // would lock the operator out immediately after that step.
+        if (response.status !== 200 || body?.email !== expectEmail || body?.role !== "Administrator") {
             console.error(`Smoke check FAILED: status=${response.status} body=${JSON.stringify(body)}`);
             process.exitCode = 1;
             return;
