@@ -1,5 +1,5 @@
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { AudienceNotConfiguredError, JwtVerificationError, verifyAccessJwt } from "./jwt.js";
 
 const ISSUER = "https://trainfree.cloudflareaccess.com";
@@ -98,5 +98,56 @@ describe("verifyAccessJwt", () => {
         await expect(
             verifyAccessJwt(token, { getJwks, expectedIssuer: ISSUER, expectedAudience: AUDIENCE }),
         ).rejects.toThrow(JwtVerificationError);
+    });
+
+    it("retries once with a forced-refresh JWKS when the cached set lacks the token's kid, then succeeds", async () => {
+        const rotatedKeyPair = await generateKeyPair("RS256");
+        const rotatedPublicJwk = await exportJWK(rotatedKeyPair.publicKey);
+        rotatedPublicJwk.kid = "rotated-key";
+        rotatedPublicJwk.alg = "RS256";
+        rotatedPublicJwk.use = "sig";
+
+        const token = await new SignJWT({ email: "rotated@example.com" })
+            .setProtectedHeader({ alg: "RS256", kid: "rotated-key" })
+            .setIssuer(ISSUER)
+            .setAudience(AUDIENCE)
+            .setIssuedAt()
+            .setExpirationTime(Math.floor(Date.now() / 1000) + 3600)
+            .sign(rotatedKeyPair.privateKey);
+
+        // Simulates a Worker whose cache still has the pre-rotation key set until a
+        // forced refresh is requested.
+        const staleThenFreshGetJwks = vi.fn(async (options) =>
+            options?.forceRefresh ? { keys: [rotatedPublicJwk] } : (await getJwks()),
+        );
+
+        const payload = await verifyAccessJwt(token, {
+            getJwks: staleThenFreshGetJwks,
+            expectedIssuer: ISSUER,
+            expectedAudience: AUDIENCE,
+        });
+
+        expect(payload.email).toBe("rotated@example.com");
+        expect(staleThenFreshGetJwks).toHaveBeenCalledTimes(2);
+    });
+
+    it("throws JwtVerificationError when the kid is still missing after a forced refresh", async () => {
+        const token = await new SignJWT({ email: "user@example.com" })
+            .setProtectedHeader({ alg: "RS256", kid: "never-published" })
+            .setIssuer(ISSUER)
+            .setAudience(AUDIENCE)
+            .setIssuedAt()
+            .setExpirationTime(Math.floor(Date.now() / 1000) + 3600)
+            .sign(privateKey);
+        const stillStaleGetJwks = vi.fn(async () => getJwks());
+
+        await expect(
+            verifyAccessJwt(token, {
+                getJwks: stillStaleGetJwks,
+                expectedIssuer: ISSUER,
+                expectedAudience: AUDIENCE,
+            }),
+        ).rejects.toThrow(JwtVerificationError);
+        expect(stillStaleGetJwks).toHaveBeenCalledTimes(2);
     });
 });

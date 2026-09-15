@@ -1,4 +1,4 @@
-import { createLocalJWKSet, jwtVerify } from "jose";
+import { createLocalJWKSet, errors, jwtVerify } from "jose";
 
 // Wraps every jose verification failure (bad signature, wrong issuer, expired,
 // audience not present) in one type so callers don't need to know jose's specific
@@ -28,22 +28,43 @@ export class AudienceNotConfiguredError extends Error {
 // Access JWTs carry `aud` as an array. `exp` is required explicitly: jose only checks
 // expiry when the claim is present, so an otherwise-valid token minted without one
 // would never expire.
+async function verifyWithKeySet(token, keySet, { expectedIssuer, expectedAudience }) {
+    const { payload } = await jwtVerify(token, keySet, {
+        issuer: expectedIssuer,
+        audience: expectedAudience,
+        requiredClaims: ["exp"],
+    });
+    return payload;
+}
+
 export async function verifyAccessJwt(token, { getJwks, expectedIssuer, expectedAudience }) {
     if (!expectedAudience) {
         throw new AudienceNotConfiguredError();
     }
 
     const jwks = await getJwks();
-    const keySet = createLocalJWKSet(jwks);
 
     try {
-        const { payload } = await jwtVerify(token, keySet, {
-            issuer: expectedIssuer,
-            audience: expectedAudience,
-            requiredClaims: ["exp"],
-        });
-        return payload;
+        return await verifyWithKeySet(token, createLocalJWKSet(jwks), { expectedIssuer, expectedAudience });
     } catch (err) {
-        throw new JwtVerificationError(err);
+        // A cache-served JWKS can be stale relative to a genuine Cloudflare Access key
+        // rotation: the token's `kid` simply isn't in the set this Worker has cached.
+        // That's the one verification failure worth a single forced-refresh retry --
+        // every other failure (bad signature, wrong issuer, expired, wrong audience) is
+        // a property of the token itself and would fail identically against a fresh
+        // fetch, so retrying there would just be a wasted round trip.
+        if (!(err instanceof errors.JWKSNoMatchingKey)) {
+            throw new JwtVerificationError(err);
+        }
+
+        try {
+            const freshJwks = await getJwks({ forceRefresh: true });
+            return await verifyWithKeySet(token, createLocalJWKSet(freshJwks), {
+                expectedIssuer,
+                expectedAudience,
+            });
+        } catch (retryErr) {
+            throw new JwtVerificationError(retryErr);
+        }
     }
 }
