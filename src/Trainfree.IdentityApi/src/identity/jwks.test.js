@@ -1,7 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
+import { exportJWK, generateKeyPair } from "jose";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { createJwksFetcher } from "./jwks.js";
 
-const fakeJwks = { keys: [{ kty: "RSA", kid: "test-key", n: "abc", e: "AQAB" }] };
+// A real, importable RSA public key -- isUsableJwks now actually imports each key via
+// jose's importJWK, so a placeholder like `{ n: "abc", e: "AQAB" }` (not real key
+// material) would fail that import and make every "valid JWKS" test fail too.
+let fakeJwks;
+
+beforeAll(async () => {
+    const { publicKey } = await generateKeyPair("RS256");
+    const publicJwk = await exportJWK(publicKey);
+    publicJwk.kid = "test-key";
+    publicJwk.alg = "RS256";
+    publicJwk.use = "sig";
+    fakeJwks = { keys: [publicJwk] };
+});
 
 function fakeJwksResponse(maxAgeSeconds = 3600) {
     return new Response(JSON.stringify(fakeJwks), {
@@ -99,6 +112,30 @@ describe("createJwksFetcher", () => {
             .mockResolvedValueOnce(fakeJwksResponse());
         const getJwks = createJwksFetcher({
             certsUrl: "https://example.cloudflareaccess.com/cdn-cgi/access/certs/unusable-key",
+            fetcher,
+        });
+
+        await expect(getJwks()).rejects.toThrow(/valid, non-empty keys array/);
+        const jwks = await getJwks();
+
+        expect(jwks).toEqual(fakeJwks);
+        expect(fetcher).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not cache a key with kty/kid present but unimportable key material, and retries upstream", async () => {
+        // kty/kid alone aren't proof a key works -- an RSA entry missing its actual
+        // modulus/exponent passes that shape check but jose can't import it.
+        const unusableKey = { kty: "RSA", kid: "test-key" };
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(
+                new Response(JSON.stringify({ keys: [unusableKey] }), {
+                    headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" },
+                }),
+            )
+            .mockResolvedValueOnce(fakeJwksResponse());
+        const getJwks = createJwksFetcher({
+            certsUrl: "https://example.cloudflareaccess.com/cdn-cgi/access/certs/unimportable-key",
             fetcher,
         });
 
