@@ -128,12 +128,15 @@ jobs:
   # IdentityApi has no Blazor client, so this sequence has no publish step and no
   # asset-serving deploy config -- just the Worker itself (wrangler.jsonc, no
   # wrangler.deploy.jsonc needed) plus the same stamp/verify shape as the Admin
-  # sequence above. It doesn't `need: deploy` -- its own D1 reads/writes (roles,
-  # logins, users) are owned by AdminApi's migration, but /api/version touches no
-  # D1 table, so the two sequences can deploy independently. IdentityApi's Access
-  # application (task 9.3) is a separate one from Trainfree.Admin's, so it gets its
-  # own service-token secrets rather than reusing CF_ACCESS_CLIENT_ID/SECRET.
+  # sequence above. It `needs: deploy` so the `deploy` job's "Apply D1 migrations"
+  # step (which owns the logins/users/roles schema this Worker reads/writes) has
+  # already run against the remote database before this Worker goes live -- without
+  # that ordering, GitHub Actions runs the two jobs in parallel and IdentityApi could
+  # start serving before its tables exist. IdentityApi's Access application (task 9.3)
+  # is a separate one from Trainfree.Admin's, so it gets its own service-token secrets
+  # rather than reusing CF_ACCESS_CLIENT_ID/SECRET.
   deploy-identity-api:
+    needs: deploy
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     steps:
@@ -158,6 +161,19 @@ jobs:
         run: |
           echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           echo "commit=$(git rev-parse --short=7 "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
+
+      # wrangler.jsonc's ACCESS_TEAM_DOMAIN/ADMIN_AUDIENCE/WORKOUT_AUDIENCE are
+      # REPLACE_WITH_... placeholders until task 9.3's Cloudflare Access application
+      # is provisioned -- deploying with them still in place would silently accept any
+      # correctly-signed Access JWT for the wrong team/audience. Fail before deploying
+      # rather than shipping a Worker that can't actually authenticate anyone.
+      - name: Verify no placeholder Access config values remain
+        timeout-minutes: 2
+        run: |
+          if grep -q "REPLACE_WITH_" src/Trainfree.IdentityApi/wrangler.jsonc; then
+            echo "::error::src/Trainfree.IdentityApi/wrangler.jsonc still has REPLACE_WITH_ placeholder(s) -- provision the Cloudflare Access application (task 9.3) and set the real values before deploying."
+            exit 1
+          fi
 
       - name: Deploy
         id: deploy
