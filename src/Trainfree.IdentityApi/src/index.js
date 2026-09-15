@@ -11,7 +11,7 @@ function jsonResponse(data, status = 200) {
 
 function handleVersion(request, env) {
     if (request.method !== "GET") {
-        return new Response("Method not allowed", { status: 405 });
+        return jsonError("method not allowed", 405);
     }
 
     // no-store, not just no-cache: this response is the one thing deploy.yaml's CI
