@@ -146,16 +146,12 @@ describe("createJwksFetcher", () => {
         expect(fetcher).toHaveBeenCalledTimes(2);
     });
 
-    it("keeps the valid keys and drops only the unusable one from a mixed response, without caching the incomplete result", async () => {
+    it("keeps the valid keys and drops only the unusable one from a mixed response, caching it with a short TTL", async () => {
         const unusableKey = { kty: "RSA", kid: "bad-key" };
-        // mockImplementation, not mockResolvedValue: a Response body can only be read
-        // once, and this test expects the fetcher to actually be invoked (and its
-        // response consumed) twice.
-        const fetcher = vi.fn().mockImplementation(
-            async () =>
-                new Response(JSON.stringify({ keys: [unusableKey, ...fakeJwks.keys] }), {
-                    headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" },
-                }),
+        const fetcher = vi.fn().mockResolvedValue(
+            new Response(JSON.stringify({ keys: [unusableKey, ...fakeJwks.keys] }), {
+                headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" },
+            }),
         );
         const getJwks = createJwksFetcher({
             certsUrl: "https://example.cloudflareaccess.com/cdn-cgi/access/certs/mixed-keys",
@@ -163,13 +159,15 @@ describe("createJwksFetcher", () => {
         });
 
         const jwks = await getJwks();
-        await getJwks();
+        const secondResult = await getJwks();
 
         expect(jwks.keys).toEqual(fakeJwks.keys);
-        // Not cached: an incomplete set (some keys dropped) is refetched every call
-        // rather than trusted for the full upstream cache lifetime, so a rotation key
-        // that was briefly malformed becomes visible as soon as it's corrected upstream.
-        expect(fetcher).toHaveBeenCalledTimes(2);
+        // Cached (with a short, bounded TTL, not the upstream's full max-age) rather than
+        // refetched on every call -- otherwise a persistently-bad entry alongside
+        // otherwise-valid keys would force every single identity check to hit the certs
+        // endpoint.
+        expect(secondResult.keys).toEqual(fakeJwks.keys);
+        expect(fetcher).toHaveBeenCalledTimes(1);
     });
 
     it("drops a key with no kid even though it imports successfully", async () => {
@@ -219,8 +217,24 @@ describe("createJwksFetcher", () => {
 
         await getJwks();
         await getJwks({ forceRefresh: true });
-
         expect(fetcher).toHaveBeenCalledTimes(2);
+    });
+
+    it("collapses repeated forceRefresh calls within the cooldown window into a single fetch", async () => {
+        const fetcher = vi.fn().mockImplementation(async () => fakeJwksResponse());
+        const getJwks = createJwksFetcher({
+            certsUrl: "https://example.cloudflareaccess.com/cdn-cgi/access/certs/refresh-cooldown",
+            fetcher,
+        });
+
+        await getJwks({ forceRefresh: true });
+        const secondResult = await getJwks({ forceRefresh: true });
+
+        // The first forced call cached its result; the second, denied a real forced
+        // refresh by the cooldown, falls back to the normal (cache-hit) path instead of
+        // triggering a second upstream fetch.
+        expect(secondResult).toEqual(fakeJwks);
+        expect(fetcher).toHaveBeenCalledTimes(1);
     });
 
     it("re-fetches instead of serving a cached entry that is no longer a usable JWKS", async () => {

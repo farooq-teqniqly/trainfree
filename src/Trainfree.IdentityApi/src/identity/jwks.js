@@ -1,5 +1,27 @@
 import { importJWK } from "jose";
 
+// A forced refresh (see `getJwks`) is triggered by an untrusted input -- a JWT's `kid`
+// claim -- so an attacker presenting a stream of tokens with distinct, never-valid
+// `kid` values could otherwise force an upstream fetch on every single request,
+// bypassing the normal cache entirely. This per-`certsUrl` cooldown collapses repeated
+// forced refreshes within a short window into one real fetch; requests arriving during
+// the cooldown fall back to the normal (possibly cache-hit) path instead, so they still
+// get correctly rejected once, just without each one hitting the certs endpoint.
+// Module-scope state: only bounds the amplification within a single Worker isolate,
+// not globally, since nothing here uses a shared external store -- consistent with the
+// per-isolate nature of the Cache API this file already relies on.
+const FORCED_REFRESH_COOLDOWN_MS = 5000;
+const lastForcedRefreshAt = new Map();
+
+function forcedRefreshAllowed(certsUrl) {
+    const last = lastForcedRefreshAt.get(certsUrl) ?? 0;
+    if (Date.now() - last < FORCED_REFRESH_COOLDOWN_MS) {
+        return false;
+    }
+    lastForcedRefreshAt.set(certsUrl, Date.now());
+    return true;
+}
+
 // `createLocalJWKSet` (jose) selects a key by matching the JWT header's `kid` against
 // each key's own `kid` -- a key with no `kid` (or a non-string one) can import
 // successfully yet can never actually be selected for a real Cloudflare Access token,
@@ -52,8 +74,10 @@ export function createJwksFetcher({ certsUrl, fetcher = fetch, cache = caches.de
         // `forceRefresh` skips straight to the upstream fetch -- used when a caller
         // already knows the cached set doesn't have the key it needs (e.g. jwt.js
         // retrying after a JWKSNoMatchingKey failure), so there's no point checking the
-        // cache again first.
-        if (!forceRefresh) {
+        // cache again first. Subject to a cooldown (see forcedRefreshAllowed) so it
+        // can't be used to force an upstream fetch on every single request.
+        const effectiveForceRefresh = forceRefresh && forcedRefreshAllowed(certsUrl);
+        if (!effectiveForceRefresh) {
             const cached = await cache.match(cacheKey);
             if (cached) {
                 // A cached entry can't be un-cached from here (the Cache API has no
@@ -84,23 +108,27 @@ export function createJwksFetcher({ certsUrl, fetcher = fetch, cache = caches.de
             throw new Error("JWKS response did not contain a valid, non-empty keys array");
         }
 
-        // Only cache a complete set. Caching an incomplete one (some keys dropped) for
-        // the full upstream cache lifetime would mean a key that gets corrected upstream
-        // -- e.g. a rotation key that was briefly malformed -- stays invisible to this
-        // Worker until the stale entry expires, since nothing here re-checks a cached
-        // entry against the live upstream on its own; better to keep refetching until a
-        // clean response arrives.
-        if (sanitized.complete) {
-            await cache.put(
-                cacheKey,
-                new Response(JSON.stringify(sanitized.jwks), {
-                    headers: {
-                        "content-type": "application/json",
-                        "cache-control": response.headers.get("cache-control") ?? "",
-                    },
-                }),
-            );
-        }
+        // An incomplete set (some keys dropped) still gets cached, but only for a short,
+        // bounded lifetime rather than the full upstream one -- caching it for the whole
+        // lifetime would mean a key that gets corrected upstream (e.g. a rotation key
+        // that was briefly malformed) stays invisible to this Worker until the stale
+        // entry expires, but not caching it at all means every single identity check
+        // reaches the certs endpoint for as long as the upstream document persistently
+        // contains one bad entry alongside otherwise-valid keys. The short TTL bounds
+        // both problems: valid traffic mostly hits the cache, and a correction is
+        // visible again within a minute rather than a full cache lifetime.
+        const cacheControl = sanitized.complete
+            ? (response.headers.get("cache-control") ?? "")
+            : "public, max-age=60";
+        await cache.put(
+            cacheKey,
+            new Response(JSON.stringify(sanitized.jwks), {
+                headers: {
+                    "content-type": "application/json",
+                    "cache-control": cacheControl,
+                },
+            }),
+        );
         return sanitized.jwks;
     };
 }
