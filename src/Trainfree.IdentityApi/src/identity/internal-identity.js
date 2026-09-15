@@ -1,16 +1,10 @@
+import { jsonError } from "../shared/http.js";
 import { PROVIDER_NAME_CLOUDFLARE_ACCESS } from "../shared/providers.js";
 import { CALLER_CONFIG, certsUrlFor, issuerFor } from "./config.js";
 import { createJwksFetcher } from "./jwks.js";
 import { JwtVerificationError } from "./jwt.js";
 import { extractIdentity } from "./provider.js";
 import { lookupIdentity } from "./roles.js";
-
-function jsonError(message, status) {
-    return new Response(JSON.stringify({ error: message }), {
-        status,
-        headers: { "content-type": "application/json" },
-    });
-}
 
 // Plain `===` short-circuits on the first differing byte, leaking a timing
 // side-channel on the one secret that actually gates this publicly-reachable
@@ -71,6 +65,7 @@ export async function handleInternalIdentity(request, env, { fetcher, db } = {})
         if (err instanceof JwtVerificationError) {
             return jsonError("unauthorized", 401);
         }
+        console.error("JWT verification infrastructure failure", err);
         return jsonError("service unavailable", 503);
     }
 
@@ -80,7 +75,8 @@ export async function handleInternalIdentity(request, env, { fetcher, db } = {})
             providerName: PROVIDER_NAME_CLOUDFLARE_ACCESS,
             providerId: identity.email,
         });
-    } catch {
+    } catch (err) {
+        console.error("D1 role lookup failed", err);
         return jsonError("service unavailable", 503);
     }
 
