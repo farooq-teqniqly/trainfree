@@ -23,5 +23,9 @@ export async function extractIdentity(request, { getJwks, expectedIssuer, expect
     }
 
     const payload = await verifyAccessJwt(token, { getJwks, expectedIssuer, expectedAudience });
+    if (typeof payload.email !== "string" || payload.email.length === 0) {
+        throw new JwtVerificationError(new Error("JWT is missing a valid email claim"));
+    }
+
     return { email: payload.email };
 }

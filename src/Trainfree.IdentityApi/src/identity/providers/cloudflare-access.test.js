@@ -22,7 +22,7 @@ beforeAll(async () => {
 });
 
 async function signToken(email = "user@example.com") {
-    return new SignJWT({ email })
+    return new SignJWT(email === null ? {} : { email })
         .setProtectedHeader({ alg: "RS256", kid: KID })
         .setIssuer(ISSUER)
         .setAudience(AUDIENCE)
@@ -53,6 +53,18 @@ describe("extractIdentity", () => {
     it("throws JwtVerificationError when the CF_Authorization cookie is missing", async () => {
         await expect(
             extractIdentity(requestWithCookie(null), {
+                getJwks,
+                expectedIssuer: ISSUER,
+                expectedAudience: AUDIENCE,
+            }),
+        ).rejects.toThrow(JwtVerificationError);
+    });
+
+    it("throws JwtVerificationError when the token has no email claim", async () => {
+        const token = await signToken(null);
+
+        await expect(
+            extractIdentity(requestWithCookie(token), {
                 getJwks,
                 expectedIssuer: ISSUER,
                 expectedAudience: AUDIENCE,
