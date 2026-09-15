@@ -1,6 +1,6 @@
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { beforeAll, describe, expect, it } from "vitest";
-import { JwtVerificationError, verifyAccessJwt } from "./jwt.js";
+import { AudienceNotConfiguredError, JwtVerificationError, verifyAccessJwt } from "./jwt.js";
 
 const ISSUER = "https://trainfree.cloudflareaccess.com";
 const AUDIENCE = "trainfree-admin-audience";
@@ -79,11 +79,24 @@ describe("verifyAccessJwt", () => {
         ).rejects.toThrow(JwtVerificationError);
     });
 
-    it("rejects when no audience is configured for the caller, without checking any JWT claim", async () => {
+    it("rejects with AudienceNotConfiguredError when no audience is configured for the caller, without checking any JWT claim", async () => {
         const token = await sign();
 
         await expect(
             verifyAccessJwt(token, { getJwks, expectedIssuer: ISSUER, expectedAudience: undefined }),
+        ).rejects.toThrow(AudienceNotConfiguredError);
+    });
+
+    it("rejects a token with no exp claim", async () => {
+        const token = await new SignJWT({ email: "user@example.com" })
+            .setProtectedHeader({ alg: "RS256", kid: KID })
+            .setIssuer(ISSUER)
+            .setAudience(AUDIENCE)
+            .setIssuedAt()
+            .sign(privateKey);
+
+        await expect(
+            verifyAccessJwt(token, { getJwks, expectedIssuer: ISSUER, expectedAudience: AUDIENCE }),
         ).rejects.toThrow(JwtVerificationError);
     });
 });

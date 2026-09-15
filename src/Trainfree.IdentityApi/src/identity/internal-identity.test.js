@@ -278,4 +278,18 @@ describe("handleInternalIdentity -- infrastructure failures", () => {
         expect(response.status).toBe(503);
         expect(await response.json()).toEqual({ error: expect.any(String) });
     });
+
+    it("responds 503, not 401, when the named caller's audience env var is unset", async () => {
+        const token = await signToken();
+        const envWithoutAudience = { ...env, ADMIN_AUDIENCE: undefined };
+
+        const response = await handleInternalIdentity(
+            requestFor({ token, caller: "admin", key: env.ADMIN_INTERNAL_KEY }),
+            envWithoutAudience,
+            { fetcher: fakeJwksFetcher() },
+        );
+
+        expect(response.status).toBe(503);
+        expect(await response.json()).toEqual({ error: expect.any(String) });
+    });
 });
