@@ -12,6 +12,23 @@ function jsonError(message, status) {
     });
 }
 
+// Plain `===` short-circuits on the first differing byte, leaking a timing
+// side-channel on the one secret that actually gates this publicly-reachable
+// endpoint (see the comment above `handleInternalIdentity`). Compare every byte
+// regardless of where they first differ.
+function timingSafeEqual(a, b) {
+    const aBytes = new TextEncoder().encode(a);
+    const bBytes = new TextEncoder().encode(b);
+    if (aBytes.length !== bBytes.length) {
+        return false;
+    }
+    let diff = 0;
+    for (let i = 0; i < aBytes.length; i++) {
+        diff |= aBytes[i] ^ bBytes[i];
+    }
+    return diff === 0;
+}
+
 // GET /internal/identity -- the only route AdminApi/WorkoutApi call over their service
 // binding. `/internal/identity` is a naming convention only, not an access boundary:
 // this Worker also has a public hostname, so the per-caller internal key is what
@@ -31,7 +48,7 @@ export async function handleInternalIdentity(request, env, { fetcher, db } = {})
 
     const presentedKey = request.headers.get("X-Trainfree-Internal-Key");
     const expectedKey = env[caller.internalKeyVar];
-    if (!expectedKey || !presentedKey || presentedKey !== expectedKey) {
+    if (!expectedKey || !presentedKey || !timingSafeEqual(presentedKey, expectedKey)) {
         return jsonError("not found", 404);
     }
 
