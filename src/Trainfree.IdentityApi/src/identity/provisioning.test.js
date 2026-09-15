@@ -49,6 +49,28 @@ describe("provisionIdentity", () => {
         expect(batchSpy).not.toHaveBeenCalled();
     });
 
+    it("is a no-op for an already-provisioned identity even when --role names an unknown role", async () => {
+        // Arrange
+        const providerId = "already-provisioned-renamed-role@example.com";
+        await seedIdentity(env.DB, {
+            providerName: PROVIDER_NAME_CLOUDFLARE_ACCESS,
+            providerId,
+            roleId: "ROL-A3F7K2",
+        });
+        const batchSpy = vi.spyOn(env.DB, "batch");
+
+        // Act
+        const result = await provisionIdentity(env.DB, {
+            email: providerId,
+            providerName: PROVIDER_NAME_CLOUDFLARE_ACCESS,
+            roleName: "NotARoleAnymore",
+        });
+
+        // Assert
+        expect(result).toEqual({ created: false });
+        expect(batchSpy).not.toHaveBeenCalled();
+    });
+
     it("inserts the logins and users rows in a single db.batch() call when no identity exists yet", async () => {
         // Arrange
         const email = "new-identity@example.com";

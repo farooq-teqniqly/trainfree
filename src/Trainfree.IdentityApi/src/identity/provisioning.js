@@ -71,11 +71,6 @@ async function convergeOnConcurrentWinner(db, err, { providerName, email }) {
 //      `logins` unique constraint, re-read the pair the winner completed and converge
 //      on `{ created: false }` instead of surfacing the raw constraint error.
 export async function provisionIdentity(db, { email, providerName, roleName }) {
-    const role = await db.prepare("SELECT role_id as roleId FROM roles WHERE name = ?").bind(roleName).first();
-    if (!role) {
-        throw new UnknownRoleError(roleName);
-    }
-
     const existingLogin = await db
         .prepare(
             `SELECT logins.id as loginId, users.user_id as userId
@@ -86,11 +81,20 @@ export async function provisionIdentity(db, { email, providerName, roleName }) {
         .bind(providerName, email)
         .first();
 
-    const now = new Date().toISOString();
-
     if (existingLogin?.userId) {
         return { created: false };
     }
+
+    // Resolved only once the identity is known to need it (the orphan/new-insert
+    // branches below) -- looking this up unconditionally would throw UnknownRoleError
+    // for an already-provisioned identity whenever `--role` names a role that was since
+    // renamed/removed, when the correct result for that identity is the no-op above.
+    const role = await db.prepare("SELECT role_id as roleId FROM roles WHERE name = ?").bind(roleName).first();
+    if (!role) {
+        throw new UnknownRoleError(roleName);
+    }
+
+    const now = new Date().toISOString();
 
     if (existingLogin) {
         const userId = generateUserId();
