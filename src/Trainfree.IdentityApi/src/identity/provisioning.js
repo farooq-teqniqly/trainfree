@@ -24,11 +24,17 @@ export class UnknownRoleError extends Error {
 }
 
 // Adds a user's D1 identity (a logins row and its paired users row) after their email
-// is whitelisted in Cloudflare Access. Idempotent on the fully provisioned pair -- a
-// logins row alone (with no paired users row) would never resolve a role and would be
-// permanently unauthenticatable, so the check covers both, never just `logins`. When no
-// identity exists yet, both rows are inserted in a single db.batch() call so a failure
-// partway through leaves neither row present rather than an orphaned `logins` row.
+// is whitelisted in Cloudflare Access. Idempotent on the fully provisioned pair for
+// serial calls -- a logins row alone (with no paired users row) would never resolve a
+// role and would be permanently unauthenticatable, so the check covers both, never just
+// `logins`. When no identity exists yet, both rows are inserted in a single db.batch()
+// call so a failure partway through leaves neither row present rather than an orphaned
+// `logins` row. This is a manually-run, single-operator script: the existence check and
+// the insert are separate round trips, so two concurrent invocations for the same email
+// can both pass the check and race on `db.batch()` -- the losing call surfaces a raw D1
+// unique-constraint error rather than resolving to `{ created: false }`. Acceptable
+// because nothing calls this concurrently today; revisit if it grows a concurrent
+// caller (e.g. an admin UI).
 export async function provisionIdentity(db, { email, providerName, roleName }) {
     const role = await db.prepare("SELECT role_id as roleId FROM roles WHERE name = ?").bind(roleName).first();
     if (!role) {
