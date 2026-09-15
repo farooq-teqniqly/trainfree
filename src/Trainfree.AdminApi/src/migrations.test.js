@@ -1,6 +1,52 @@
 import { applyD1Migrations, env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
+async function insertProgram(db, { programId, userId }) {
+    return db
+        .prepare(
+            "INSERT INTO programs (program_id, name, created_at, updated_at, user_id) VALUES (?, ?, ?, ?, ?)",
+        )
+        .bind(programId, "Test Program", "2026-09-15T00:00:00.000Z", "2026-09-15T00:00:00.000Z", userId)
+        .run();
+}
+
+describe("0015_add_programs_user_id migration", () => {
+    it("adds a nullable user_id column that a pre-existing/owner-less program row keeps as NULL", async () => {
+        await insertProgram(env.DB, { programId: "PGM-NOOWNER1", userId: null });
+
+        const row = await env.DB.prepare("SELECT user_id FROM programs WHERE program_id = ?")
+            .bind("PGM-NOOWNER1")
+            .first();
+
+        expect(row).toEqual({ user_id: null });
+    });
+
+    it("enforces the user_id foreign key against users(user_id) -- an unknown value is rejected", async () => {
+        await expect(insertProgram(env.DB, { programId: "PGM-BADOWNER1", userId: "USR-NOTREAL" })).rejects.toThrow();
+    });
+
+    it("accepts a user_id that matches a real users row", async () => {
+        const now = "2026-09-15T00:00:00.000Z";
+        const loginResult = await env.DB.prepare(
+            "INSERT INTO logins (provider_name, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+            .bind("cloudflare-access", "migration-test-owner@example.com", now, now)
+            .run();
+        await env.DB.prepare(
+            "INSERT INTO users (user_id, login_id, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        )
+            .bind("USR-MIGTEST1", loginResult.meta.last_row_id, "ROL-A3F7K2", now, now)
+            .run();
+
+        await insertProgram(env.DB, { programId: "PGM-REALOWNER1", userId: "USR-MIGTEST1" });
+
+        const row = await env.DB.prepare("SELECT user_id FROM programs WHERE program_id = ?")
+            .bind("PGM-REALOWNER1")
+            .first();
+        expect(row).toEqual({ user_id: "USR-MIGTEST1" });
+    });
+});
+
 describe("0009_drop_categories migration", () => {
     it("drops the categories table", async () => {
         const table = await env.DB.prepare(
