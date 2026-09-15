@@ -84,5 +84,6 @@ describe("createJwksFetcher", () => {
 
         expect(firstResult).toEqual(fakeJwks);
         expect(secondResult).toEqual(fakeJwks);
+        expect(fetcher).toHaveBeenCalledTimes(2);
     });
 });
