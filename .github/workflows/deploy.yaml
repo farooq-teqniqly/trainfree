@@ -133,8 +133,9 @@ jobs:
   # already run against the remote database before this Worker goes live -- without
   # that ordering, GitHub Actions runs the two jobs in parallel and IdentityApi could
   # start serving before its tables exist. IdentityApi's Access application (task 9.3)
-  # is a separate one from Trainfree.Admin's, so it gets its own service-token secrets
-  # rather than reusing CF_ACCESS_CLIENT_ID/SECRET.
+  # is a separate one from Trainfree.Admin's, but its "Verify deployed version" step
+  # below reuses the same CF_ACCESS_CLIENT_ID/SECRET service-token secrets rather than
+  # a separate, newly minted pair -- see that step's own comment.
   deploy-identity-api:
     needs: deploy
     runs-on: ubuntu-latest
