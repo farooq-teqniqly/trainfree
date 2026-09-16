@@ -1,0 +1,8 @@
+# Copy to .dev.vars (gitignored) for local `wrangler dev`. In production this is set via
+# `wrangler secret put ADMIN_INTERNAL_KEY`, never committed here or in wrangler.jsonc.
+#
+# Mirrors Trainfree.IdentityApi/.dev.vars.example's ADMIN_INTERNAL_KEY entry -- copy the
+# same value into both Workers' .dev.vars. Not needed for everyday local dev, since
+# wrangler.jsonc's LOCAL_DEV_BYPASS bypasses the IDENTITY service-binding call entirely;
+# only required to exercise the real service-binding path locally (LOCAL_DEV_BYPASS unset).
+ADMIN_INTERNAL_KEY=

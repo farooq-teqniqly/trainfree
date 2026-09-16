@@ -78,9 +78,11 @@ can't silently break a test elsewhere; bypass with `git push --no-verify` if it 
 ## Local development
 
 Two servers run side by side to use the admin UI: the Worker (D1-backed API) and the
-Blazor dev server. A third, `IdentityApi`, runs independently -- no caller is wired up
-to it yet in this slice, so it's optional unless you're testing `/internal/identity`
-directly.
+Blazor dev server. `AdminApi` enforces the Administrator role on every data endpoint,
+but `wrangler.jsonc` sets `LOCAL_DEV_BYPASS` by default for local dev, substituting a
+synthetic local Administrator identity instead of calling `IdentityApi` -- see step 2
+below for the one-time seed row this needs. A third server, `IdentityApi`, only needs
+to run if you're testing the real (non-bypass) `/internal/identity` path directly.
 
 ### 1. Worker API
 
@@ -103,7 +105,31 @@ though both bind the same `database_id`, so without a shared `--persist-to`,
 `IdentityApi` would never see the `logins`/`users`/`roles` tables this migration
 creates.
 
-### 2. Blazor client
+### 2. Seed the local-dev identity (one-time)
+
+`identity.js`'s `LOCAL_DEV_BYPASS` branch looks up a real `users` row for
+`local-dev@trainfree.local` rather than fabricating a `userId` -- without it, every
+`AdminApi` data endpoint fails locally with a clear error instead of a silent bad
+`userId`. Seed it once, against the same shared local D1 step 1 just migrated:
+
+```sh
+cd src/Trainfree.IdentityApi
+npm install         # first time only
+npm run provision -- --email local-dev@trainfree.local --role Administrator
+```
+
+This uses `IdentityApi`'s own provisioning script (see step 4 below), not `wrangler
+dev` -- no server needs to be running for this command. It's idempotent: re-running it
+after the first time reports "already provisioned" and makes no changes, and
+[Reset the local database](#reset-the-local-database) requires re-running it.
+
+**Never append `--remote` to this exact command.** `provision-identity.js` also accepts
+`--remote` to target the deployed database (see step 4), but `local-dev@trainfree.local`
+is a synthetic identity meant only for the local D1 instance -- provisioning it remotely
+creates an unnecessary privileged Administrator row in production with no real Cloudflare
+Access identity behind it.
+
+### 3. Blazor client
 
 In a second terminal, from the repo root:
 
@@ -114,7 +140,19 @@ dotnet run --project src/Trainfree.Admin/Trainfree.Admin.csproj --launch-profile
 Serves on `http://localhost:5280`. `appsettings.Development.json` already points the
 client's API calls at `http://127.0.0.1:9999/api/`; no further setup needed.
 
-### 3. IdentityApi (optional)
+### 4. IdentityApi (optional)
+
+Not needed for everyday local dev of the admin UI -- step 2's seed row is enough for
+`LOCAL_DEV_BYPASS` to resolve a real identity without `IdentityApi` running at all. Run
+this only to exercise the real (non-bypass) `/internal/identity` service-binding path,
+e.g. to test `identity.js` with `LOCAL_DEV_BYPASS` unset in `wrangler.jsonc`.
+
+Exercising that path also requires setting `ADMIN_INTERNAL_KEY` in **`AdminApi`'s own**
+`.dev.vars` (`cp .dev.vars.example .dev.vars` from `src/Trainfree.AdminApi`, matching
+the value set below for `IdentityApi`) -- `identity.js`'s `callIdentityApi` sends that
+key on every non-bypass call and fails closed with `503` if it's unset, which is the
+correct production behavior but means unsetting `LOCAL_DEV_BYPASS` without also setting
+this value locally looks identical to `IdentityApi` being unreachable.
 
 `IdentityApi` has no migration step of its own -- it reads the `logins`/`users`/`roles`
 tables that `AdminApi`'s migration (`npm run db:migrate:local` above) owns, so run that
@@ -132,8 +170,8 @@ npm run dev
 ```
 
 This starts `wrangler dev` on `http://127.0.0.1:9998` (`AdminApi`'s dev server can stay
-running on 9999 at the same time). Since no app Worker calls it yet in this slice,
-exercise `/internal/identity` directly with `curl` to confirm it's up:
+running on 9999 at the same time). Exercise `/internal/identity` directly with `curl` to
+confirm it's up:
 
 ```sh
 curl -i http://127.0.0.1:9998/internal/identity
@@ -170,7 +208,26 @@ use the Cloudflare API/dashboard, reusing those same two reusable policies by ID
 than creating new ones; also set an `IDENTITY_API_BASE_URL` repo variable if you want to
 pin the poll's URL instead of relying on the deploy step's own output.
 
-### 4. Open the app
+#### ADMIN_INTERNAL_KEY (production, one-time)
+
+`AdminApi` enforces the Administrator role on every data endpoint by calling
+`IdentityApi` over its `IDENTITY` service binding, authenticating that call with the
+same internal-key secret `IdentityApi` already checks (see
+`Trainfree.IdentityApi/src/identity/config.js`'s `CALLER_CONFIG`). This is a
+manual, one-time step -- like the Access application above, it is not automated in
+`deploy.yaml`:
+
+```sh
+wrangler secret put ADMIN_INTERNAL_KEY  # from src/Trainfree.AdminApi
+wrangler secret put ADMIN_INTERNAL_KEY  # from src/Trainfree.IdentityApi
+```
+
+Both commands must be given the **same** value -- `IdentityApi` compares the value
+`AdminApi` presents against its own copy. Per `CLAUDE.md`'s "Prod API URL is never
+configured, per app" rule, this is a secret (not a `vars` entry), so it never appears in
+either Worker's `wrangler.jsonc`/`wrangler.deploy.jsonc`.
+
+### 5. Open the app
 
 Navigate to `http://localhost:5280/admin` for the admin UI (programs CRUD).
 
@@ -234,6 +291,14 @@ credentials, is `npm run db:migrate:remote`.
 rm -rf src/.wrangler-shared
 cd src/Trainfree.AdminApi
 npm run db:migrate:local
+```
+
+This also wipes the local-dev identity seed row (see "Local development" step 2) --
+re-run it, or every `AdminApi` data endpoint fails locally until you do:
+
+```sh
+cd src/Trainfree.IdentityApi
+npm run provision -- --email local-dev@trainfree.local --role Administrator
 ```
 
 ## OpenSpec changes

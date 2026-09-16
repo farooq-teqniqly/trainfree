@@ -13,6 +13,26 @@
     "dev": {
         "port": 9999
     },
+    // Local-only: no Cloudflare Access edge runs in front of `wrangler dev`, so
+    // identity.js substitutes a synthetic Administrator identity instead of calling
+    // IDENTITY -- see identity.js and CLAUDE-domain-driven-design-adjacent spec
+    // "Local dev bypasses the service-binding call, not the role check". Never set in
+    // wrangler.deploy.jsonc: a deployed Worker missing this must fail closed, not
+    // silently behave like local dev.
+    "vars": {
+        "LOCAL_DEV_BYPASS": "true"
+    },
+    // Routes GET /internal/identity calls to a locally running `wrangler dev` for
+    // Trainfree.IdentityApi (multi-worker local dev auto-discovers it by `service`
+    // name -- no "remote": true needed, unlike smoke-harness/wrangler.jsonc's binding
+    // of the same name, which deliberately reaches the deployed Worker instead). Only
+    // exercised when LOCAL_DEV_BYPASS is unset.
+    "services": [
+        {
+            "binding": "IDENTITY",
+            "service": "trainfree-identity-api"
+        }
+    ],
     "d1_databases": [
         {
             "binding": "DB",

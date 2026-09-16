@@ -9,6 +9,15 @@
     "main": "src/index.js",
     // Pinned to match wrangler.jsonc -- see that file's comment for why.
     "compatibility_date": "2025-09-06",
+    // No LOCAL_DEV_BYPASS var here -- see wrangler.jsonc's comment: a deployed Worker
+    // missing the binding/key below must fail closed with 503, never fall back to the
+    // local synthetic identity.
+    "services": [
+        {
+            "binding": "IDENTITY",
+            "service": "trainfree-identity-api"
+        }
+    ],
     "d1_databases": [
         {
             "binding": "DB",
