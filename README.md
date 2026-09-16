@@ -196,10 +196,10 @@ existing reusable Access policies rather than duplicating them):
 
 - `trainfree-ci` (non-identity, `any_valid_service_token`) -- lets CI's service token
   through. It's the *same* reusable policy already attached to `trainfree-admin`, so
-  `IDENTITY_API_CF_ACCESS_CLIENT_ID`/`IDENTITY_API_CF_ACCESS_CLIENT_SECRET` (the repo
-  secrets `deploy.yaml`'s `deploy-identity-api` job reads) should hold the same service
-  token credentials already used for `CF_ACCESS_CLIENT_ID`/`CF_ACCESS_CLIENT_SECRET`, not
-  a newly minted token.
+  `deploy.yaml`'s `deploy-identity-api` job reuses the *same*
+  `CF_ACCESS_CLIENT_ID`/`CF_ACCESS_CLIENT_SECRET` repo secrets `trainfree-admin`'s deploy
+  already uses, rather than reading a separate, newly minted `IDENTITY_API_`-prefixed
+  pair.
 - `trainfree - Production` (allow, owner's email) -- browser access for manual checks.
 
 This is a one-time setup step, not part of the deploy pipeline (same category as
