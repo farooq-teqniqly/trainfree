@@ -230,10 +230,56 @@ describe("createJwksFetcher", () => {
         await getJwks({ forceRefresh: true });
         const secondResult = await getJwks({ forceRefresh: true });
 
-        // The first forced call cached its result; the second, denied a real forced
-        // refresh by the cooldown, falls back to the normal (cache-hit) path instead of
-        // triggering a second upstream fetch.
+        // The second call, arriving within the cooldown, shares the first call's
+        // already-settled outcome instead of triggering a second upstream fetch.
         expect(secondResult).toEqual(fakeJwks);
+        expect(fetcher).toHaveBeenCalledTimes(1);
+    });
+
+    it("shares one fetch and result across concurrent forceRefresh callers instead of each racing a fetch", async () => {
+        let resolveFetch;
+        const fetcher = vi.fn().mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    resolveFetch = resolve;
+                }),
+        );
+        const getJwks = createJwksFetcher({
+            certsUrl: "https://example.cloudflareaccess.com/cdn-cgi/access/certs/concurrent-refresh",
+            fetcher,
+        });
+
+        const first = getJwks({ forceRefresh: true });
+        const second = getJwks({ forceRefresh: true });
+        resolveFetch(fakeJwksResponse());
+        const [firstResult, secondResult] = await Promise.all([first, second]);
+
+        expect(firstResult).toEqual(fakeJwks);
+        expect(secondResult).toEqual(fakeJwks);
+        expect(fetcher).toHaveBeenCalledTimes(1);
+    });
+
+    it("shares a failed forceRefresh's error with a concurrent caller instead of one falling back to a stale cache", async () => {
+        const certsUrl = "https://example.cloudflareaccess.com/cdn-cgi/access/certs/concurrent-refresh-failure";
+        // Seed a stale-but-still-structurally-valid cached entry -- the bug this test
+        // guards against is a second caller silently falling back to exactly this kind
+        // of stale data instead of seeing the refresh failure the first caller hit.
+        await caches.default.put(new Request(certsUrl), fakeJwksResponse());
+        let rejectFetch;
+        const fetcher = vi.fn().mockImplementation(
+            () =>
+                new Promise((_resolve, reject) => {
+                    rejectFetch = reject;
+                }),
+        );
+        const getJwks = createJwksFetcher({ certsUrl, fetcher });
+
+        const first = getJwks({ forceRefresh: true });
+        const second = getJwks({ forceRefresh: true });
+        rejectFetch(new Error("JWKS fetch failed with status 500"));
+
+        await expect(first).rejects.toThrow(/JWKS fetch failed/);
+        await expect(second).rejects.toThrow(/JWKS fetch failed/);
         expect(fetcher).toHaveBeenCalledTimes(1);
     });
 

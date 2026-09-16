@@ -3,23 +3,40 @@ import { importJWK } from "jose";
 // A forced refresh (see `getJwks`) is triggered by an untrusted input -- a JWT's `kid`
 // claim -- so an attacker presenting a stream of tokens with distinct, never-valid
 // `kid` values could otherwise force an upstream fetch on every single request,
-// bypassing the normal cache entirely. This per-`certsUrl` cooldown collapses repeated
-// forced refreshes within a short window into one real fetch; requests arriving during
-// the cooldown fall back to the normal (possibly cache-hit) path instead, so they still
-// get correctly rejected once, just without each one hitting the certs endpoint.
-// Module-scope state: only bounds the amplification within a single Worker isolate,
-// not globally, since nothing here uses a shared external store -- consistent with the
-// per-isolate nature of the Cache API this file already relies on.
+// bypassing the normal cache entirely. This per-`certsUrl` cooldown collapses
+// concurrent *and* repeated forced refreshes within a short window into one real fetch:
+// every caller -- whichever one arrives first, and every other one racing it or arriving
+// later while the cooldown is still active -- awaits that exact same outcome, success or
+// failure, rather than a second caller falling back to the stale cached set (which
+// during a genuine key rotation still lacks the key it needs) or silently missing an
+// infrastructure failure the first caller already hit. The cooldown is measured from
+// when the shared refresh actually settles, not when it started, so a slow or failing
+// fetch doesn't let a burst of callers each start their own duplicate request while the
+// first is still in flight.
+//
+// Module-scope state: only bounds this within a single Worker isolate, not globally
+// across a distributed deployment, since nothing here uses a shared external store --
+// the same limitation the Cache API itself already has in this file.
 const FORCED_REFRESH_COOLDOWN_MS = 5000;
-const lastForcedRefreshAt = new Map();
+const forcedRefreshes = new Map();
 
-function forcedRefreshAllowed(certsUrl) {
-    const last = lastForcedRefreshAt.get(certsUrl) ?? 0;
-    if (Date.now() - last < FORCED_REFRESH_COOLDOWN_MS) {
-        return false;
+function sharedForcedRefresh(certsUrl, refresh) {
+    const existing = forcedRefreshes.get(certsUrl);
+    if (existing && existing.expiresAt > Date.now()) {
+        return existing.promise;
     }
-    lastForcedRefreshAt.set(certsUrl, Date.now());
-    return true;
+
+    const promise = refresh();
+    // Settle the cooldown window from completion, not initiation, and do it via a
+    // trailing .then/.catch rather than awaiting here -- this function itself must stay
+    // synchronous-returning-a-promise so concurrent callers can retrieve and await the
+    // same in-flight promise before it resolves.
+    promise.then(
+        () => forcedRefreshes.set(certsUrl, { promise, expiresAt: Date.now() + FORCED_REFRESH_COOLDOWN_MS }),
+        () => forcedRefreshes.set(certsUrl, { promise, expiresAt: Date.now() + FORCED_REFRESH_COOLDOWN_MS }),
+    );
+    forcedRefreshes.set(certsUrl, { promise, expiresAt: Infinity });
+    return promise;
 }
 
 // `createLocalJWKSet` (jose) selects a key by matching the JWT header's `kid` against
@@ -70,29 +87,7 @@ async function sanitizeJwks(jwks) {
 export function createJwksFetcher({ certsUrl, fetcher = fetch, cache = caches.default }) {
     const cacheKey = new Request(certsUrl);
 
-    return async function getJwks({ forceRefresh = false } = {}) {
-        // `forceRefresh` skips straight to the upstream fetch -- used when a caller
-        // already knows the cached set doesn't have the key it needs (e.g. jwt.js
-        // retrying after a JWKSNoMatchingKey failure), so there's no point checking the
-        // cache again first. Subject to a cooldown (see forcedRefreshAllowed) so it
-        // can't be used to force an upstream fetch on every single request.
-        const effectiveForceRefresh = forceRefresh && forcedRefreshAllowed(certsUrl);
-        if (!effectiveForceRefresh) {
-            const cached = await cache.match(cacheKey);
-            if (cached) {
-                // A cached entry can't be un-cached from here (the Cache API has no
-                // atomic "invalidate and refetch"), but re-validating on every hit at
-                // least turns a previously-cached-but-now-invalid or corrupted document
-                // into an immediate, retryable error rather than a silent, prolonged
-                // authentication outage with no obvious cause.
-                const cachedJwks = await cached.json().catch(() => null);
-                const sanitized = await sanitizeJwks(cachedJwks);
-                if (sanitized) {
-                    return sanitized.jwks;
-                }
-            }
-        }
-
+    async function fetchSanitizeAndCache() {
         const response = await fetcher(certsUrl);
         if (!response.ok) {
             throw new Error(`JWKS fetch failed with status ${response.status}`);
@@ -130,5 +125,33 @@ export function createJwksFetcher({ certsUrl, fetcher = fetch, cache = caches.de
             }),
         );
         return sanitized.jwks;
+    }
+
+    return async function getJwks({ forceRefresh = false } = {}) {
+        // `forceRefresh` skips straight to the upstream fetch -- used when a caller
+        // already knows the cached set doesn't have the key it needs (e.g. jwt.js
+        // retrying after a JWKSNoMatchingKey failure), so there's no point checking the
+        // cache again first. Routed through sharedForcedRefresh so concurrent/rapid
+        // forced calls share one real fetch and its exact outcome, success or failure,
+        // instead of a second caller falling back to the stale cache.
+        if (forceRefresh) {
+            return sharedForcedRefresh(certsUrl, fetchSanitizeAndCache);
+        }
+
+        const cached = await cache.match(cacheKey);
+        if (cached) {
+            // A cached entry can't be un-cached from here (the Cache API has no atomic
+            // "invalidate and refetch"), but re-validating on every hit at least turns a
+            // previously-cached-but-now-invalid or corrupted document into an immediate,
+            // retryable error rather than a silent, prolonged authentication outage with
+            // no obvious cause.
+            const cachedJwks = await cached.json().catch(() => null);
+            const sanitized = await sanitizeJwks(cachedJwks);
+            if (sanitized) {
+                return sanitized.jwks;
+            }
+        }
+
+        return fetchSanitizeAndCache();
     };
 }
