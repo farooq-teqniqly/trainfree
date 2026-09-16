@@ -9,8 +9,9 @@ architecture rules (why three Workers, why no shared assets Worker, etc.) live i
 
 ## Workers
 
-Three Workers, one physical D1 database. See `CLAUDE.md` for the full rationale ("Two
-apps, one Worker each").
+Two Workers exist today (`trainfree-admin`, `trainfree-identity-api`); a third
+(`trainfree-workout`) is planned. All bind one physical D1 database. See `CLAUDE.md` for
+the full rationale ("Two apps, one Worker each").
 
 | Worker | Config | Public? | Purpose |
 | --- | --- | --- | --- |
@@ -34,9 +35,10 @@ this call (audience mismatch, plus the caller may not be Access-whitelisted).
   deploy pipeline (same category as R2 bucket creation, once that's needed -- see
   `CLAUDE.md`).
 - Ownership is per-table, not per-Worker: `AdminApi`'s migrations
-  (`src/Trainfree.AdminApi/migrations/`) own `programs`/`sessions`/`phases`/`exercises`
-  *and* `logins`/`users`/`roles` (added for identity). `IdentityApi` reads/writes the
-  identity tables only and has no migration history of its own.
+  (`src/Trainfree.AdminApi/migrations/`) own `programs`/`sessions`/`phases`/`exercises`/
+  `session_phases`/`program_exercises` *and* `logins`/`users`/`roles` (added for
+  identity). `IdentityApi` reads/writes the identity tables only and has no migration
+  history of its own.
 - `deploy.yaml`'s `deploy` job runs `wrangler d1 migrations apply trainfree_db --remote`
   before either Worker deploys, and `deploy-identity-api` depends on that job (`needs:
   deploy`) so identity tables exist before `trainfree-identity-api` goes live.
