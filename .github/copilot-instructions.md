@@ -60,3 +60,15 @@ Respect these deliberate baseline conventions and do not flag them as defects:
   thread `PRRT_kwDOTsuKxs6fgNip`, raised twice, disputed once). Do not flag a
   `sealed partial class` code-behind file as a conflict on that basis alone --
   a conflict between genuinely contradictory modifiers is still worth flagging.
+- AdminApi's `checkIdentity`/`enforceAdministrator`/`handleMe` relay IdentityApi's
+  401/403/503 by status code only (`new Response(null, { status })`), discarding
+  the upstream JSON body and headers. This is deliberate, not a bug: the frozen
+  spec (openspec/specs/admin-api-enforcement/spec.md, "IdentityApi's own 401/403
+  are relayed verbatim") and its own Given/When/Then scenarios only assert
+  status-code equivalence, and every existing passing test for this path
+  (index.test.js's `enforceAdministrator`/`handleMe` describe blocks) likewise
+  only asserts `response.status`. Decided in PR #129, raised and declined three
+  times across that PR's review (identity.js/index.js 401/403 body-relay
+  findings). Do not flag this as dropping the response body/content-type/
+  cache headers -- "verbatim" in this spec's actual definition means the status
+  code, not the full response.
