@@ -217,12 +217,17 @@ jobs:
 
       # Same script as the Admin sequence -- it is already parameterized entirely
       # through environment variables, so no IdentityApi-specific fork is needed.
+      # Reuses CF_ACCESS_CLIENT_ID/SECRET (not IDENTITY_API_-prefixed secrets):
+      # trainfree-identity-api's Access application reuses the same trainfree-ci
+      # reusable policy/service token as trainfree-admin's, by ID, so the two
+      # apps share one CI credential -- see CLAUDE.md's "Cloudflare Access
+      # applications are provisioned via the Cloudflare API" rule.
       - name: Verify deployed version
         timeout-minutes: 10
         env:
           BASE_URL: ${{ vars.IDENTITY_API_BASE_URL || steps.deploy.outputs.deployment-url }}
-          CF_ACCESS_CLIENT_ID: ${{ secrets.IDENTITY_API_CF_ACCESS_CLIENT_ID }}
-          CF_ACCESS_CLIENT_SECRET: ${{ secrets.IDENTITY_API_CF_ACCESS_CLIENT_SECRET }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
           EXPECTED_VERSION: ${{ steps.stamp.outputs.version }}
           EXPECTED_COMMIT: ${{ steps.stamp.outputs.commit }}
         run: bash .github/scripts/verify-deployed-version.sh
