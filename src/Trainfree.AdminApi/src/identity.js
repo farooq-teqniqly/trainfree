@@ -104,7 +104,7 @@ function isValidIdentity(identity) {
 // env.LOCAL_DEV_BYPASS is set (never in a deployed environment -- see
 // wrangler.deploy.jsonc), otherwise the real IdentityApi service-binding call.
 export async function checkIdentity(request, env) {
-    if (env.LOCAL_DEV_BYPASS) {
+    if (env.LOCAL_DEV_BYPASS === "true") {
         const identity = await resolveLocalDevIdentity(env.DB);
         return { ok: true, identity };
     }

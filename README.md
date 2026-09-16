@@ -123,6 +123,12 @@ dev` -- no server needs to be running for this command. It's idempotent: re-runn
 after the first time reports "already provisioned" and makes no changes, and
 [Reset the local database](#reset-the-local-database) requires re-running it.
 
+**Never append `--remote` to this exact command.** `provision-identity.js` also accepts
+`--remote` to target the deployed database (see step 4), but `local-dev@trainfree.local`
+is a synthetic identity meant only for the local D1 instance -- provisioning it remotely
+creates an unnecessary privileged Administrator row in production with no real Cloudflare
+Access identity behind it.
+
 ### 3. Blazor client
 
 In a second terminal, from the repo root:
