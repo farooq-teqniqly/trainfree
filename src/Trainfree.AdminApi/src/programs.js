@@ -18,6 +18,10 @@ export async function listPrograms(db) {
 }
 
 export async function createProgram(db, name, userId) {
+    if (typeof userId !== "string" || userId.length === 0) {
+        throw new Error("createProgram requires a non-empty userId.");
+    }
+
     const now = new Date().toISOString();
 
     for (let attempt = 1; attempt <= MAX_ID_GENERATION_ATTEMPTS; attempt++) {
@@ -28,7 +32,7 @@ export async function createProgram(db, name, userId) {
                 .prepare(
                     "INSERT INTO programs (program_id, name, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
                 )
-                .bind(id, name, userId ?? null, now, now)
+                .bind(id, name, userId, now, now)
                 .run();
             return { id, name, createdAt: now, updatedAt: now };
         } catch (err) {

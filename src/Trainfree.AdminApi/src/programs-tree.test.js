@@ -8,6 +8,9 @@ import { createExercise } from "./exercises.js";
 import { createSessionPhase } from "./session-phases.js";
 import { createProgramExercise } from "./program-exercises.js";
 
+// test/apply-migrations.js seeds this local-dev user for every test file's D1 instance.
+const SEEDED_USER_ID = "USR-LOCALDEV";
+
 describe("listProgramsTree", () => {
     it("returns an empty array when there are no programs", async () => {
         const tree = await listProgramsTree(env.DB);
@@ -16,7 +19,7 @@ describe("listProgramsTree", () => {
     });
 
     it("includes a program with no sessions as an empty sessions array", async () => {
-        await createProgram(env.DB, "Workout A");
+        await createProgram(env.DB, "Workout A", SEEDED_USER_ID);
 
         const tree = await listProgramsTree(env.DB);
 
@@ -25,7 +28,7 @@ describe("listProgramsTree", () => {
     });
 
     it("includes a session with no phases as an empty phases array", async () => {
-        const program = await createProgram(env.DB, "Workout A");
+        const program = await createProgram(env.DB, "Workout A", SEEDED_USER_ID);
         await createSession(env.DB, program.id, "Monday Lower Body");
 
         const tree = await listProgramsTree(env.DB);
@@ -35,7 +38,7 @@ describe("listProgramsTree", () => {
     });
 
     it("includes a session phase with no exercises as an empty exercises array", async () => {
-        const program = await createProgram(env.DB, "Workout A");
+        const program = await createProgram(env.DB, "Workout A", SEEDED_USER_ID);
         const session = await createSession(env.DB, program.id, "Monday Lower Body");
         const phase = await createPhase(env.DB, "Warm Up");
         await createSessionPhase(env.DB, session.id, phase.id);
@@ -49,8 +52,8 @@ describe("listProgramsTree", () => {
     });
 
     it("groups a fully populated tree under the correct parents", async () => {
-        const programA = await createProgram(env.DB, "Workout A");
-        const programB = await createProgram(env.DB, "Workout B");
+        const programA = await createProgram(env.DB, "Workout A", SEEDED_USER_ID);
+        const programB = await createProgram(env.DB, "Workout B", SEEDED_USER_ID);
         const sessionA = await createSession(env.DB, programA.id, "Monday Lower Body");
         const sessionB = await createSession(env.DB, programB.id, "Tuesday Upper Body");
         const phase = await createPhase(env.DB, "Warm Up");

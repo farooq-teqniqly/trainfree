@@ -8,10 +8,13 @@ import { createSessionPhase } from "./session-phases.js";
 import { createProgramExercise } from "./program-exercises.js";
 import { ExerciseInUseError } from "./errors.js";
 
+// test/apply-migrations.js seeds this local-dev user for every test file's D1 instance.
+const SEEDED_USER_ID = "USR-LOCALDEV";
+
 describe("deleteExercise", () => {
     it("throws ExerciseInUseError and makes no change when the exercise is referenced by a program exercise", async () => {
         const exercise = await createExercise(env.DB, "Bodyweight Squat");
-        const program = await createProgram(env.DB, "Workout A");
+        const program = await createProgram(env.DB, "Workout A", SEEDED_USER_ID);
         const session = await createSession(env.DB, program.id, "Monday Lower Body");
         const phase = await createPhase(env.DB, "Warm Up");
         const sessionPhase = await createSessionPhase(env.DB, session.id, phase.id);

@@ -16,12 +16,11 @@ describe("createProgram", () => {
         expect(row.userId).toBe(SEEDED_USER_ID);
     });
 
-    it("leaves user_id null when no userId is passed", async () => {
-        await createProgram(env.DB, "Workout A");
+    it("throws when no userId is passed", async () => {
+        await expect(createProgram(env.DB, "Workout A")).rejects.toThrow(/non-empty userId/);
+    });
 
-        const row = await env.DB.prepare("SELECT user_id as userId FROM programs WHERE name = ?")
-            .bind("Workout A")
-            .first();
-        expect(row.userId).toBeNull();
+    it("throws when userId is an empty string", async () => {
+        await expect(createProgram(env.DB, "Workout A", "")).rejects.toThrow(/non-empty userId/);
     });
 });

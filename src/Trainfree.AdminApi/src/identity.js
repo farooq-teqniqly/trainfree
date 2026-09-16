@@ -77,7 +77,27 @@ async function callIdentityApi(request, env) {
         console.error("IdentityApi returned a 200 with an unparseable body", err);
         return { ok: false, status: 503 };
     }
+
+    if (!isValidIdentity(identity)) {
+        console.error("IdentityApi returned a 200 with a malformed identity body", identity);
+        return { ok: false, status: 503 };
+    }
+
     return { ok: true, identity };
+}
+
+// Guards against an incomplete-but-parseable 200 response (e.g. a valid Administrator
+// role with no usable userId) reaching a caller like createProgram, which would
+// otherwise silently record an ownerless row -- see PR #129 review discussion.
+function isValidIdentity(identity) {
+    return (
+        typeof identity?.email === "string" &&
+        identity.email.length > 0 &&
+        typeof identity?.userId === "string" &&
+        identity.userId.length > 0 &&
+        typeof identity?.role === "string" &&
+        identity.role.length > 0
+    );
 }
 
 // Resolves the caller's identity: the synthetic local-dev identity when

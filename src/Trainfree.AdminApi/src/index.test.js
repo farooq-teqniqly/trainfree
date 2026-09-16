@@ -301,14 +301,14 @@ describe("GET /api/programs with multiple rows", () => {
     it("breaks a created_at tie using insertion order", async () => {
         const tiedTimestamp = new Date().toISOString();
         await env.DB.prepare(
-            "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO programs (program_id, name, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
         )
-            .bind("PRG-ZZZZZZ", "Inserted First", tiedTimestamp, tiedTimestamp)
+            .bind("PRG-ZZZZZZ", "Inserted First", "USR-LOCALDEV", tiedTimestamp, tiedTimestamp)
             .run();
         await env.DB.prepare(
-            "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO programs (program_id, name, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
         )
-            .bind("PRG-AAAAAA", "Inserted Second", tiedTimestamp, tiedTimestamp)
+            .bind("PRG-AAAAAA", "Inserted Second", "USR-LOCALDEV", tiedTimestamp, tiedTimestamp)
             .run();
 
         const response = await SELF.fetch("http://worker/api/programs");
@@ -1981,19 +1981,55 @@ describe("Identity enforcement wiring (via D1, under LOCAL_DEV_BYPASS)", () => {
 
     it("GET /api/programs/:id/sessions calls the enforcement check before its handler", async () => {
         // Inserted directly (not via createProgram/SELF.fetch, which would itself need
-        // the seed identity) and with no user_id, so deleting the seed row below doesn't
-        // trip the FK constraint programs.user_id -> users.user_id.
+        // the seed identity) and owned by a throwaway login/user pair unrelated to the
+        // seed identity, so deleting the seed identity below doesn't trip D1's enforced
+        // FK from programs.user_id -> users.user_id.
         const now = new Date().toISOString();
         await env.DB.prepare(
-            "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO logins (provider_name, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?)",
         )
-            .bind("PRG-NOOWNR", "Workout A", now, now)
+            .bind("cloudflare-access", "throwaway-owner@trainfree.local", now, now)
+            .run();
+        await env.DB.prepare(
+            `INSERT INTO users (user_id, login_id, role_id, created_at, updated_at)
+             SELECT ?, logins.id, ?, ?, ?
+             FROM logins WHERE provider_name = ? AND provider_id = ?`,
+        )
+            .bind(
+                "USR-NOOWNR1",
+                "ROL-A3F7K2",
+                now,
+                now,
+                "cloudflare-access",
+                "throwaway-owner@trainfree.local",
+            )
+            .run();
+        await env.DB.prepare(
+            "INSERT INTO programs (program_id, name, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        )
+            .bind("PRG-NOOWNR", "Workout A", "USR-NOOWNR1", now, now)
             .run();
         await deleteLocalDevSeed();
 
         await expect(
             SELF.fetch("http://worker/api/programs/PRG-NOOWNR/sessions"),
         ).rejects.toThrow(/no local-dev identity is seeded/);
+    });
+
+    it("GET /api/phases calls the enforcement check before its handler", async () => {
+        await deleteLocalDevSeed();
+
+        await expect(SELF.fetch("http://worker/api/phases")).rejects.toThrow(
+            /no local-dev identity is seeded/,
+        );
+    });
+
+    it("GET /api/exercises calls the enforcement check before its handler", async () => {
+        await deleteLocalDevSeed();
+
+        await expect(SELF.fetch("http://worker/api/exercises")).rejects.toThrow(
+            /no local-dev identity is seeded/,
+        );
     });
 
     it("GET /api/me calls the enforcement check", async () => {

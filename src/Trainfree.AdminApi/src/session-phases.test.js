@@ -10,9 +10,12 @@ import {
     sessionExists,
 } from "./session-phases.js";
 
+// test/apply-migrations.js seeds this local-dev user for every test file's D1 instance.
+const SEEDED_USER_ID = "USR-LOCALDEV";
+
 describe("sessionExists", () => {
     it("returns true for a session that exists under that program", async () => {
-        const program = await createProgram(env.DB, "Workout A");
+        const program = await createProgram(env.DB, "Workout A", SEEDED_USER_ID);
         const session = await createSession(env.DB, program.id, "Monday Lower Body");
 
         const result = await sessionExists(env.DB, program.id, session.id);
@@ -21,7 +24,7 @@ describe("sessionExists", () => {
     });
 
     it("returns false for a sessionId that does not exist", async () => {
-        const program = await createProgram(env.DB, "Workout A");
+        const program = await createProgram(env.DB, "Workout A", SEEDED_USER_ID);
 
         const result = await sessionExists(env.DB, program.id, "SNN-ZZZZZZ");
 
@@ -29,8 +32,8 @@ describe("sessionExists", () => {
     });
 
     it("returns false for a sessionId that exists under a different program", async () => {
-        const programA = await createProgram(env.DB, "Workout A");
-        const programB = await createProgram(env.DB, "Workout B");
+        const programA = await createProgram(env.DB, "Workout A", SEEDED_USER_ID);
+        const programB = await createProgram(env.DB, "Workout B", SEEDED_USER_ID);
         const session = await createSession(env.DB, programA.id, "Monday Lower Body");
 
         const result = await sessionExists(env.DB, programB.id, session.id);
@@ -45,7 +48,7 @@ describe("listSessionPhases", () => {
     let phase;
 
     beforeEach(async () => {
-        program = await createProgram(env.DB, "Workout A");
+        program = await createProgram(env.DB, "Workout A", SEEDED_USER_ID);
         session = await createSession(env.DB, program.id, "Monday Lower Body");
         phase = await createPhase(env.DB, "Warm Up");
     });
@@ -114,7 +117,7 @@ describe("createSessionPhase", () => {
     let phase;
 
     beforeEach(async () => {
-        program = await createProgram(env.DB, "Workout A");
+        program = await createProgram(env.DB, "Workout A", SEEDED_USER_ID);
         session = await createSession(env.DB, program.id, "Monday Lower Body");
         phase = await createPhase(env.DB, "Warm Up");
     });
@@ -142,7 +145,7 @@ describe("createSessionPhase", () => {
 
 describe("deleteSessionPhase", () => {
     it("returns true and removes the row for an existing session phase", async () => {
-        const program = await createProgram(env.DB, "Workout A");
+        const program = await createProgram(env.DB, "Workout A", SEEDED_USER_ID);
         const session = await createSession(env.DB, program.id, "Monday Lower Body");
         const phase = await createPhase(env.DB, "Warm Up");
         const sessionPhase = await createSessionPhase(env.DB, session.id, phase.id);
@@ -154,7 +157,7 @@ describe("deleteSessionPhase", () => {
     });
 
     it("returns false for an id that does not exist", async () => {
-        const program = await createProgram(env.DB, "Workout A");
+        const program = await createProgram(env.DB, "Workout A", SEEDED_USER_ID);
         const session = await createSession(env.DB, program.id, "Monday Lower Body");
 
         const result = await deleteSessionPhase(env.DB, session.id, "SPH-ZZZZZZ");
@@ -163,7 +166,7 @@ describe("deleteSessionPhase", () => {
     });
 
     it("returns false for an id belonging to a different session", async () => {
-        const program = await createProgram(env.DB, "Workout A");
+        const program = await createProgram(env.DB, "Workout A", SEEDED_USER_ID);
         const sessionA = await createSession(env.DB, program.id, "Monday Lower Body");
         const sessionB = await createSession(env.DB, program.id, "Wednesday Upper Body");
         const phase = await createPhase(env.DB, "Warm Up");
