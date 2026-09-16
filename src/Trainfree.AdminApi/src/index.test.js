@@ -2161,6 +2161,7 @@ describe("handleMe", () => {
 
         expect(response.status).toBe(200);
         expect(await response.json()).toEqual({ email: "a@x.com", role: "Administrator" });
+        expect(response.headers.get("cache-control")).toBe("no-store");
     });
 
     it("returns 200 with role User, unlike other endpoints which would 403", async () => {

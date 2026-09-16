@@ -172,6 +172,24 @@ describe("checkIdentity", () => {
         expect(result).toEqual({ ok: false, status: 503 });
     });
 
+    it("uses the real IdentityApi call, not the local-dev bypass, when LOCAL_DEV_BYPASS is the string \"false\"", async () => {
+        const testEnv = makeEnv({ LOCAL_DEV_BYPASS: "false" });
+        testEnv.IDENTITY.fetch.mockResolvedValue(
+            new Response(
+                JSON.stringify({ email: "a@x.com", userId: "USR-ABC123", role: "Administrator" }),
+                { status: 200 },
+            ),
+        );
+
+        const result = await checkIdentity(makeRequest(), testEnv);
+
+        expect(result).toEqual({
+            ok: true,
+            identity: { email: "a@x.com", userId: "USR-ABC123", role: "Administrator" },
+        });
+        expect(testEnv.IDENTITY.fetch).toHaveBeenCalled();
+    });
+
     it("substitutes the synthetic identity without calling IDENTITY when LOCAL_DEV_BYPASS is set", async () => {
         const testEnv = makeEnv({ LOCAL_DEV_BYPASS: "true" });
 

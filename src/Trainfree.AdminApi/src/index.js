@@ -127,7 +127,12 @@ async function handleMe(request, env) {
         return new Response(null, { status: result.status });
     }
 
-    return jsonResponse({ email: result.identity.email, role: result.identity.role });
+    // no-store: this is per-caller identity data, and an intermediary caching a JSON
+    // response by URL alone (ignoring the Cookie it varied on) could serve one
+    // caller's email/role to another.
+    const response = jsonResponse({ email: result.identity.email, role: result.identity.role });
+    response.headers.set("cache-control", "no-store");
+    return response;
 }
 
 async function handleProgramsTree(request, db) {
