@@ -1,5 +1,5 @@
 import { env, SELF } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 async function createProgram(name) {
     return SELF.fetch("http://worker/api/programs", {
@@ -1921,5 +1921,256 @@ describe("GET /api/programs-tree", () => {
         });
 
         expect(response.status).toBe(405);
+    });
+});
+
+// vitest-pool-workers bakes wrangler.jsonc's `vars`/`services` bindings into the
+// Miniflare runtime at startup -- mutating the `env` object imported from
+// "cloudflare:test" does not change what SELF.fetch's worker instance sees on the next
+// request (verified empirically: assigning env.LOCAL_DEV_BYPASS/env.IDENTITY here has no
+// effect on a subsequent SELF.fetch call). So every SELF.fetch call in this file runs
+// under LOCAL_DEV_BYPASS, and the tests below verify the enforcement wiring two ways:
+// (1) through D1, which genuinely is mutable per test (deleting the seed row makes
+// identity.js's bypass branch throw, proving a given route does call it, while a route
+// that's exempt keeps succeeding); (2) by unit-testing enforceAdministrator/handleMe
+// directly (exported by index.js) against a fake env, the same way identity.test.js
+// unit-tests checkIdentity -- this covers the 401/403/503/Administrator/User mapping
+// that requires controlling IdentityApi's response, which SELF.fetch's fixed bypass
+// config can't exercise.
+import { enforceAdministrator, handleMe } from "./index.js";
+
+async function deleteLocalDevSeed() {
+    await env.DB.prepare(
+        `DELETE FROM users WHERE login_id IN (
+             SELECT id FROM logins WHERE provider_name = ? AND provider_id = ?
+         )`,
+    )
+        .bind("cloudflare-access", "local-dev@trainfree.local")
+        .run();
+    await env.DB.prepare("DELETE FROM logins WHERE provider_name = ? AND provider_id = ?")
+        .bind("cloudflare-access", "local-dev@trainfree.local")
+        .run();
+}
+
+function makeFakeEnv(overrides = {}) {
+    return {
+        DB: env.DB,
+        IDENTITY: { fetch: vi.fn() },
+        ADMIN_INTERNAL_KEY: "the-internal-key",
+        ...overrides,
+    };
+}
+
+function identityFetch(status, body) {
+    return vi.fn().mockResolvedValue(
+        new Response(body ? JSON.stringify(body) : null, {
+            status,
+            headers: body ? { "content-type": "application/json" } : {},
+        }),
+    );
+}
+
+describe("Identity enforcement wiring (via D1, under LOCAL_DEV_BYPASS)", () => {
+    it("GET /api/programs-tree calls the enforcement check before its handler", async () => {
+        await deleteLocalDevSeed();
+
+        await expect(SELF.fetch("http://worker/api/programs-tree")).rejects.toThrow(
+            /no local-dev identity is seeded/,
+        );
+    });
+
+    it("GET /api/programs/:id/sessions calls the enforcement check before its handler", async () => {
+        // Inserted directly (not via createProgram/SELF.fetch, which would itself need
+        // the seed identity) and with no user_id, so deleting the seed row below doesn't
+        // trip the FK constraint programs.user_id -> users.user_id.
+        const now = new Date().toISOString();
+        await env.DB.prepare(
+            "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+            .bind("PRG-NOOWNR", "Workout A", now, now)
+            .run();
+        await deleteLocalDevSeed();
+
+        await expect(
+            SELF.fetch("http://worker/api/programs/PRG-NOOWNR/sessions"),
+        ).rejects.toThrow(/no local-dev identity is seeded/);
+    });
+
+    it("GET /api/me calls the enforcement check", async () => {
+        await deleteLocalDevSeed();
+
+        await expect(SELF.fetch("http://worker/api/me")).rejects.toThrow(
+            /no local-dev identity is seeded/,
+        );
+    });
+
+    it("GET /api/version makes no enforcement call, so it still succeeds with no identity seeded", async () => {
+        await deleteLocalDevSeed();
+
+        const response = await SELF.fetch("http://worker/api/version");
+
+        expect(response.status).toBe(200);
+    });
+
+    it("an OPTIONS preflight makes no enforcement call, so it still succeeds with no identity seeded", async () => {
+        await deleteLocalDevSeed();
+
+        const response = await SELF.fetch("http://worker/api/programs", {
+            method: "OPTIONS",
+            headers: {
+                "Access-Control-Request-Method": "POST",
+                Origin: "http://localhost:5280",
+            },
+        });
+
+        expect(response.status).toBe(204);
+    });
+
+    it("succeeds and attributes the created program to the caller under LOCAL_DEV_BYPASS", async () => {
+        const response = await createProgram("Workout A");
+        const program = await response.json();
+
+        expect(response.status).toBe(201);
+        const row = await env.DB.prepare(
+            "SELECT user_id as userId FROM programs WHERE program_id = ?",
+        )
+            .bind(program.id)
+            .first();
+        expect(row.userId).toBe("USR-LOCALDEV");
+    });
+});
+
+describe("enforceAdministrator", () => {
+    it("relays IdentityApi's 401 verbatim without an identity", async () => {
+        const fakeEnv = makeFakeEnv({ IDENTITY: { fetch: identityFetch(401) } });
+
+        const result = await enforceAdministrator(new Request("http://worker/api/programs"), fakeEnv);
+
+        expect(result.response.status).toBe(401);
+        expect(result.identity).toBeUndefined();
+    });
+
+    it("relays IdentityApi's 403 verbatim without an identity", async () => {
+        const fakeEnv = makeFakeEnv({ IDENTITY: { fetch: identityFetch(403) } });
+
+        const result = await enforceAdministrator(new Request("http://worker/api/programs"), fakeEnv);
+
+        expect(result.response.status).toBe(403);
+    });
+
+    it("surfaces IdentityApi's 503 as 503", async () => {
+        const fakeEnv = makeFakeEnv({ IDENTITY: { fetch: identityFetch(503) } });
+
+        const result = await enforceAdministrator(new Request("http://worker/api/programs"), fakeEnv);
+
+        expect(result.response.status).toBe(503);
+    });
+
+    it("responds 503 when IDENTITY is absent (deployed context missing the binding)", async () => {
+        const fakeEnv = makeFakeEnv({ IDENTITY: undefined });
+
+        const result = await enforceAdministrator(new Request("http://worker/api/programs"), fakeEnv);
+
+        expect(result.response.status).toBe(503);
+    });
+
+    it("synthesizes its own 403 for a provisioned User identity, without an identity", async () => {
+        const fakeEnv = makeFakeEnv({
+            IDENTITY: {
+                fetch: identityFetch(200, { email: "u@x.com", userId: "USR-USER01", role: "User" }),
+            },
+        });
+
+        const result = await enforceAdministrator(new Request("http://worker/api/programs"), fakeEnv);
+
+        expect(result.response.status).toBe(403);
+        expect(result.identity).toBeUndefined();
+    });
+
+    it("returns the resolved identity for a provisioned Administrator, with no response to short-circuit", async () => {
+        const fakeEnv = makeFakeEnv({
+            IDENTITY: {
+                fetch: identityFetch(200, {
+                    email: "a@x.com",
+                    userId: "USR-ADMIN01",
+                    role: "Administrator",
+                }),
+            },
+        });
+
+        const result = await enforceAdministrator(new Request("http://worker/api/programs"), fakeEnv);
+
+        expect(result.response).toBeUndefined();
+        expect(result.identity).toEqual({
+            email: "a@x.com",
+            userId: "USR-ADMIN01",
+            role: "Administrator",
+        });
+    });
+});
+
+describe("handleMe", () => {
+    it("returns 200 with email and role for an Administrator identity, omitting userId", async () => {
+        const fakeEnv = makeFakeEnv({
+            IDENTITY: {
+                fetch: identityFetch(200, {
+                    email: "a@x.com",
+                    userId: "USR-ADMIN01",
+                    role: "Administrator",
+                }),
+            },
+        });
+
+        const response = await handleMe(new Request("http://worker/api/me"), fakeEnv);
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual({ email: "a@x.com", role: "Administrator" });
+    });
+
+    it("returns 200 with role User, unlike other endpoints which would 403", async () => {
+        const fakeEnv = makeFakeEnv({
+            IDENTITY: {
+                fetch: identityFetch(200, { email: "u@x.com", userId: "USR-USER01", role: "User" }),
+            },
+        });
+
+        const response = await handleMe(new Request("http://worker/api/me"), fakeEnv);
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual({ email: "u@x.com", role: "User" });
+    });
+
+    it("relays IdentityApi's 401 verbatim", async () => {
+        const fakeEnv = makeFakeEnv({ IDENTITY: { fetch: identityFetch(401) } });
+
+        const response = await handleMe(new Request("http://worker/api/me"), fakeEnv);
+
+        expect(response.status).toBe(401);
+    });
+
+    it("relays IdentityApi's 403 verbatim", async () => {
+        const fakeEnv = makeFakeEnv({ IDENTITY: { fetch: identityFetch(403) } });
+
+        const response = await handleMe(new Request("http://worker/api/me"), fakeEnv);
+
+        expect(response.status).toBe(403);
+    });
+
+    it("surfaces IdentityApi's 503 as 503", async () => {
+        const fakeEnv = makeFakeEnv({ IDENTITY: { fetch: identityFetch(503) } });
+
+        const response = await handleMe(new Request("http://worker/api/me"), fakeEnv);
+
+        expect(response.status).toBe(503);
+    });
+
+    it("makes no call to IDENTITY under LOCAL_DEV_BYPASS and returns the synthetic identity, via SELF.fetch", async () => {
+        const response = await SELF.fetch("http://worker/api/me");
+
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual({
+            email: "local-dev@trainfree.local",
+            role: "Administrator",
+        });
     });
 });

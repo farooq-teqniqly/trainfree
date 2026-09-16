@@ -17,7 +17,7 @@ export async function listPrograms(db) {
     return results;
 }
 
-export async function createProgram(db, name) {
+export async function createProgram(db, name, userId) {
     const now = new Date().toISOString();
 
     for (let attempt = 1; attempt <= MAX_ID_GENERATION_ATTEMPTS; attempt++) {
@@ -26,9 +26,9 @@ export async function createProgram(db, name) {
         try {
             await db
                 .prepare(
-                    "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                    "INSERT INTO programs (program_id, name, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
                 )
-                .bind(id, name, now, now)
+                .bind(id, name, userId ?? null, now, now)
                 .run();
             return { id, name, createdAt: now, updatedAt: now };
         } catch (err) {

@@ -35,6 +35,7 @@ import {
     updateProgramExercise,
 } from "./program-exercises.js";
 import { listProgramsTree } from "./programs-tree.js";
+import { checkIdentity, isAdministrator } from "./identity.js";
 import {
     validateCreateProgramExercise,
     validateExerciseName,
@@ -99,6 +100,36 @@ function handleVersion(request, env) {
     return response;
 }
 
+// Runs the IdentityApi enforcement check for every data endpoint except GET /api/me
+// (see handleMe): on ok:false, relays that status verbatim with no body; on ok:true with
+// a non-Administrator identity, synthesizes AdminApi's own 403 (distinct from
+// IdentityApi's own 401/403, which are never folded into this one -- see spec's
+// "Non-Administrator identities are rejected with 403"). Returns the resolved identity
+// so route handlers that need it (e.g. createProgram's owner) don't re-check.
+async function enforceAdministrator(request, env) {
+    const result = await checkIdentity(request, env);
+    if (!result.ok) {
+        return { response: new Response(null, { status: result.status }) };
+    }
+    if (!isAdministrator(result.identity)) {
+        return { response: jsonResponse({ error: "forbidden" }, 403) };
+    }
+    return { identity: result.identity };
+}
+
+async function handleMe(request, env) {
+    if (request.method !== "GET") {
+        return new Response("Method not allowed", { status: 405 });
+    }
+
+    const result = await checkIdentity(request, env);
+    if (!result.ok) {
+        return new Response(null, { status: result.status });
+    }
+
+    return jsonResponse({ email: result.identity.email, role: result.identity.role });
+}
+
 async function handleProgramsTree(request, db) {
     if (request.method !== "GET") {
         return new Response("Method not allowed", { status: 405 });
@@ -107,7 +138,7 @@ async function handleProgramsTree(request, db) {
     return jsonResponse(await listProgramsTree(db));
 }
 
-async function handleProgramsCollection(request, db) {
+async function handleProgramsCollection(request, db, userId) {
     if (request.method === "GET") {
         return jsonResponse(await listPrograms(db));
     }
@@ -119,7 +150,7 @@ async function handleProgramsCollection(request, db) {
             return jsonResponse({ error: validation.error }, 400);
         }
         try {
-            return jsonResponse(await createProgram(db, validation.name), 201);
+            return jsonResponse(await createProgram(db, validation.name, userId), 201);
         } catch (err) {
             if (err instanceof DuplicateNameError) {
                 return jsonResponse({ error: err.message }, 409);
@@ -549,11 +580,11 @@ async function routeSessions(request, env, segments) {
 }
 
 // /api/programs (collection, length 2) or /api/programs/:id (resource, length 3).
-async function routeProgramResourceOrCollection(request, env, segments) {
+async function routeProgramResourceOrCollection(request, env, segments, identity) {
     const id = segments[2];
     const response = id
         ? await handleProgramResource(request, env.DB, id)
-        : await handleProgramsCollection(request, env.DB);
+        : await handleProgramsCollection(request, env.DB, identity.userId);
     return withCors(response, request);
 }
 
@@ -561,7 +592,7 @@ async function routeProgramResourceOrCollection(request, env, segments) {
 // nesting levels from deepest to shallowest; anything past those, including trailing
 // segments, is not a route this function owns, so it returns null and the caller falls
 // through to notFoundOrAssets.
-async function routePrograms(request, env, segments) {
+async function routePrograms(request, env, segments, identity) {
     if (isProgramExercisesRoute(segments)) {
         return routeProgramExercises(request, env, segments);
     }
@@ -578,7 +609,7 @@ async function routePrograms(request, env, segments) {
         return null;
     }
 
-    return routeProgramResourceOrCollection(request, env, segments);
+    return routeProgramResourceOrCollection(request, env, segments, identity);
 }
 
 export default {
@@ -594,20 +625,34 @@ export default {
             return withCors(handleVersion(request, env), request);
         }
 
-        if (segments[0] === "api" && segments[1] === "programs-tree") {
+        if (segments[0] === "api" && segments[1] === "me" && segments.length === 2) {
+            return withCors(await handleMe(request, env), request);
+        }
+
+        if (segments[0] !== "api") {
+            return notFoundOrAssets(request, env);
+        }
+
+        const enforcement = await enforceAdministrator(request, env);
+        if (enforcement.response) {
+            return withCors(enforcement.response, request);
+        }
+        const { identity } = enforcement;
+
+        if (segments[1] === "programs-tree") {
             return routeProgramsTree(request, env, segments);
         }
 
-        if (segments[0] === "api" && segments[1] === "phases") {
+        if (segments[1] === "phases") {
             return routePhases(request, env, segments);
         }
 
-        if (segments[0] === "api" && segments[1] === "exercises") {
+        if (segments[1] === "exercises") {
             return routeExercises(request, env, segments);
         }
 
-        if (segments[0] === "api" && segments[1] === "programs") {
-            const response = await routePrograms(request, env, segments);
+        if (segments[1] === "programs") {
+            const response = await routePrograms(request, env, segments, identity);
             if (response) {
                 return response;
             }
@@ -616,3 +661,10 @@ export default {
         return notFoundOrAssets(request, env);
     },
 };
+
+// Exported for direct unit testing (see index.test.js): the enforcement wiring maps
+// checkIdentity's normalized result to a status code/response shape that's simplest to
+// verify by calling these directly with a fake env, rather than through SELF.fetch --
+// SELF.fetch always runs under wrangler.jsonc's LOCAL_DEV_BYPASS var, which vitest's
+// Miniflare instance treats as fixed at startup (not overridable per test).
+export { enforceAdministrator, handleMe };
