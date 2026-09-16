@@ -70,7 +70,13 @@ async function callIdentityApi(request, env) {
         return { ok: false, status: 503 };
     }
 
-    const identity = await response.json();
+    let identity;
+    try {
+        identity = await response.json();
+    } catch (err) {
+        console.error("IdentityApi returned a 200 with an unparseable body", err);
+        return { ok: false, status: 503 };
+    }
     return { ok: true, identity };
 }
 

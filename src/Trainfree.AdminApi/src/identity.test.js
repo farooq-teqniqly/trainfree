@@ -85,6 +85,15 @@ describe("checkIdentity", () => {
         expect(result).toEqual({ ok: false, status: 503 });
     });
 
+    it("returns ok:false status:503 when a 200 response body is not valid JSON", async () => {
+        const testEnv = makeEnv();
+        testEnv.IDENTITY.fetch.mockResolvedValue(new Response("not json", { status: 200 }));
+
+        const result = await checkIdentity(makeRequest(), testEnv);
+
+        expect(result).toEqual({ ok: false, status: 503 });
+    });
+
     it("returns ok:false status:503 when the service-binding call throws", async () => {
         const testEnv = makeEnv();
         testEnv.IDENTITY.fetch.mockRejectedValue(new Error("timed out"));
