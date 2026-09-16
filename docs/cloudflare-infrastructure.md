@@ -26,10 +26,13 @@ this call (audience mismatch, plus the caller may not be Access-whitelisted).
 ## D1
 
 - One physical database, `trainfree_db` (`database_id:
-  f99013f2-e1c9-48d7-9f63-cfb3c853f421`), bound by all three Workers under the binding
-  name `DB`. Not a secret -- committed in each Worker's `wrangler.jsonc`.
+  f99013f2-e1c9-48d7-9f63-cfb3c853f421`), bound by both existing Workers
+  (`trainfree-admin`, `trainfree-identity-api`) under the binding name `DB`; the future
+  `trainfree-workout` Worker will bind it too once built. Not a secret -- committed in
+  each Worker's `wrangler.jsonc`.
 - Created once with `wrangler d1 create trainfree_db`, a one-time setup step outside the
-  deploy pipeline (same category as `r2 bucket create` -- see `CLAUDE.md`).
+  deploy pipeline (same category as R2 bucket creation, once that's needed -- see
+  `CLAUDE.md`).
 - Ownership is per-table, not per-Worker: `AdminApi`'s migrations
   (`src/Trainfree.AdminApi/migrations/`) own `programs`/`sessions`/`phases`/`exercises`
   *and* `logins`/`users`/`roles` (added for identity). `IdentityApi` reads/writes the
@@ -44,9 +47,11 @@ this call (audience mismatch, plus the caller may not be Access-whitelisted).
 
 ## R2
 
-Exercise images. Bucket created once via `wrangler r2 bucket create`, same one-time-setup
-category as D1 above; the URL is stored on the `Exercise` record in D1, not the image
-itself.
+**Not yet provisioned.** Planned for exercise images (see `CLAUDE.md` and the roadmap's
+Exercises slice): a bucket created once via `wrangler r2 bucket create`, same
+one-time-setup category as D1 above, with the URL stored on the `Exercise` record in D1
+rather than the image itself. No `r2_buckets` binding exists in any Worker's
+`wrangler.jsonc` yet -- add this section's detail once that slice lands.
 
 ## Cloudflare Access
 
@@ -99,9 +104,11 @@ deployable before `WorkoutApi` exists.
 | `ADMIN_INTERNAL_KEY` | `wrangler secret put` in each Worker, one-time, manual | Authenticates `AdminApi` -> `IdentityApi` service-binding calls; both Workers must be given the **same** value (see README.md's "ADMIN_INTERNAL_KEY" section) |
 | `WORKOUT_INTERNAL_KEY` | not yet set | Will authenticate `WorkoutApi` -> `IdentityApi` calls once `WorkoutApi` exists |
 
-None of these appear in `wrangler.jsonc`/`wrangler.deploy.jsonc` -- per `CLAUDE.md`'s
-"Prod API URL is never configured, per app" rule, anything secret is a Wrangler secret,
-never a `vars` entry.
+The first two rows are **GitHub Actions repo secrets**, consumed by `deploy.yaml` itself
+(the CI runner's credentials, never seen by the Workers). The last two are **Wrangler
+secrets** set directly on each Worker (`wrangler secret put`) and read by the Worker's
+own code at runtime -- neither appears in `wrangler.jsonc`/`wrangler.deploy.jsonc` as a
+`vars` entry, per `CLAUDE.md`'s "Prod API URL is never configured, per app" rule.
 
 ## Observability
 
@@ -109,32 +116,38 @@ Both `trainfree-admin` and `trainfree-identity-api` enable Workers Logs
 (`observability.logs`, with `invocation_logs`) and Traces
 (`observability.traces`, `head_sampling_rate: 1`, `persist: true`) in their
 `wrangler.jsonc`/`wrangler.deploy.jsonc`. No external log sink -- inspect via the
-Cloudflare dashboard or the `cloudflare-observability` MCP tools.
+Cloudflare dashboard's Workers Observability tab.
 
 ## Deploy stamping
 
-Every deploy is stamped twice with the same `<tag>+<short-sha>` value: once into the
-Blazor assembly (`-p:InformationalVersion`) and once into the Worker
-(`--var APP_VERSION/APP_COMMIT`). `deploy.yaml` polls the live `GET /api/version` after
-each deploy and fails the job if it doesn't match, catching a Worker deployed without the
-vars in CI instead of by opening the site. See `CLAUDE.md`'s "Every deploy is stamped
-twice" rule for the full mechanism, including why `Trainfree.Versioning` needs its own
-SHA-suffix stripping.
+`deploy.yaml`'s `deploy` job (`trainfree-admin`) stamps the same value twice: once into
+the Blazor assembly (`-p:InformationalVersion`) and once into the Worker
+(`--var APP_VERSION/APP_COMMIT`), so the client can compare its compiled-in stamp against
+the Worker's `GET /api/version`. `deploy-identity-api` has no Blazor client, so it only
+stamps the Worker vars -- there's no assembly-side comparison for `IdentityApi`. Both
+jobs' post-deploy step polls the live `GET /api/version` and fails if it doesn't match
+what was just deployed. The stamp value is `${GITHUB_REF_NAME}+<short-sha>` -- on a tag
+push this is `<tag>+<short-sha>`, but a manual `workflow_dispatch` run against `main`
+stamps `main+<short-sha>` instead. See `CLAUDE.md`'s "Every deploy is stamped twice" rule
+for the full mechanism, including why `Trainfree.Versioning` needs its own SHA-suffix
+stripping.
 
 ## One-time setup steps (not part of the deploy pipeline)
 
 These are run once, by hand, and are never re-run by CI:
 
 1. `wrangler d1 create trainfree_db`
-2. `wrangler r2 bucket create <name>`
-3. Create the two Access applications above via the Cloudflare API/dashboard, reusing
+2. Create the two Access applications above via the Cloudflare API/dashboard, reusing
    the two reusable policies
-4. `wrangler secret put ADMIN_INTERNAL_KEY` against both `trainfree-admin` and
+3. `wrangler secret put ADMIN_INTERNAL_KEY` against both `trainfree-admin` and
    `trainfree-identity-api`, with the same value
-5. Provision at least one `Administrator` identity in D1 (see
+4. Provision at least one `Administrator` identity in D1 (see
    `src/Trainfree.IdentityApi/scripts/provision-identity.js` and
    `docs/identity/rollout-runbook.md`, archived, for the historical first-rollout
    sequencing of this step)
+
+Not yet needed: `wrangler r2 bucket create <name>` for exercise images -- add it here
+once that slice lands (see the R2 section above).
 
 ## See also
 
