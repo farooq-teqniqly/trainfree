@@ -1,4 +1,12 @@
-# Slice 1/2 rollout runbook
+# Slice 1/2 rollout runbook (archived)
+
+**Archived: both slices have shipped** (`IdentityApi` in #124-128, `AdminApi`
+enforcement in #129). This runbook is kept only as the historical record of that
+one-time rollout's ordering requirement -- it is not a procedure to re-run. For the
+current, ongoing state of Cloudflare infrastructure (Access applications, D1, secrets,
+Workers), see `docs/cloudflare-infrastructure.md` instead.
+
+---
 
 `IdentityApi` (slice 1) and `AdminApi`'s enforcement of it (slice 2, not yet built) must
 deploy in this exact order. Deploying slice 2 before any D1 identity exists locks out
