@@ -45,8 +45,8 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
 - `GET /api/me` is the one exception to the Administrator-only rule: it returns
   `200 { "email": string, "role": "Administrator" | "User" }` for *any* provisioned
   identity, Administrator or User, by relaying `IdentityApi`'s `200` response as-is
-  minus the internal `userId` field (browser-facing, no reason to expose the surrogate
-  key). It relays `IdentityApi`'s `401`/`403` the same as every other endpoint -- those
+  minus the internal `userId` field (browser-facing, no reason to expose an internal
+  identifier the UI never uses). It relays `IdentityApi`'s `401`/`403` the same as every other endpoint -- those
   still mean "couldn't authenticate" / "no matching identity" respectively, not "wrong
   role."
 - Every write endpoint that creates a `programs` row (`createProgram` and any future
@@ -122,7 +122,7 @@ to verify the request's JWT and look up the caller's role, then proxies the resu
   `POST /api/programs`) still executes its real create/read/update/delete code against
   local D1 using this identity's `userId`, it just never makes the network call to
   `IdentityApi` to obtain that identity.
-  The `userId` in that identity cannot be an arbitrary/synthetic number:
+  The `userId` in that identity cannot be an arbitrary/synthetic string:
   `programs.user_id` is a foreign key into `users` (see `identity-intent.md`'s schema
   section), so a made-up `userId` with no matching `users` row would make every local
   `POST /api/programs` fail its own FK constraint. This row must not come from the

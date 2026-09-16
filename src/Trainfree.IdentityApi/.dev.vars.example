@@ -1,0 +1,14 @@
+# Copy to .dev.vars (gitignored) for local `wrangler dev`. In production these are set
+# via `wrangler secret put <NAME>` against the deployed Worker, never committed here or
+# in wrangler.jsonc. WORKOUT_INTERNAL_KEY is a placeholder until Trainfree.WorkoutApi
+# exists (see CLAUDE.md's "Two apps, one Worker each" rule).
+#
+# These two secrets alone are not enough for a real 200 locally: wrangler.jsonc's
+# ACCESS_TEAM_DOMAIN/ADMIN_AUDIENCE are still REPLACE_WITH_... placeholders (they're
+# non-secret `vars`, so they belong in wrangler.jsonc, not here) until the real
+# Cloudflare Access application values are set -- see verify-identity-api-rollout's
+# tasks. Until then, a request with a real Access JWT fails issuer/audience validation
+# before D1 lookup ever runs; only the internal-key-check paths (404s) and D1-path
+# failures (503) are exercisable locally.
+ADMIN_INTERNAL_KEY=
+WORKOUT_INTERNAL_KEY=

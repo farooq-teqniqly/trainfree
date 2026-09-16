@@ -77,7 +77,10 @@ can't silently break a test elsewhere; bypass with `git push --no-verify` if it 
 
 ## Local development
 
-Two servers run side by side: the Worker (D1-backed API) and the Blazor dev server.
+Two servers run side by side to use the admin UI: the Worker (D1-backed API) and the
+Blazor dev server. A third, `IdentityApi`, runs independently -- no caller is wired up
+to it yet in this slice, so it's optional unless you're testing `/internal/identity`
+directly.
 
 ### 1. Worker API
 
@@ -93,6 +96,13 @@ This starts `wrangler dev` on `http://127.0.0.1:9999`. The `predev` step runs
 has been observed to leak orphaned listeners on port 8787 across restarts on Windows,
 which is why this project pins to 9999 instead (see `wrangler.jsonc`'s `dev.port`).
 
+`npm run dev`/`npm run db:migrate:local` both pass `--persist-to ../.wrangler-shared`,
+a directory shared with `IdentityApi`'s own local dev (see step 3) -- each Worker's
+`wrangler dev` otherwise creates its own separate `.wrangler/state` SQLite file even
+though both bind the same `database_id`, so without a shared `--persist-to`,
+`IdentityApi` would never see the `logins`/`users`/`roles` tables this migration
+creates.
+
 ### 2. Blazor client
 
 In a second terminal, from the repo root:
@@ -104,7 +114,63 @@ dotnet run --project src/Trainfree.Admin/Trainfree.Admin.csproj --launch-profile
 Serves on `http://localhost:5280`. `appsettings.Development.json` already points the
 client's API calls at `http://127.0.0.1:9999/api/`; no further setup needed.
 
-### 3. Open the app
+### 3. IdentityApi (optional)
+
+`IdentityApi` has no migration step of its own -- it reads the `logins`/`users`/`roles`
+tables that `AdminApi`'s migration (`npm run db:migrate:local` above) owns, so run that
+first if you haven't. Its own `npm run dev` also passes `--persist-to
+../.wrangler-shared` (the same directory step 1 migrated), which is what actually makes
+those tables visible here -- without it, `IdentityApi` would read its own separate,
+empty local D1 state and every provisioning/lookup would fail with missing tables. In a
+third terminal:
+
+```sh
+cd src/Trainfree.IdentityApi
+npm install         # first time only
+cp .dev.vars.example .dev.vars   # first time only; fill in ADMIN_INTERNAL_KEY locally
+npm run dev
+```
+
+This starts `wrangler dev` on `http://127.0.0.1:9998` (`AdminApi`'s dev server can stay
+running on 9999 at the same time). Since no app Worker calls it yet in this slice,
+exercise `/internal/identity` directly with `curl` to confirm it's up:
+
+```sh
+curl -i http://127.0.0.1:9998/internal/identity
+# -> 401, missing X-Trainfree-Caller
+
+curl -i http://127.0.0.1:9998/internal/identity -H "X-Trainfree-Caller: admin"
+# -> 404, missing/wrong X-Trainfree-Internal-Key (checked before the JWT)
+```
+
+Getting a real `200` additionally requires a valid Cloudflare Access JWT and a
+provisioned identity (a run of `npm run provision` -- see
+`src/Trainfree.IdentityApi/scripts/provision-identity.js`) -- the two responses above are
+enough to confirm the Worker itself is running correctly.
+
+### Cloudflare Access application (production, one-time)
+
+`IdentityApi`'s own public hostname (`trainfree-identity-api.<workers.dev subdomain>`,
+distinct from `Trainfree.Admin`'s) is gated by its own Cloudflare Access application --
+this is what `deploy.yaml`'s post-deploy `GET /api/version` poll authenticates against.
+It was created once via the Cloudflare API (self-hosted app, reusing the account's two
+existing reusable Access policies rather than duplicating them):
+
+- `trainfree-ci` (non-identity, `any_valid_service_token`) -- lets CI's service token
+  through. It's the *same* reusable policy already attached to `trainfree-admin`, so
+  `IDENTITY_API_CF_ACCESS_CLIENT_ID`/`IDENTITY_API_CF_ACCESS_CLIENT_SECRET` (the repo
+  secrets `deploy.yaml`'s `deploy-identity-api` job reads) should hold the same service
+  token credentials already used for `CF_ACCESS_CLIENT_ID`/`CF_ACCESS_CLIENT_SECRET`, not
+  a newly minted token.
+- `trainfree - Production` (allow, owner's email) -- browser access for manual checks.
+
+This is a one-time setup step, not part of the deploy pipeline (same category as
+`wrangler d1 create`/`r2 bucket create` -- see `CLAUDE.md`). If it ever needs recreating,
+use the Cloudflare API/dashboard, reusing those same two reusable policies by ID rather
+than creating new ones; also set an `IDENTITY_API_BASE_URL` repo variable if you want to
+pin the poll's URL instead of relying on the deploy step's own output.
+
+### 4. Open the app
 
 Navigate to `http://localhost:5280/admin` for the admin UI (programs CRUD).
 
@@ -125,16 +191,18 @@ remote one, and it works without Cloudflare credentials. Run it on first checkou
 every `git pull` that adds a migration. `wrangler` tracks which files have already run, so
 re-running is a no-op.
 
-The local database is a plain SQLite file, written by Miniflare to:
+The local database is a plain SQLite file, written by Miniflare to the shared
+`--persist-to` directory both `AdminApi` and `IdentityApi` point their local dev at (see
+"Local development" step 1 above):
 
 ```text
-src/Trainfree.AdminApi/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/
+src/.wrangler-shared/v3/d1/miniflare-D1DatabaseObject/
 ```
 
 The `.sqlite` file with the long hex name is the database itself (`metadata.sqlite` next to
 it is Miniflare's own bookkeeping, not your data). Open it with any SQLite client to inspect
-tables or rows directly. The whole `.wrangler` directory is generated and git-ignored --
-never commit it, and deleting it is a safe reset (see
+tables or rows directly. The whole `.wrangler-shared` directory is generated and
+git-ignored -- never commit it, and deleting it is a safe reset (see
 [Reset the local database](#reset-the-local-database)).
 
 Note that the local database is separate from the one the tests use: `vitest` applies the
@@ -163,7 +231,8 @@ credentials, is `npm run db:migrate:remote`.
 ### Reset the local database
 
 ```sh
-rm -rf .wrangler
+rm -rf src/.wrangler-shared
+cd src/Trainfree.AdminApi
 npm run db:migrate:local
 ```
 
