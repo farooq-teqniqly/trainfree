@@ -1,0 +1,27 @@
+{
+    // Dedicated remote-provisioning config (verify-identity-api-rollout task 2.2) --
+    // never deployed, and deliberately separate from IdentityApi's own wrangler.jsonc.
+    // getPlatformProxy's remoteBindings option only routes a binding remotely if that
+    // binding's own config also declares "remote": true -- the shared wrangler.jsonc
+    // deliberately doesn't (plain local dev/`npm run provision` would otherwise hit
+    // production D1 by default). This config sets it so `provision-identity.js --remote`
+    // genuinely reaches the deployed trainfree_db database, mirroring
+    // smoke-harness/wrangler.jsonc's separate-config pattern for the same reason.
+    "name": "trainfree-identity-provision-remote",
+    // Present only because wrangler's config schema requires it; provision-identity.js
+    // reaches this config through `getPlatformProxy`, not `wrangler dev`/`deploy`, so no
+    // handler is ever invoked.
+    "main": "provision-identity.js",
+    "compatibility_date": "2025-09-06",
+    "d1_databases": [
+        {
+            "binding": "DB",
+            "database_name": "trainfree_db",
+            // Same physical database as the shared wrangler.jsonc's binding -- see that
+            // file's comment. "remote": true is the only difference: it's what makes
+            // getPlatformProxy's remoteBindings option actually route to production.
+            "database_id": "f99013f2-e1c9-48d7-9f63-cfb3c853f421",
+            "remote": true
+        }
+    ]
+}

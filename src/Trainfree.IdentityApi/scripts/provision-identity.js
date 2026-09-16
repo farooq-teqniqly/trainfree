@@ -7,16 +7,14 @@
 // README.md's "Local development" section) since that's where the logins/users/roles
 // tables actually get created.
 //
-// KNOWN LIMITATION: `--remote` alone does not yet reach the real deployed database.
-// `getPlatformProxy`'s `remoteBindings` option only takes effect for a binding that
-// itself declares `"remote": true` in the config file passed via `configPath`; this
-// project's shared wrangler.jsonc deliberately does not set that (it would make plain
-// `wrangler dev`/local `npm run provision` hit production D1 by default). Reaching the
-// real database from this script needs its own dedicated config with `remote: true` on
-// the D1 binding, mirroring smoke-harness/wrangler.jsonc's separate-config pattern --
-// tracked in the verify-identity-api-rollout change, since task 2.2 there is exactly
-// where this gap would otherwise surface as "provisioning against --remote silently
-// wrote to the wrong database."
+// `--remote` reaches the real deployed database via wrangler.remote.jsonc, a dedicated
+// config with `"remote": true` on the D1 binding. `getPlatformProxy`'s `remoteBindings`
+// option only takes effect for a binding that itself declares `"remote": true` in the
+// config file passed via `configPath`; the shared wrangler.jsonc deliberately does not
+// set that (it would make plain `wrangler dev`/local `npm run provision` hit production
+// D1 by default), so a local run keeps using the shared config while `--remote` switches
+// to wrangler.remote.jsonc -- mirroring smoke-harness/wrangler.jsonc's separate-config
+// pattern for the same reason.
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPlatformProxy } from "wrangler";
@@ -57,8 +55,12 @@ function parseArgs(argv) {
 async function main() {
     const { email, roleName, remote } = parseArgs(process.argv.slice(2));
 
+    const configPath = remote
+        ? path.join(__dirname, "wrangler.remote.jsonc")
+        : path.join(__dirname, "..", "wrangler.jsonc");
+
     const { env, dispose } = await getPlatformProxy({
-        configPath: path.join(__dirname, "..", "wrangler.jsonc"),
+        configPath,
         persist: { path: path.join(__dirname, "..", "..", ".wrangler-shared", "v3") },
         remoteBindings: remote,
     });
