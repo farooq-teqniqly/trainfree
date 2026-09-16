@@ -168,6 +168,50 @@ describe("0016_make_programs_user_id_not_null migration", () => {
         expect(sessionPhase).not.toBeNull();
         expect(programExercise).not.toBeNull();
     });
+
+    it("still allows renaming a legacy ownerless program, but rejects explicitly nulling user_id", async () => {
+        // Regression test for a second real bug from the same review round: an
+        // unscoped `BEFORE UPDATE ON programs` trigger would also fire for a rename
+        // that never touches user_id, because SQLite carries a column's old value into
+        // NEW for any UPDATE that doesn't set it -- so a legacy pre-0015 row with a
+        // NULL owner could never be renamed. Scoping the trigger to
+        // `BEFORE UPDATE OF user_id` fixes this.
+        const now = "2026-09-16T00:00:00.000Z";
+        // The INSERT trigger would reject a NULL user_id outright, so insert the
+        // legacy ownerless row with the triggers dropped, then recreate them --
+        // mirroring how such a row could only exist from before migration 0016 (or
+        // 0015) ever ran.
+        await env.DB.prepare("DROP TRIGGER trg_programs_user_id_not_null_insert").run();
+        await env.DB.prepare("DROP TRIGGER trg_programs_user_id_not_null_update").run();
+        await env.DB.prepare(
+            "INSERT INTO programs (program_id, name, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        )
+            .bind("PGM-LEGACY01", "Legacy Program", null, now, now)
+            .run();
+        await env.DB.prepare("DELETE FROM d1_migrations WHERE name = ?")
+            .bind("0016_make_programs_user_id_not_null.sql")
+            .run();
+        await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
+
+        await expect(
+            env.DB.prepare("UPDATE programs SET name = ?, updated_at = ? WHERE program_id = ?")
+                .bind("Renamed Legacy Program", now, "PGM-LEGACY01")
+                .run(),
+        ).resolves.toBeTruthy();
+
+        const renamed = await env.DB.prepare(
+            "SELECT name FROM programs WHERE program_id = ?",
+        )
+            .bind("PGM-LEGACY01")
+            .first();
+        expect(renamed).toEqual({ name: "Renamed Legacy Program" });
+
+        await expect(
+            env.DB.prepare("UPDATE programs SET user_id = NULL WHERE program_id = ?")
+                .bind("PGM-LEGACY01")
+                .run(),
+        ).rejects.toThrow(/user_id must not be NULL/);
+    });
 });
 
 describe("0009_drop_categories migration", () => {

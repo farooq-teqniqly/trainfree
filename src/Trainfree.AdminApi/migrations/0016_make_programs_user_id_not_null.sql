@@ -24,8 +24,13 @@ BEGIN
     SELECT RAISE(ABORT, 'programs.user_id must not be NULL');
 END;
 
+-- Scoped to "OF user_id" (fires only when an UPDATE's SET list names that column), not
+-- every UPDATE: a legacy pre-0015 row with no owner could otherwise never be renamed --
+-- SQLite carries a column's old value into NEW for any UPDATE that doesn't set it, so an
+-- unscoped trigger would see NEW.user_id IS NULL and reject a rename that never touched
+-- user_id at all.
 CREATE TRIGGER trg_programs_user_id_not_null_update
-BEFORE UPDATE ON programs
+BEFORE UPDATE OF user_id ON programs
 WHEN NEW.user_id IS NULL
 BEGIN
     SELECT RAISE(ABORT, 'programs.user_id must not be NULL');
