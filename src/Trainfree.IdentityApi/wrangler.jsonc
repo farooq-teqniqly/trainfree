@@ -17,7 +17,7 @@
     // Cloudflare Access applications created manually in task 9.3; these are
     // placeholders until that setup exists.
     "vars": {
-        "ACCESS_TEAM_DOMAIN": "farooqamahmud.cloudflareaccess.com",
+        "ACCESS_TEAM_DOMAIN": "farooqamahmud",
         "ADMIN_AUDIENCE": "1c140eb69bf9b50094a779f6481ea195a8f8871495585daa5750427ea5c74fab",
         "WORKOUT_AUDIENCE": "REPLACE_WITH_TRAINFREE_WORKOUT_ACCESS_AUDIENCE"
     },
