@@ -27,6 +27,22 @@ function timingSafeEqual(a, b) {
     return diff === 0;
 }
 
+// Every response from this handler varies per caller/cookie/internal-key -- a shared
+// or intermediary cache serving a cached copy back to a different request would leak
+// one caller's resolved identity (email/userId/role) to another, or serve a stale
+// authorization decision. `jsonError` (shared with /api/version's error responses)
+// sets no cache directive of its own, so every response from this handler explicitly
+// gets `no-store` here rather than relying on the absence of Cache-Control being
+// treated as non-cacheable by every possible intermediary.
+function noStore(response) {
+    response.headers.set("cache-control", "no-store");
+    return response;
+}
+
+function jsonErrorNoStore(message, status) {
+    return noStore(jsonError(message, status));
+}
+
 // GET /internal/identity -- the only route AdminApi/WorkoutApi call over their service
 // binding. `/internal/identity` is a naming convention only, not an access boundary:
 // this Worker also has a public hostname, so the per-caller internal key is what
@@ -41,13 +57,13 @@ export async function handleInternalIdentity(request, env, { fetcher, db } = {})
     const callerName = request.headers.get("X-Trainfree-Caller");
     const caller = CALLER_CONFIG[callerName];
     if (!caller) {
-        return jsonError("missing or invalid X-Trainfree-Caller", 401);
+        return jsonErrorNoStore("missing or invalid X-Trainfree-Caller", 401);
     }
 
     const presentedKey = request.headers.get("X-Trainfree-Internal-Key");
     const expectedKey = env[caller.internalKeyVar];
     if (!expectedKey || !presentedKey || !timingSafeEqual(presentedKey, expectedKey)) {
-        return jsonError("not found", 404);
+        return jsonErrorNoStore("not found", 404);
     }
 
     let identity;
@@ -63,10 +79,10 @@ export async function handleInternalIdentity(request, env, { fetcher, db } = {})
         });
     } catch (err) {
         if (err instanceof JwtVerificationError) {
-            return jsonError("unauthorized", 401);
+            return jsonErrorNoStore("unauthorized", 401);
         }
         console.error("JWT verification infrastructure failure", err);
-        return jsonError("service unavailable", 503);
+        return jsonErrorNoStore("service unavailable", 503);
     }
 
     let resolved;
@@ -77,15 +93,17 @@ export async function handleInternalIdentity(request, env, { fetcher, db } = {})
         });
     } catch (err) {
         console.error("D1 role lookup failed", err);
-        return jsonError("service unavailable", 503);
+        return jsonErrorNoStore("service unavailable", 503);
     }
 
     if (!resolved?.role) {
-        return jsonError("forbidden", 403);
+        return jsonErrorNoStore("forbidden", 403);
     }
 
-    return new Response(
-        JSON.stringify({ email: identity.email, userId: resolved.userId, role: resolved.role }),
-        { status: 200, headers: { "content-type": "application/json" } },
+    return noStore(
+        new Response(JSON.stringify({ email: identity.email, userId: resolved.userId, role: resolved.role }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+        }),
     );
 }

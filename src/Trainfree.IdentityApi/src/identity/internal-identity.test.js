@@ -1,6 +1,7 @@
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { env } from "cloudflare:test";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { certsUrlFor } from "./config.js";
 import { handleInternalIdentity } from "./internal-identity.js";
 
 const ISSUER = "https://trainfree.cloudflareaccess.com";
@@ -102,6 +103,7 @@ describe("handleInternalIdentity -- internal-key check ordering", () => {
 
         expect(response.status).toBe(404);
         expect(response.headers.get("content-type")).toContain("application/json");
+        expect(response.headers.get("cache-control")).toBe("no-store");
         expect(await response.json()).toEqual({ error: expect.any(String) });
         expect(fetcher).not.toHaveBeenCalled();
     });
@@ -148,11 +150,24 @@ describe("handleInternalIdentity -- response matrix", () => {
 
         expect(response.status).toBe(200);
         expect(response.headers.get("content-type")).toContain("application/json");
+        expect(response.headers.get("cache-control")).toBe("no-store");
         expect(await response.json()).toEqual({
             email: "admin@example.com",
             userId: "USR-ADMIN001",
             role: "Administrator",
         });
+    });
+
+    it("fetches the JWKS from the configured Access team domain's real certs URL", async () => {
+        await seedProvisionedAdministrator("admin@example.com");
+        const token = await signToken({ email: "admin@example.com" });
+        const fetcher = fakeJwksFetcher();
+
+        await handleInternalIdentity(requestFor({ token, caller: "admin", key: env.ADMIN_INTERNAL_KEY }), env, {
+            fetcher,
+        });
+
+        expect(fetcher).toHaveBeenCalledWith(certsUrlFor(env));
     });
 
     it("responds 401 when the CF_Authorization cookie is missing", async () => {
@@ -164,6 +179,7 @@ describe("handleInternalIdentity -- response matrix", () => {
 
         expect(response.status).toBe(401);
         expect(response.headers.get("content-type")).toContain("application/json");
+        expect(response.headers.get("cache-control")).toBe("no-store");
         expect(await response.json()).toEqual({ error: expect.any(String) });
     });
 
