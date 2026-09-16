@@ -86,17 +86,20 @@ async function callIdentityApi(request, env) {
     return { ok: true, identity };
 }
 
+const VALID_ROLES = new Set(["Administrator", "User"]);
+
 // Guards against an incomplete-but-parseable 200 response (e.g. a valid Administrator
 // role with no usable userId) reaching a caller like createProgram, which would
-// otherwise silently record an ownerless row -- see PR #129 review discussion.
+// otherwise silently record an ownerless row -- see PR #129 review discussion. Also
+// rejects a role IdentityApi doesn't define (e.g. a future/typo'd value), rather than
+// relaying it verbatim to a client via GET /api/me.
 function isValidIdentity(identity) {
     return (
         typeof identity?.email === "string" &&
         identity.email.length > 0 &&
         typeof identity?.userId === "string" &&
         identity.userId.length > 0 &&
-        typeof identity?.role === "string" &&
-        identity.role.length > 0
+        VALID_ROLES.has(identity?.role)
     );
 }
 

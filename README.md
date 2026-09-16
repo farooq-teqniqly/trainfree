@@ -147,6 +147,13 @@ Not needed for everyday local dev of the admin UI -- step 2's seed row is enough
 this only to exercise the real (non-bypass) `/internal/identity` service-binding path,
 e.g. to test `identity.js` with `LOCAL_DEV_BYPASS` unset in `wrangler.jsonc`.
 
+Exercising that path also requires setting `ADMIN_INTERNAL_KEY` in **`AdminApi`'s own**
+`.dev.vars` (`cp .dev.vars.example .dev.vars` from `src/Trainfree.AdminApi`, matching
+the value set below for `IdentityApi`) -- `identity.js`'s `callIdentityApi` sends that
+key on every non-bypass call and fails closed with `503` if it's unset, which is the
+correct production behavior but means unsetting `LOCAL_DEV_BYPASS` without also setting
+this value locally looks identical to `IdentityApi` being unreachable.
+
 `IdentityApi` has no migration step of its own -- it reads the `logins`/`users`/`roles`
 tables that `AdminApi`'s migration (`npm run db:migrate:local` above) owns, so run that
 first if you haven't. Its own `npm run dev` also passes `--persist-to

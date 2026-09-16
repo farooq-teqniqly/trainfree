@@ -147,6 +147,20 @@ describe("checkIdentity", () => {
         expect(result).toEqual({ ok: false, status: 503 });
     });
 
+    it("returns ok:false status:503 when a 200 response body has a role IdentityApi doesn't define", async () => {
+        const testEnv = makeEnv();
+        testEnv.IDENTITY.fetch.mockResolvedValue(
+            new Response(
+                JSON.stringify({ email: "a@x.com", userId: "USR-ABC123", role: "Owner" }),
+                { status: 200 },
+            ),
+        );
+
+        const result = await checkIdentity(makeRequest(), testEnv);
+
+        expect(result).toEqual({ ok: false, status: 503 });
+    });
+
     it("returns ok:false status:503 when the service-binding call throws", async () => {
         const testEnv = makeEnv();
         testEnv.IDENTITY.fetch.mockRejectedValue(new Error("timed out"));
