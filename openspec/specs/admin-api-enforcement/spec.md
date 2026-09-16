@@ -1,3 +1,5 @@
+# admin-api-enforcement Specification
+
 ## Purpose
 
 Enforces the Administrator role on every `Trainfree.AdminApi` data endpoint by calling
@@ -5,7 +7,7 @@ Enforces the Administrator role on every `Trainfree.AdminApi` data endpoint by c
 operation, closing the security gap left open by slice 8a (`IdentityApi` deployed but
 uncalled).
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Every data endpoint calls IdentityApi before executing
 Every `AdminApi` route that reads or writes program data SHALL call `IdentityApi`'s
@@ -177,54 +179,3 @@ every migration file to the production database.
 - **WHEN** the local-only identity seed script is invoked
 - **THEN** it writes only to the local D1 instance and is never invoked from
   `deploy.yaml` or any `--remote` command
-
-## Decisions
-
-- **Inspect the 200 body for role, rather than trusting IdentityApi's status code
-  alone** (Requirements, "Non-Administrator identities are rejected with 403"): Chosen
-  because `IdentityApi`'s contract (see `identity-api` spec) already defines `200` as
-  "provisioned, either role" and reserves `403` for "unprovisioned or unresolvable" --
-  changing that contract to add a role-aware status would couple `IdentityApi` to each
-  caller's own authorization policy (`AdminApi` wants Administrator-only; slice 9's
-  `WorkoutApi` wants any provisioned identity). Keeping the role check in `AdminApi`
-  lets each app Worker enforce its own policy against one shared identity contract. This
-  would be worth revisiting only if every current and future app Worker converged on
-  the same role policy, which slice 9's own roadmap note says will not happen.
-
-- **LOCAL_DEV_BYPASS substitutes a synthetic identity rather than skipping
-  authorization** (Requirements, "Local dev bypasses the service-binding call, not the
-  role check"): Chosen over short-circuiting the whole enforcement wrapper locally,
-  because a bypass that skips the role check entirely would let local dev pass with
-  code paths (e.g. a missing role check on a new route) that fail in production,
-  defeating the purpose of testing locally at all. The extra realism costs one
-  local-only seed script. Worth revisiting only if local dev ever runs behind a real
-  Cloudflare Access instance (e.g. a tunnel), at which point the bypass could be removed
-  entirely rather than made more elaborate.
-
-- **Missing binding/key in a deployed context is 503, never a silent bypass**
-  (Requirements, "Local dev bypasses the service-binding call, not the role check"):
-  Chosen so a misconfigured production deploy (binding or secret omitted) fails loudly
-  instead of granting Administrator access to every caller. Detecting "local" via an
-  explicit flag rather than inferring it from absent configuration is what makes this
-  possible -- inferring it the other way round would make the two failure modes
-  (missing-in-local vs. missing-in-prod) indistinguishable by construction.
-
-## Requirement coverage
-
-Anchor: `docs/identity/identity-intent-02-adminapi-enforcement.md` (roadmap slice 8b,
-`docs/trainfree-roadmap.md:141-144`)
-
-| # | Anchor requirement | Covered by |
-|---|--------------------|-----------|
-| 1 | Every data endpoint requires Administrator role via IdentityApi service-binding call, including non-CRUD reads (`programs-tree`, nested GETs) | Req: Every data endpoint calls IdentityApi before executing |
-| 2 | AdminApi inspects IdentityApi's 200 body and returns its own 403 for non-Administrator roles | Req: Non-Administrator identities are rejected with 403 |
-| 3 | IdentityApi's 401/403 relayed verbatim; underlying operation never carried out on denial | Req: IdentityApi's own 401/403 are relayed verbatim |
-| 4 | GET /api/me returns 200 for any provisioned identity (Administrator or User), omitting userId | Req: GET /api/me returns any provisioned identity's role |
-| 5 | Write endpoints that create a programs row set user_id from IdentityApi's response | Req: Created programs are owned by the caller |
-| 6 | IdentityApi 503, and non-200/401/403/503 responses (incl. 404), surfaced as 503, never folded into 403; fail closed | Req: IdentityApi outages surface as 503, never folded into 403 |
-| 7 | GET /api/version and OPTIONS exempt from enforcement entirely | Req: Version and OPTIONS are exempt from enforcement |
-| 8 | Administrator can view all Phases, Exercises, and Programs end-to-end once enforcement is in place | Req: Non-Administrator identities are rejected with 403 (Administrator-allowed scenario); Req: Every data endpoint calls IdentityApi before executing |
-| 9 | Local dev exemption: services binding added to wrangler.jsonc and wrangler.deploy.jsonc, ADMIN_INTERNAL_KEY via .dev.vars/wrangler secret on both Workers | Not covered in this spec -- config/secret wiring is deployment-config detail, not spec-level behavior; tracked in tasks.md |
-| 10 | LOCAL_DEV_BYPASS flag: synthetic identity substitution, deployed context fails closed when binding/key absent | Req: Local dev bypasses the service-binding call, not the role check |
-| 11 | Local-only seed script inserts deterministic logins/users row into local D1 only, never via --remote or deploy.yaml | Req: Local dev bypasses the service-binding call, not the role check (seed-script scenario) |
-| 12 | Rollout runbook verifies the production service binding directly (smoke check) | Not covered in this spec -- deploy-runbook procedure, not testable AdminApi behavior; same treatment as `identity-api` spec's "Rollout order and its smoke check" decision |
