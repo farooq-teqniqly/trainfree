@@ -16,7 +16,13 @@
     "services": [
         {
             "binding": "IDENTITY",
-            "service": "trainfree-identity-api"
+            "service": "trainfree-identity-api",
+            // Same "remote": true caveat as scripts/wrangler.remote.jsonc's D1 binding:
+            // getPlatformProxy's remoteBindings option only routes a binding remotely if
+            // the binding's own config also declares this -- without it, check.js would
+            // silently no-op/fail against a local, non-existent Worker instead of the
+            // real deployed trainfree-identity-api.
+            "remote": true
         }
     ]
 }

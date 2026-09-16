@@ -46,11 +46,9 @@ async function main() {
     const internalKey = readSecretEnv("SMOKE_CHECK_INTERNAL_KEY");
     const jwt = readSecretEnv("SMOKE_CHECK_JWT");
 
-    // KNOWN LIMITATION: `remoteBindings` only routes a binding remotely if that binding
-    // itself declares `"remote": true` in the config -- wrangler.jsonc's `services` entry
-    // above does not yet do that. Verify in the verify-identity-api-rollout change
-    // whether this call actually reaches the deployed Worker or silently no-ops/fails;
-    // add `"remote": true` to the `IDENTITY` service binding if it does not.
+    // `remoteBindings` only routes a binding remotely if that binding itself declares
+    // `"remote": true` in the config -- wrangler.jsonc's `services` entry sets that, so
+    // this genuinely reaches the deployed trainfree-identity-api Worker.
     const { env, dispose } = await getPlatformProxy({
         configPath: path.join(__dirname, "wrangler.jsonc"),
         remoteBindings: true,
