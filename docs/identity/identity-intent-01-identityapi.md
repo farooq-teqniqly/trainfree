@@ -29,9 +29,13 @@ limited to identity resolution, not program data access.
 
 There is no in-app provisioning UI in this slice (or this whole change). A user's D1
 record (email + role) is added by a provisioning script, run after the email is
-whitelisted in Cloudflare Access. That script does not exist in this repo yet -- it is
-an explicit deliverable of this slice, not a prerequisite assumed to already exist. It
-must be idempotent and failure-safe: it first checks whether a *fully provisioned*
+whitelisted in Cloudflare Access. That script is `src/Trainfree.IdentityApi/scripts/
+provision-identity.js` (`npm run provision -- --email <email> --role <role> [--remote]`)
+-- an explicit deliverable of this slice, not a prerequisite assumed to already exist.
+Its `--remote` flag currently only reaches local D1 state, not the deployed database --
+see `verify-identity-api-rollout`'s tasks for the fix and `docs/identity/rollout-runbook.md`
+for the current operational workaround. It is idempotent and failure-safe: it first
+checks whether a *fully provisioned*
 identity -- a `logins` row **and** its paired `users` row -- already exists for the
 target `(provider_name, provider_id)`; if so, it does nothing. Otherwise it inserts both
 the `logins` row and its paired `users` row inside a single D1 transaction/batch, so a
@@ -154,7 +158,7 @@ design; see `identity-intent.md`'s schema section.)
   JWT but no/wrong internal key is rejected, and a test asserting `admin`'s key cannot
   be used to claim `workout` (or vice versa) once `WorkoutApi` exists. `IdentityApi`
   responds with
-  `200 { "email": string, "userId": number, "role": "Administrator" | "User" }` only
+  `200 { "email": string, "userId": string, "role": "Administrator" | "User" }` only
   when the JWT's `aud` matches the configured audience for the named caller. `userId`
   is included specifically so callers like `AdminApi` can populate owner columns (e.g.
   `programs.user_id`, see slice 1's schema section) without a separate D1 lookup --
