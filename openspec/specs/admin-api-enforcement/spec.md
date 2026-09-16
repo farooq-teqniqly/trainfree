@@ -146,7 +146,7 @@ CI verification step fail every deploy. `OPTIONS` carries no JWT at all.
 `wrangler dev` configuration and never in any deployed configuration. When set,
 `AdminApi` SHALL substitute a synthetic local identity
 (`{ "email": "local-dev@trainfree.local", "role": "Administrator", "userId": <a real
-local users.id> }`) for the `IdentityApi` call's result, then continue running each
+local users.user_id> }`) for the `IdentityApi` call's result, then continue running each
 endpoint's normal handler and Administrator-role check against that synthetic identity
 exactly as it would for a real `200` -- including `/api/me`, which relays this identity
 to the caller. A deployed environment where the `services` binding or the internal-key
