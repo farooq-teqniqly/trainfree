@@ -169,6 +169,24 @@ describe("0016_make_programs_user_id_not_null migration", () => {
         expect(programExercise).not.toBeNull();
     });
 
+    it("rejects a raw INSERT that omits user_id, independent of createProgram's own app-level guard", async () => {
+        // The INSERT trigger is the database-level backstop against any writer that
+        // omits user_id -- including the previously-deployed Worker during a rollout
+        // window (see this migration's own rollout-ordering comment) -- not just
+        // createProgram's guard. Exercises the trigger directly via a raw INSERT that
+        // bypasses createProgram entirely, so a regression in the trigger itself would
+        // fail here even if createProgram's own guard still worked.
+        const now = "2026-09-16T00:00:00.000Z";
+
+        await expect(
+            env.DB.prepare(
+                "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            )
+                .bind("PGM-NOUSERID1", "No Owner", now, now)
+                .run(),
+        ).rejects.toThrow(/user_id must not be NULL/);
+    });
+
     it("still allows renaming a legacy ownerless program, but rejects explicitly nulling user_id", async () => {
         // Regression test for a second real bug from the same review round: an
         // unscoped `BEFORE UPDATE ON programs` trigger would also fire for a rename
