@@ -798,6 +798,27 @@ describe("POST /api/programs/:programId/sessions/:sessionId/phases", () => {
         expect([204, 409]).toContain(deleteResponse.status);
         expect([201, 400]).toContain(createResponse.status);
     });
+
+    it("returns 404 instead of 400 when the session is deleted between the route's own check and the INSERT (issue #89 session-delete race)", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+
+        const [deleteResponse, createResponse] = await Promise.all([
+            SELF.fetch(
+                `http://worker/api/programs/${program.id}/sessions/${session.id}`,
+                { method: "DELETE" },
+            ),
+            createSessionPhase(program.id, session.id, phase.id),
+        ]);
+
+        // Whichever request the race favors, the create must never blame phaseId (400)
+        // for a session that's actually gone -- this is a best-effort, non-deterministic
+        // smoke test; the FK-translation logic itself is proven deterministically by
+        // session-phases.test.js's dedicated session-delete race test.
+        expect([204, 404]).toContain(deleteResponse.status);
+        expect([201, 404]).toContain(createResponse.status);
+    });
 });
 
 describe("DELETE /api/programs/:programId/sessions/:sessionId/phases/:id", () => {

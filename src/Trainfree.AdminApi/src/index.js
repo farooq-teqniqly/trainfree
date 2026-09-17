@@ -48,6 +48,7 @@ import {
     DuplicateNameError,
     ExerciseInUseError,
     PhaseInUseError,
+    SessionNotFoundError,
     SessionPhaseInvalidPhaseError,
 } from "./errors.js";
 import { versionStamp } from "./version.js";
@@ -398,6 +399,9 @@ async function handleSessionPhasesCollection(request, db, sessionId) {
         try {
             return jsonResponse(await createSessionPhase(db, sessionId, phaseId), 201);
         } catch (err) {
+            if (err instanceof SessionNotFoundError) {
+                return jsonResponse({ error: "session not found" }, 404);
+            }
             if (err instanceof SessionPhaseInvalidPhaseError) {
                 return jsonResponse({ error: err.message }, 400);
             }

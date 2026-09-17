@@ -19,6 +19,13 @@ export class SessionPhaseInvalidPhaseError extends Error {
     }
 }
 
+export class SessionNotFoundError extends Error {
+    constructor(id) {
+        super(`Session "${id}" was not found.`);
+        this.name = "SessionNotFoundError";
+    }
+}
+
 export class ExerciseInUseError extends Error {
     constructor(id) {
         super(
@@ -53,8 +60,10 @@ export function uniqueConstraintColumns(err, table) {
 // Unlike a UNIQUE violation, D1/SQLite's FOREIGN KEY violation message never names the
 // offending table or column -- it is the fixed string "FOREIGN KEY constraint failed:
 // SQLITE_CONSTRAINT" regardless of which foreign key fired. So this detector, unlike
-// uniqueConstraintColumns, takes no table/column argument; callers rely on there being
-// exactly one foreign key that can plausibly fail in their own statement.
+// uniqueConstraintColumns, takes no table/column argument; a caller whose statement can
+// violate more than one foreign key (e.g. session_phases' session_id and phase_id) must
+// re-check each referenced row itself afterward to tell which one actually failed --
+// see createSessionPhase in session-phases.js.
 export function isForeignKeyViolation(err) {
     if (!(err instanceof Error)) {
         return false;

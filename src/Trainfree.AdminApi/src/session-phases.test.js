@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { env } from "cloudflare:test";
 import { createProgram } from "./programs.js";
-import { createSession } from "./sessions.js";
+import { createSession, deleteSession } from "./sessions.js";
 import { createPhase } from "./phases.js";
 import {
     createSessionPhase,
@@ -10,7 +10,7 @@ import {
     sessionExists,
 } from "./session-phases.js";
 import { deletePhase } from "./phases.js";
-import { SessionPhaseInvalidPhaseError } from "./errors.js";
+import { SessionNotFoundError, SessionPhaseInvalidPhaseError } from "./errors.js";
 
 // test/apply-migrations.js seeds this local-dev user for every test file's D1 instance.
 const SEEDED_USER_ID = "USR-LOCALDEV";
@@ -153,6 +153,20 @@ describe("createSessionPhase", () => {
 
         await expect(createSessionPhase(env.DB, session.id, phase.id)).rejects.toBeInstanceOf(
             SessionPhaseInvalidPhaseError,
+        );
+
+        expect(await listSessionPhases(env.DB, session.id)).toEqual([]);
+    });
+
+    it("throws SessionNotFoundError and creates no row when the session is deleted between the caller's existence check and this call (issue #89 session-delete race)", async () => {
+        // Simulates a concurrent DELETE .../sessions/:id landing after routeSessionPhases'
+        // own sessionExists check but before this call -- the INSERT hits
+        // session_phases.session_id's FK constraint, which is indistinguishable from
+        // the phase_id FK failure above without re-checking which row is actually gone.
+        await deleteSession(env.DB, program.id, session.id);
+
+        await expect(createSessionPhase(env.DB, session.id, phase.id)).rejects.toBeInstanceOf(
+            SessionNotFoundError,
         );
 
         expect(await listSessionPhases(env.DB, session.id)).toEqual([]);
