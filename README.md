@@ -218,10 +218,13 @@ manual, one-time step -- like the Access application above, it is not automated 
 `deploy.yaml`. Generate a random value first (Cloudflare secrets are never readable back
 after they're set, so save this wherever you keep other production secrets):
 
-```sh
-# PowerShell
-[System.Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
+```powershell
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RNGCryptoServiceProvider]::new().GetBytes($bytes)
+[Convert]::ToBase64String($bytes)
+```
 
+```sh
 # or, with OpenSSL available
 openssl rand -base64 32
 ```
@@ -237,11 +240,15 @@ Both commands must be given the **same** value -- `IdentityApi` compares the val
 `AdminApi` presents against its own copy. Per `CLAUDE.md`'s "Prod API URL is never
 configured, per app" rule, this is a secret (not a `vars` entry), so it never appears in
 either Worker's `wrangler.jsonc`/`wrangler.deploy.jsonc`. If `AdminApi`'s copy is ever
-missing or falls out of sync with `IdentityApi`'s (e.g. one side's secret was rotated but
-not the other), `GET /api/me` fails closed with a `503` and the Blazor client's
-`AccessGate` renders "We couldn't confirm your access" -- that error is a symptom of this
-secret, not of Cloudflare Access itself (check `wrangler secret list` in both Worker
-directories to compare).
+missing entirely, `GET /api/me` fails closed with a `503` immediately, without calling
+`IdentityApi`; if the two sides' values fall out of sync instead (e.g. one side's secret
+was rotated but not the other), `IdentityApi` rejects the mismatched value with a `404`,
+which `AdminApi` normalizes to the same `503` -- either way the Blazor client's
+`AccessGate` renders "We couldn't confirm your access," a symptom of this secret, not of
+Cloudflare Access itself (check `wrangler secret list` in both Worker directories to
+compare and tell the two cases apart: absent vs present-but-wrong). This is what caused
+the production incident this section documents -- `AdminApi`'s copy was never set; it was
+already resolved by generating and setting a value on both Workers as described above.
 
 ### 5. Open the app
 
