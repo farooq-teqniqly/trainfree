@@ -791,7 +791,10 @@ describe("POST /api/programs/:programId/sessions/:sessionId/phases", () => {
         ]);
 
         // Whichever request the race favors, both must land on their documented status
-        // codes -- never the unhandled 500 issue #89 reports.
+        // codes -- never the unhandled 500 issue #89 reports. This is a best-effort,
+        // non-deterministic smoke test: the FK-catch path itself is proven
+        // deterministically by phases.test.js and session-phases.test.js via
+        // runAfterQueryResolves; this test only guards the end-to-end HTTP wiring.
         expect([204, 409]).toContain(deleteResponse.status);
         expect([201, 400]).toContain(createResponse.status);
     });

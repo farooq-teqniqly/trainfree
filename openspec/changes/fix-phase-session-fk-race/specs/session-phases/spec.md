@@ -60,13 +60,18 @@ produces, rather than propagating as a raw D1 constraint error.
   instead of just handling its failure mode, and would become the right choice if this
   app stops being single-user (per `CLAUDE.md`) and the race window widens from
   "vanishingly rare" to "occasionally observed in practice."
-- **Reuse existing error types and status codes, no new ones.** `deletePhase`'s FK
-  failure reuses `PhaseInUseError` (`409`) -- the phase became in-use, which is exactly
-  what that error already means. `createSessionPhase`'s FK failure is translated by its
-  caller (`handleSessionPhasesCollection`) into the same `400` response the up-front
-  `phaseExists` check already returns, rather than introducing a distinct error class,
-  since both cases mean the same thing to the client: "that phaseId does not reference
-  an existing phase."
+- **Reuse existing status codes and messages; a new error class only where none already
+  fit.** `deletePhase`'s FK failure reuses the existing `PhaseInUseError` (`409`)
+  as-is -- the phase became in-use, which is exactly what that error already means, so no
+  new type is needed there. `createSessionPhase`'s FK failure has no existing error
+  class to reuse (the up-front `phaseExists` check in `handleSessionPhasesCollection`
+  returns its `400` directly from a plain `if`, not via a thrown error type), so this
+  path introduces `SessionPhaseInvalidPhaseError` carrying the identical message text,
+  which the caller maps to the same `400` response the check already returns. Both
+  cases mean the same thing to the client -- "that phaseId does not reference an
+  existing phase" -- whether the new type exists purely to let `createSessionPhase`
+  signal that condition to its caller across a function boundary the check-based
+  version didn't need to cross.
 - **FK-violation detector takes no `table`/`column` arguments, unlike
   `uniqueConstraintColumns`.** Verified empirically against real D1: a `UNIQUE`
   violation's message names the offending `<table>.<column>` (e.g.
