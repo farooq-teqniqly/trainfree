@@ -44,7 +44,13 @@ import {
     validateSessionName,
     validateUpdateProgramExercise,
 } from "./validation.js";
-import { DuplicateNameError, ExerciseInUseError, PhaseInUseError } from "./errors.js";
+import {
+    DuplicateNameError,
+    ExerciseInUseError,
+    PhaseInUseError,
+    SessionNotFoundError,
+    SessionPhaseInvalidPhaseError,
+} from "./errors.js";
 import { versionStamp } from "./version.js";
 
 // The Worker and Blazor client are the same origin in production ([assets] + main share
@@ -390,7 +396,17 @@ async function handleSessionPhasesCollection(request, db, sessionId) {
         if (typeof phaseId !== "string" || !(await phaseExists(db, phaseId))) {
             return jsonResponse({ error: "phaseId is required and must reference an existing phase" }, 400);
         }
-        return jsonResponse(await createSessionPhase(db, sessionId, phaseId), 201);
+        try {
+            return jsonResponse(await createSessionPhase(db, sessionId, phaseId), 201);
+        } catch (err) {
+            if (err instanceof SessionNotFoundError) {
+                return jsonResponse({ error: "session not found" }, 404);
+            }
+            if (err instanceof SessionPhaseInvalidPhaseError) {
+                return jsonResponse({ error: err.message }, 400);
+            }
+            throw err;
+        }
     }
 
     return new Response("Method not allowed", { status: 405 });

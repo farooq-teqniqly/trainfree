@@ -779,6 +779,46 @@ describe("POST /api/programs/:programId/sessions/:sessionId/phases", () => {
         ).json();
         expect(list).toHaveLength(2);
     });
+
+    it("never surfaces an unhandled 500 when a DELETE /api/phases/:id and a POST here for the same phase race (issue #89)", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+
+        const [deleteResponse, createResponse] = await Promise.all([
+            SELF.fetch(`http://worker/api/phases/${phase.id}`, { method: "DELETE" }),
+            createSessionPhase(program.id, session.id, phase.id),
+        ]);
+
+        // Whichever request the race favors, both must land on their documented status
+        // codes -- never the unhandled 500 issue #89 reports. This is a best-effort,
+        // non-deterministic smoke test: the FK-catch path itself is proven
+        // deterministically by phases.test.js and session-phases.test.js via
+        // runAfterQueryResolves; this test only guards the end-to-end HTTP wiring.
+        expect([204, 409]).toContain(deleteResponse.status);
+        expect([201, 400]).toContain(createResponse.status);
+    });
+
+    it("returns 404 instead of 400 when the session is deleted between the route's own check and the INSERT (issue #89 session-delete race)", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+
+        const [deleteResponse, createResponse] = await Promise.all([
+            SELF.fetch(
+                `http://worker/api/programs/${program.id}/sessions/${session.id}`,
+                { method: "DELETE" },
+            ),
+            createSessionPhase(program.id, session.id, phase.id),
+        ]);
+
+        // Whichever request the race favors, the create must never blame phaseId (400)
+        // for a session that's actually gone -- this is a best-effort, non-deterministic
+        // smoke test; the FK-translation logic itself is proven deterministically by
+        // session-phases.test.js's dedicated session-delete race test.
+        expect([204, 404]).toContain(deleteResponse.status);
+        expect([201, 404]).toContain(createResponse.status);
+    });
 });
 
 describe("DELETE /api/programs/:programId/sessions/:sessionId/phases/:id", () => {

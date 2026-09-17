@@ -53,10 +53,18 @@ to populate the picker, so the Worker does not need to join and embed a `phaseNa
 ### Requirement: Create a session phase
 The system SHALL provide `POST /api/programs/:programId/sessions/:sessionId/phases` to
 add a phase to a session, with a system-generated ID and a required `phaseId` in the
-request body referencing an existing phase.
+request body referencing an existing phase. This includes the case where the
+referenced phase is deleted by a concurrent `DELETE /api/phases/:id` between this
+route's existence check and its `INSERT` statement actually landing: the insert SHALL
+never surface as an unhandled `500` in that case, only the documented `400`.
 **Rationale**: The same canonical phase may be added to a session more than once (e.g.
 a session with two separate "Cool Down" blocks), so this route intentionally applies no
-uniqueness constraint on `(session_id, phase_id)`.
+uniqueness constraint on `(session_id, phase_id)`. The `phaseId` existence check and the
+`INSERT` are not wrapped in a single D1 transaction (this is a single-user app, per
+`CLAUDE.md`, so the race window is narrow), so the `INSERT` itself can still hit the
+`session_phases.phase_id` foreign key if the referenced phase is deleted in between --
+that failure is caught and translated to the same `400` the up-front existence check
+produces, rather than propagating as a raw D1 constraint error.
 
 #### Scenario: Valid phaseId provided
 - **WHEN** a client calls `POST /api/programs/:programId/sessions/:sessionId/phases`
@@ -80,6 +88,15 @@ uniqueness constraint on `(session_id, phase_id)`.
   with a `phaseId` that already has a session phase row under that same session
 - **THEN** the Worker creates a second, independent session phase row and responds
   `201`
+
+#### Scenario: The referenced phase is deleted between the check and the insert
+- **WHEN** a client calls `POST /api/programs/:programId/sessions/:sessionId/phases`
+  with a `phaseId` that matches an existing phase at the time of the up-front check,
+  and a concurrent `DELETE /api/phases/:id` for that same phase removes it before this
+  route's `INSERT` statement runs
+- **THEN** the Worker's `INSERT` statement fails the `session_phases.phase_id` foreign
+  key constraint, the Worker catches that failure, and responds `400` with a JSON error
+  body and creates no row -- never an unhandled `500`
 
 ### Requirement: A session phase cannot be renamed
 The system SHALL NOT provide a route to change which phase an existing session phase

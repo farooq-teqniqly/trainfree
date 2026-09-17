@@ -1,5 +1,10 @@
 import { generateSessionPhaseId } from "./ids.js";
-import { uniqueConstraintColumns } from "./errors.js";
+import {
+    SessionNotFoundError,
+    SessionPhaseInvalidPhaseError,
+    isForeignKeyViolation,
+    uniqueConstraintColumns,
+} from "./errors.js";
 
 const SELECT_COLUMNS =
     "session_phase_id as id, session_id as sessionId, phase_id as phaseId, created_at as createdAt";
@@ -13,6 +18,15 @@ export async function sessionExists(db, programId, sessionId) {
         .prepare("SELECT 1 FROM sessions WHERE session_id = ? AND program_id = ?")
         .bind(sessionId, programId)
         .first();
+    return row !== null;
+}
+
+// Unscoped by programId, unlike sessionExists: only used to disambiguate which of
+// session_phases' two foreign keys fired on an INSERT failure (see createSessionPhase
+// below), where the caller has already confirmed the session under its program before
+// reaching this point -- re-checking programId here would just repeat that check.
+async function sessionRowExists(db, sessionId) {
+    const row = await db.prepare("SELECT 1 FROM sessions WHERE session_id = ?").bind(sessionId).first();
     return row !== null;
 }
 
@@ -50,6 +64,18 @@ export async function createSessionPhase(db, sessionId, phaseId) {
                 attempt < MAX_ID_GENERATION_ATTEMPTS
             ) {
                 continue;
+            }
+            // This INSERT references two foreign keys (session_id, phase_id), and D1's
+            // FK violation message doesn't say which one fired -- so a concurrent
+            // DELETE of either the session or the phase between the caller's own
+            // existence checks and this INSERT (issue #89) surfaces the same generic
+            // error. Re-check the session specifically to tell the two apart: it's
+            // still there, so the failure must be the caller's phaseId going stale.
+            if (isForeignKeyViolation(err)) {
+                if (!(await sessionRowExists(db, sessionId))) {
+                    throw new SessionNotFoundError(sessionId);
+                }
+                throw new SessionPhaseInvalidPhaseError();
             }
             throw err;
         }
