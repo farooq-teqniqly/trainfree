@@ -215,7 +215,21 @@ pin the poll's URL instead of relying on the deploy step's own output.
 same internal-key secret `IdentityApi` already checks (see
 `Trainfree.IdentityApi/src/identity/config.js`'s `CALLER_CONFIG`). This is a
 manual, one-time step -- like the Access application above, it is not automated in
-`deploy.yaml`:
+`deploy.yaml`. Generate a random value first (Cloudflare secrets are never readable back
+after they're set, so save this wherever you keep other production secrets):
+
+```powershell
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RNGCryptoServiceProvider]::new().GetBytes($bytes)
+[Convert]::ToBase64String($bytes)
+```
+
+```sh
+# or, with OpenSSL available
+openssl rand -base64 32
+```
+
+Then set that same value on both Workers:
 
 ```sh
 wrangler secret put ADMIN_INTERNAL_KEY  # from src/Trainfree.AdminApi
@@ -225,7 +239,20 @@ wrangler secret put ADMIN_INTERNAL_KEY  # from src/Trainfree.IdentityApi
 Both commands must be given the **same** value -- `IdentityApi` compares the value
 `AdminApi` presents against its own copy. Per `CLAUDE.md`'s "Prod API URL is never
 configured, per app" rule, this is a secret (not a `vars` entry), so it never appears in
-either Worker's `wrangler.jsonc`/`wrangler.deploy.jsonc`.
+either Worker's `wrangler.jsonc`/`wrangler.deploy.jsonc`. If `AdminApi`'s copy is ever
+missing entirely, `GET /api/me` fails closed with a `503` immediately, without calling
+`IdentityApi`; if the two sides' values fall out of sync instead (e.g. one side's secret
+was rotated but not the other), `IdentityApi` rejects the mismatched value with a `404`,
+which `AdminApi` normalizes to the same `503` -- either way the Blazor client's
+`AccessGate` renders "We couldn't confirm your access," a symptom of this secret, not of
+Cloudflare Access itself. `wrangler secret list` in both Worker directories only reports
+whether `ADMIN_INTERNAL_KEY` is present, not its value (Cloudflare never exposes secret
+values), so it can rule out the missing-entirely case but not confirm the two sides
+actually match -- if both report the secret present and the `503` persists, re-run
+`wrangler secret put ADMIN_INTERNAL_KEY` with the same saved value on both Workers rather
+than assuming they already match. This is what caused the production incident this
+section documents -- `AdminApi`'s copy was never set; it was already resolved by
+generating and setting a value on both Workers as described above.
 
 ### 5. Open the app
 
