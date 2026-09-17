@@ -12,9 +12,9 @@ internal sealed partial class AccessCheck
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "Access-check endpoint returned server error {StatusCode}."
+        Message = "Access-check endpoint returned unexpected status {StatusCode}."
     )]
-    private partial void LogAccessCheckServerError(int statusCode);
+    private partial void LogAccessCheckUnexpectedStatus(int statusCode);
 
     [LoggerMessage(
         Level = LogLevel.Warning,

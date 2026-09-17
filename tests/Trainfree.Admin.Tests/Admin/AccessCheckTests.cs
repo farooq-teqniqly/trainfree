@@ -96,6 +96,38 @@ public sealed class AccessCheckTests : IDisposable
     }
 
     [Fact]
+    public async Task CheckAsync_ServerReturns201WithAdministratorShapedBody_ReturnsAccessCheckFailed()
+    {
+        // Arrange -- a status this endpoint has no documented reason to return must not be
+        // trusted just because its body happens to parse into an authorized-looking shape.
+        _handler.NextResponse = JsonResponse(
+            HttpStatusCode.Created,
+            """{"email":"a@x.com","role":"Administrator"}"""
+        );
+        var check = CreateCheck();
+
+        // Act
+        var outcome = await check.CheckAsync(CancellationToken.None);
+
+        // Assert
+        Assert.IsType<AccessCheckFailed>(outcome);
+    }
+
+    [Fact]
+    public async Task CheckAsync_ServerReturns404_ReturnsAccessCheckFailed()
+    {
+        // Arrange
+        _handler.NextResponse = new HttpResponseMessage(HttpStatusCode.NotFound);
+        var check = CreateCheck();
+
+        // Act
+        var outcome = await check.CheckAsync(CancellationToken.None);
+
+        // Assert
+        Assert.IsType<AccessCheckFailed>(outcome);
+    }
+
+    [Fact]
     public async Task CheckAsync_RequestFails_ReturnsAccessCheckFailed()
     {
         // Arrange

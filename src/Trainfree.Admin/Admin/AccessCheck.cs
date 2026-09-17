@@ -54,9 +54,15 @@ internal sealed partial class AccessCheck : IAccessCheck
                 return new NoAccess();
             }
 
-            if ((int)response.StatusCode >= 500)
+            // Anything that isn't a clean 200 -- a 5xx, but also a 3xx/4xx/2xx-that-isn't-200
+            // this endpoint has no documented reason to return -- is an unexpected server
+            // contract, not a basis for authorization. Requiring OK explicitly (rather than
+            // falling through to parse whatever body came back) keeps a future intermediary
+            // or misconfigured route from being trusted just because its body happens to
+            // parse into an Administrator-shaped MeDto.
+            if (response.StatusCode != HttpStatusCode.OK)
             {
-                LogAccessCheckServerError((int)response.StatusCode);
+                LogAccessCheckUnexpectedStatus((int)response.StatusCode);
                 return new AccessCheckFailed();
             }
 
