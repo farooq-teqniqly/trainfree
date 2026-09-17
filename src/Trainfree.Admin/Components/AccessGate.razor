@@ -62,6 +62,23 @@
         {
             LogDisposedWhileCheckInFlight(Logger);
         }
+        // IAccessCheck's contract says it never throws for an unreachable/unauthenticated
+        // server, but this is the backstop for whatever it doesn't already normalize (e.g.
+        // a connection dropped mid-body-read). Caught here, scoped to this one-time startup
+        // check, rather than via an ErrorBoundary wrapping the whole Router/MainLayout tree
+        // -- a boundary that wide would also catch an unrelated post-authorization page or
+        // layout exception (MainLayout's NavMenu isn't itself boundary-wrapped) and latch
+        // the entire app on a misleading "access could not be confirmed" message with no
+        // way to recover via navigation.
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogAccessCheckThrewUnexpectedly(Logger, ex);
+
+            if (!_disposed)
+            {
+                _outcome = new AccessCheckFailed();
+            }
+        }
     }
 
     public void Dispose()

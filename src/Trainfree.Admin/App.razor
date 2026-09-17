@@ -1,21 +1,8 @@
-﻿@using Trainfree.Admin.Pages
-@* No component sits above AccessGate to catch a failure of the gate check itself
-   (unlike MainLayout, which wraps VersionIndicator and the routed page in their own
-   boundaries) -- without this, an exception CheckAsync doesn't translate into an
-   outcome (e.g. a mid-response connection drop) would crash the whole app to
-   Blazor's generic error UI instead of this app's own AccessCheckErrorPage. *@
-<ErrorBoundary>
-    <ChildContent>
-        <AccessGate>
-            <Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
-                <Found Context="routeData">
-                    <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)"/>
-                    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-                </Found>
-            </Router>
-        </AccessGate>
-    </ChildContent>
-    <ErrorContent>
-        <AccessCheckErrorPage />
-    </ErrorContent>
-</ErrorBoundary>
+﻿<AccessGate>
+    <Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)"/>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+    </Router>
+</AccessGate>
