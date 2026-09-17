@@ -1,13 +1,16 @@
 # Admin access gating: manual verification
 
-Records how the `admin-access-gating` OpenSpec change's manual verification task
-(tasks.md 3.2) was carried out, so it can be re-run the same way later without
-re-deriving the setup. Covers the two scenarios that automated bUnit tests can't reach on
-their own: a real `Trainfree.Admin` build talking to a real, locally running `AdminApi`
-Worker (and, for the second scenario, a real `IdentityApi` Worker).
+Records how the `admin-access-gating` change's manual verification was carried out, so
+it can be re-run the same way later without re-deriving the setup. Covers the two
+scenarios that automated bUnit tests can't reach on their own: a real `Trainfree.Admin`
+build talking to a real, locally running `AdminApi` Worker (and, for the second
+scenario, a real `IdentityApi` Worker).
 
 See `identity-intent-03-admin-access-gating.md` for the frozen intent this verifies, and
-the `admin-access-gating` OpenSpec change's `spec.md` for the requirements.
+`openspec/specs/admin-access-gating/spec.md` for the requirements -- the change that
+introduced this behavior has since been closed, per this repo's `trainfree-lean` schema
+convention, and its planning artifacts (including the task this doc originally cited)
+no longer exist; the shipped requirements live in that main spec instead.
 
 ## What was verified
 
