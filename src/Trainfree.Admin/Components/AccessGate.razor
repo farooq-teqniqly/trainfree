@@ -1,0 +1,98 @@
+@using Trainfree.Admin.Admin
+@using Trainfree.Admin.Pages
+@implements IDisposable
+@inject IAccessCheck AccessCheck
+@inject NavigationManager Navigation
+@inject ILogger<AccessGate> Logger
+
+@switch (_outcome)
+{
+    case Administrator:
+        @ChildContent
+        break;
+    case NoAccess:
+        <NoAccessPage />
+        break;
+    case AccessCheckFailed:
+        <AccessCheckErrorPage />
+        break;
+    // ReauthenticationRequired and the pending (null) state both render nothing: the
+    // reauthentication case forces a top-level reload instead, and the page must not
+    // render (nor fire any of its own API calls) until the check resolves.
+    default:
+        break;
+}
+
+@code {
+    /// <summary>Gets or sets the content rendered when the caller is an Administrator.</summary>
+    [Parameter, EditorRequired]
+    public RenderFragment? ChildContent { get; set; }
+
+    private readonly CancellationTokenSource _cts = new();
+    private AccessCheckOutcome? _outcome;
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var outcome = await AccessCheck.CheckAsync(_cts.Token);
+
+            // Cancellation is cooperative -- CheckAsync can still complete successfully
+            // after Dispose() requested it, so re-check _disposed rather than trusting
+            // that the await not throwing means the component is still live.
+            if (_disposed)
+            {
+                return;
+            }
+
+            if (outcome is ReauthenticationRequired)
+            {
+                Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
+                return;
+            }
+
+            _outcome = outcome;
+        }
+        // Disposal cancels _cts while the check is in flight, so AccessCheck's own filter
+        // lets this propagate instead of degrading to AccessCheckFailed. Swallow it here
+        // rather than letting the component's lifecycle task end Faulted for a teardown
+        // that already happened.
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+            LogDisposedWhileCheckInFlight(Logger);
+        }
+        // IAccessCheck's contract says it never throws for an unreachable/unauthenticated
+        // server, but this is the backstop for whatever it doesn't already normalize (e.g.
+        // a connection dropped mid-body-read, or a cancellation-shaped exception not caused
+        // by this component's own disposal -- deliberately not excluded here, unlike the
+        // catch above, so it still degrades to AccessCheckFailed instead of faulting the
+        // lifecycle task). Caught here, scoped to this one-time startup check, rather than
+        // via an ErrorBoundary wrapping the whole Router/MainLayout tree -- a boundary that
+        // wide would also catch an unrelated post-authorization page or layout exception
+        // (MainLayout's NavMenu isn't itself boundary-wrapped) and latch the entire app on a
+        // misleading "access could not be confirmed" message with no way to recover via
+        // navigation.
+        catch (Exception ex)
+        {
+            LogAccessCheckThrewUnexpectedly(Logger, ex);
+
+            if (!_disposed)
+            {
+                _outcome = new AccessCheckFailed();
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}

@@ -347,6 +347,12 @@ npm test
 The .NET suite (xUnit + bUnit) and the Worker suite (vitest against a real
 Miniflare/D1 binding, no mocking) are independent -- run both before opening a PR.
 
+Some behavior -- e.g. `Trainfree.Admin`'s access gating against a real `AdminApi`/
+`IdentityApi` -- is verified manually against locally running Workers rather than
+(only) by the automated suites above. See
+[`docs/identity/admin-access-gating-verification.md`](docs/identity/admin-access-gating-verification.md)
+for how that verification was carried out.
+
 ### Troubleshooting
 
 - **Requests hang / never complete**: a port conflict, not your code. Run

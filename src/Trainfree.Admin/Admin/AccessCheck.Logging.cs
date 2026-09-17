@@ -1,0 +1,30 @@
+using Microsoft.Extensions.Logging;
+
+namespace Trainfree.Admin.Admin;
+
+internal sealed partial class AccessCheck
+{
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Could not reach the access-check endpoint. {Reason}"
+    )]
+    private partial void LogAccessCheckUnreachable(string reason, Exception exception);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Access-check endpoint returned unexpected status {StatusCode}."
+    )]
+    private partial void LogAccessCheckUnexpectedStatus(int statusCode);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Could not read the access-check response. {Reason}"
+    )]
+    private partial void LogAccessCheckUnreadable(string reason, Exception exception);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Access-check response parsed as JSON but did not carry a complete identity."
+    )]
+    private partial void LogAccessCheckIdentityIncomplete();
+}
