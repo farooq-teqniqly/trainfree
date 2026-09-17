@@ -779,6 +779,22 @@ describe("POST /api/programs/:programId/sessions/:sessionId/phases", () => {
         ).json();
         expect(list).toHaveLength(2);
     });
+
+    it("never surfaces an unhandled 500 when a DELETE /api/phases/:id and a POST here for the same phase race (issue #89)", async () => {
+        const program = await (await createProgram("Workout A")).json();
+        const session = await (await createSession(program.id, "Monday Lower Body")).json();
+        const phase = await (await createPhase("Warm Up")).json();
+
+        const [deleteResponse, createResponse] = await Promise.all([
+            SELF.fetch(`http://worker/api/phases/${phase.id}`, { method: "DELETE" }),
+            createSessionPhase(program.id, session.id, phase.id),
+        ]);
+
+        // Whichever request the race favors, both must land on their documented status
+        // codes -- never the unhandled 500 issue #89 reports.
+        expect([204, 409]).toContain(deleteResponse.status);
+        expect([201, 400]).toContain(createResponse.status);
+    });
 });
 
 describe("DELETE /api/programs/:programId/sessions/:sessionId/phases/:id", () => {

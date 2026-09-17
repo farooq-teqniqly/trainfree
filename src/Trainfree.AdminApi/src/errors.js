@@ -12,6 +12,13 @@ export class PhaseInUseError extends Error {
     }
 }
 
+export class SessionPhaseInvalidPhaseError extends Error {
+    constructor() {
+        super("phaseId is required and must reference an existing phase");
+        this.name = "SessionPhaseInvalidPhaseError";
+    }
+}
+
 export class ExerciseInUseError extends Error {
     constructor(id) {
         super(
@@ -41,4 +48,17 @@ export function uniqueConstraintColumns(err, table) {
         new RegExp(String.raw`\b${escapeRegExp(table)}\.(\w+)`, "gi"),
     );
     return [...matches].map((match) => match[1]);
+}
+
+// Unlike a UNIQUE violation, D1/SQLite's FOREIGN KEY violation message never names the
+// offending table or column -- it is the fixed string "FOREIGN KEY constraint failed:
+// SQLITE_CONSTRAINT" regardless of which foreign key fired. So this detector, unlike
+// uniqueConstraintColumns, takes no table/column argument; callers rely on there being
+// exactly one foreign key that can plausibly fail in their own statement.
+export function isForeignKeyViolation(err) {
+    if (!(err instanceof Error)) {
+        return false;
+    }
+
+    return /FOREIGN KEY constraint failed/i.test(err.message);
 }

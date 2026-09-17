@@ -1,5 +1,9 @@
 import { generateSessionPhaseId } from "./ids.js";
-import { uniqueConstraintColumns } from "./errors.js";
+import {
+    SessionPhaseInvalidPhaseError,
+    isForeignKeyViolation,
+    uniqueConstraintColumns,
+} from "./errors.js";
 
 const SELECT_COLUMNS =
     "session_phase_id as id, session_id as sessionId, phase_id as phaseId, created_at as createdAt";
@@ -50,6 +54,14 @@ export async function createSessionPhase(db, sessionId, phaseId) {
                 attempt < MAX_ID_GENERATION_ATTEMPTS
             ) {
                 continue;
+            }
+            // The caller's phaseId existence check can be stale by the time this
+            // INSERT runs if a concurrent DELETE /api/phases/:id removes it in
+            // between (issue #89) -- that failure means exactly what a missing
+            // phaseId already means, so it gets the same error the check itself
+            // would have thrown.
+            if (isForeignKeyViolation(err)) {
+                throw new SessionPhaseInvalidPhaseError();
             }
             throw err;
         }

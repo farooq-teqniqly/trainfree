@@ -1,5 +1,10 @@
 import { generatePhaseId } from "./ids.js";
-import { DuplicateNameError, PhaseInUseError, uniqueConstraintColumns } from "./errors.js";
+import {
+    DuplicateNameError,
+    PhaseInUseError,
+    isForeignKeyViolation,
+    uniqueConstraintColumns,
+} from "./errors.js";
 
 const SELECT_COLUMNS =
     "phase_id as id, name, created_at as createdAt, updated_at as updatedAt";
@@ -89,9 +94,17 @@ export async function deletePhase(db, id) {
         throw new PhaseInUseError(id);
     }
 
-    const result = await db
-        .prepare("DELETE FROM phases WHERE phase_id = ?")
-        .bind(id)
-        .run();
+    let result;
+    try {
+        result = await db.prepare("DELETE FROM phases WHERE phase_id = ?").bind(id).run();
+    } catch (err) {
+        // A session phase referencing this phase can land between the in-use check
+        // above and this DELETE (issue #89) -- that failure means exactly what the
+        // up-front check already means, so it gets the same PhaseInUseError.
+        if (isForeignKeyViolation(err)) {
+            throw new PhaseInUseError(id);
+        }
+        throw err;
+    }
     return result.meta.changes > 0;
 }

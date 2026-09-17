@@ -67,6 +67,19 @@ produces, rather than propagating as a raw D1 constraint error.
   `phaseExists` check already returns, rather than introducing a distinct error class,
   since both cases mean the same thing to the client: "that phaseId does not reference
   an existing phase."
+- **FK-violation detector takes no `table`/`column` arguments, unlike
+  `uniqueConstraintColumns`.** Verified empirically against real D1: a `UNIQUE`
+  violation's message names the offending `<table>.<column>` (e.g.
+  `UNIQUE constraint failed: programs.name`), but a `FOREIGN KEY` violation's message
+  does not -- it is the fixed string `FOREIGN KEY constraint failed: SQLITE_CONSTRAINT`
+  regardless of which table or column's foreign key fired. A parameterized detector
+  would accept any `table`/`column` pair without actually discriminating between them,
+  which is more misleading than an unparameterized one. This is safe here because each
+  call site (`deletePhase`'s `DELETE`, `createSessionPhase`'s `INSERT`) has exactly one
+  foreign key that can plausibly fail in that statement. It would stop being safe, and
+  the detector would need to inspect `err.cause` or a driver-specific field instead of
+  the message text, if a single statement could violate more than one foreign key and
+  the two failures needed different handling.
 
 ## Requirement coverage
 
