@@ -114,9 +114,15 @@ jobs:
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
         run: dotnet test "Trainfree.slnx" --configuration Release --no-build --verbosity normal
 
+  # The `if` guard lives on each step, not the job, so the matrix always expands into
+  # both `worker-tests (Trainfree.AdminApi)`/`worker-tests (Trainfree.IdentityApi)`
+  # check-run names even for a docs-only PR. A job-level `if: false` skips matrix
+  # expansion entirely, collapsing this into one bare `worker-tests` context -- but
+  # branch protection requires the two matrix-expanded names specifically, so a
+  # docs-only PR would leave those two required checks permanently "Expected" and the
+  # PR unmergeable without an admin override (#132).
   worker-tests:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -127,9 +133,11 @@ jobs:
 
     steps:
       - name: Checkout code
+        if: needs.changes.outputs.code == 'true'
         uses: actions/checkout@v7
 
       - name: Setup Node
+        if: needs.changes.outputs.code == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -137,10 +145,12 @@ jobs:
           cache-dependency-path: src/${{ matrix.worker }}/package-lock.json
 
       - name: Install dependencies
+        if: needs.changes.outputs.code == 'true'
         working-directory: src/${{ matrix.worker }}
         run: npm ci
 
       - name: Run vitest
+        if: needs.changes.outputs.code == 'true'
         working-directory: src/${{ matrix.worker }}
         run: npm test
 
