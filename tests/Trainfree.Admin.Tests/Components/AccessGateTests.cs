@@ -106,6 +106,25 @@ public sealed class AccessGateTests : BunitContext
     }
 
     [Fact]
+    public void Render_CheckThrowsCancellationNotCausedByDisposal_RendersAccessCheckErrorPage()
+    {
+        // Arrange -- a cancellation-shaped exception that isn't this component's own
+        // disposal (e.g. an implementation-specific timeout) must still degrade to
+        // AccessCheckFailed rather than faulting the lifecycle task and leaving the app
+        // unrendered.
+        _accessCheck
+            .CheckAsync(Arg.Any<CancellationToken>())
+            .Returns<AccessCheckOutcome>(_ => throw new OperationCanceledException("timed out"));
+
+        // Act
+        var cut = Render<AccessGate>(p => p.Add(x => x.ChildContent, ProtectedContent));
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid=protected-content]"));
+        Assert.NotEmpty(cut.FindAll("[data-testid=access-check-error-page]"));
+    }
+
+    [Fact]
     public async Task Dispose_CheckStillInFlight_CancelsTheTokenPassedToCheckAsync()
     {
         // Arrange
