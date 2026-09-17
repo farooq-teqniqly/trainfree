@@ -1,3 +1,4 @@
+using System.IO;
 using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -80,5 +81,23 @@ public sealed class AppTests : BunitContext
         Assert.Empty(cut.FindAll(".version-stamp"));
         Assert.NotEmpty(cut.FindAll("[data-testid=access-check-error-page]"));
         _versionCheck.DidNotReceive().CheckAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void Render_AccessCheckThrowsAnUnexpectedException_ShowsAccessCheckErrorPageInsteadOfCrashing()
+    {
+        // Arrange -- an exception type IAccessCheck's contract doesn't document (e.g. a
+        // connection dropped mid-body-read) is exactly the gap an ErrorBoundary around
+        // AccessGate exists to contain.
+        _accessCheck
+            .CheckAsync(Arg.Any<CancellationToken>())
+            .Returns<AccessCheckOutcome>(_ => throw new IOException("connection reset"));
+
+        // Act
+        var cut = Render<App>();
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll("[data-testid=access-check-error-page]"));
+        Assert.Empty(cut.FindAll(".blazor-error-boundary"));
     }
 }
