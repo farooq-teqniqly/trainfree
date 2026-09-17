@@ -39,20 +39,23 @@ itself rather than treating any `200` as authorized.
 - **WHEN** `GET /api/me` returns `200 { "email": "u@x.com", "role": "User" }`
 - **THEN** `Trainfree.Admin` renders the "no access" page, not the normal app
 
-### Requirement: 401/403 JSON responses show a "no access" page
+### Requirement: 401/403 responses show a "no access" page
 `Trainfree.Admin` SHALL render a "no access" page, instead of the normal app, when
-`GET /api/me` returns a JSON `401` or `403` response.
+`GET /api/me` returns a `401` or `403` response, regardless of the response body.
 **Rationale**: Both statuses mean "you don't get in" -- `401` because the request
 couldn't be authenticated at all, `403` because it authenticated to an unprovisioned
 identity -- and the end-user experience of either is identical: this app is not for
-you.
+you. The status code alone is decisive; the gate does not need to inspect the body to
+classify these two statuses, so an intermediary that answers a `401`/`403` with a
+non-JSON body (e.g. a plain edge error page) is still "no access," not a fourth,
+distinct outcome.
 
 #### Scenario: Unauthenticated caller sees "no access"
-- **WHEN** `GET /api/me` returns a JSON `401` response
+- **WHEN** `GET /api/me` returns a `401` response
 - **THEN** `Trainfree.Admin` renders the "no access" page
 
 #### Scenario: Unprovisioned identity sees "no access"
-- **WHEN** `GET /api/me` returns a JSON `403` response
+- **WHEN** `GET /api/me` returns a `403` response
 - **THEN** `Trainfree.Admin` renders the "no access" page
 
 ### Requirement: Network failure or 5xx shows a distinct retry state
