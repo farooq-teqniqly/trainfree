@@ -245,10 +245,14 @@ missing entirely, `GET /api/me` fails closed with a `503` immediately, without c
 was rotated but not the other), `IdentityApi` rejects the mismatched value with a `404`,
 which `AdminApi` normalizes to the same `503` -- either way the Blazor client's
 `AccessGate` renders "We couldn't confirm your access," a symptom of this secret, not of
-Cloudflare Access itself (check `wrangler secret list` in both Worker directories to
-compare and tell the two cases apart: absent vs present-but-wrong). This is what caused
-the production incident this section documents -- `AdminApi`'s copy was never set; it was
-already resolved by generating and setting a value on both Workers as described above.
+Cloudflare Access itself. `wrangler secret list` in both Worker directories only reports
+whether `ADMIN_INTERNAL_KEY` is present, not its value (Cloudflare never exposes secret
+values), so it can rule out the missing-entirely case but not confirm the two sides
+actually match -- if both report the secret present and the `503` persists, re-run
+`wrangler secret put ADMIN_INTERNAL_KEY` with the same saved value on both Workers rather
+than assuming they already match. This is what caused the production incident this
+section documents -- `AdminApi`'s copy was never set; it was already resolved by
+generating and setting a value on both Workers as described above.
 
 ### 5. Open the app
 
