@@ -35,7 +35,7 @@ internal sealed partial class AccessCheck : IAccessCheck
         }
         catch (HttpRequestException ex)
         {
-            LogAccessCheckUnreachable(ex.Message);
+            LogAccessCheckUnreachable(ex.Message, ex);
             return new AccessCheckFailed();
         }
         // HttpClient reports its own timeout as a cancellation. The filter keeps a real
@@ -43,45 +43,60 @@ internal sealed partial class AccessCheck : IAccessCheck
         // is still unsignalled, degrades to AccessCheckFailed.
         catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
-            LogAccessCheckUnreachable(ex.Message);
+            LogAccessCheckUnreachable(ex.Message, ex);
             return new AccessCheckFailed();
         }
 
-        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        using (response)
         {
-            return new NoAccess();
-        }
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                return new NoAccess();
+            }
 
-        if ((int)response.StatusCode >= 500)
-        {
-            LogAccessCheckServerError((int)response.StatusCode);
-            return new AccessCheckFailed();
-        }
+            if ((int)response.StatusCode >= 500)
+            {
+                LogAccessCheckServerError((int)response.StatusCode);
+                return new AccessCheckFailed();
+            }
 
-        MeDto? me;
-        try
-        {
-            me = await response.Content.ReadFromJsonAsync<MeDto>(JsonOptions, cancellationToken);
-        }
-        // A Cloudflare Access expired session answers with its own HTML login page instead
-        // of the Worker's JSON, same underlying cause VersionCheck.cs already documents for
-        // GET /api/version.
-        catch (Exception ex)
-            when (ex is JsonException or InvalidOperationException or NotSupportedException)
-        {
-            LogAccessCheckUnreadable(ex.Message);
-            return new ReauthenticationRequired();
-        }
+            MeDto? me;
+            try
+            {
+                me = await response.Content.ReadFromJsonAsync<MeDto>(
+                    JsonOptions,
+                    cancellationToken
+                );
+            }
+            // A Cloudflare Access expired session answers with its own HTML login page instead
+            // of the Worker's JSON, same underlying cause VersionCheck.cs already documents for
+            // GET /api/version.
+            catch (Exception ex)
+                when (ex is JsonException or InvalidOperationException or NotSupportedException)
+            {
+                LogAccessCheckUnreadable(ex.Message, ex);
+                return new ReauthenticationRequired();
+            }
 
-        if (me is null)
-        {
-            LogAccessCheckUnreadable("The server returned an empty identity document.");
-            return new ReauthenticationRequired();
-        }
+            // A response that parses as JSON but doesn't carry the fields this outcome
+            // depends on (e.g. `{}`, or a body with `email` but no `role`) is exactly as
+            // untrustworthy as one that fails to parse at all -- treating it as NoAccess
+            // would misreport a broken/unexpected response shape as a real authorization
+            // denial, so it takes the same ReauthenticationRequired path.
+            if (
+                me is null
+                || string.IsNullOrWhiteSpace(me.Email)
+                || string.IsNullOrWhiteSpace(me.Role)
+            )
+            {
+                LogAccessCheckIdentityIncomplete();
+                return new ReauthenticationRequired();
+            }
 
-        return string.Equals(me.Role, "Administrator", StringComparison.Ordinal)
-            ? new Administrator()
-            : new NoAccess();
+            return string.Equals(me.Role, "Administrator", StringComparison.Ordinal)
+                ? new Administrator()
+                : new NoAccess();
+        }
     }
 
     private sealed record MeDto(string Email, string Role);

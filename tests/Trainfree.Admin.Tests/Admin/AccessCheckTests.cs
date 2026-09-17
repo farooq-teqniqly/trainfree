@@ -173,6 +173,48 @@ public sealed class AccessCheckTests : IDisposable
         Assert.IsType<ReauthenticationRequired>(outcome);
     }
 
+    [Fact]
+    public async Task CheckAsync_ServerReturnsEmptyObject_ReturnsReauthenticationRequired()
+    {
+        // Arrange
+        _handler.NextResponse = JsonResponse(HttpStatusCode.OK, "{}");
+        var check = CreateCheck();
+
+        // Act
+        var outcome = await check.CheckAsync(CancellationToken.None);
+
+        // Assert
+        Assert.IsType<ReauthenticationRequired>(outcome);
+    }
+
+    [Fact]
+    public async Task CheckAsync_ServerReturnsRoleWithoutEmail_ReturnsReauthenticationRequired()
+    {
+        // Arrange
+        _handler.NextResponse = JsonResponse(HttpStatusCode.OK, """{"role":"Administrator"}""");
+        var check = CreateCheck();
+
+        // Act
+        var outcome = await check.CheckAsync(CancellationToken.None);
+
+        // Assert
+        Assert.IsType<ReauthenticationRequired>(outcome);
+    }
+
+    [Fact]
+    public async Task CheckAsync_ServerReturnsEmailWithoutRole_ReturnsReauthenticationRequired()
+    {
+        // Arrange
+        _handler.NextResponse = JsonResponse(HttpStatusCode.OK, """{"email":"a@x.com"}""");
+        var check = CreateCheck();
+
+        // Act
+        var outcome = await check.CheckAsync(CancellationToken.None);
+
+        // Assert
+        Assert.IsType<ReauthenticationRequired>(outcome);
+    }
+
     private AccessCheck CreateCheck() => new(_httpClient, NullLogger<AccessCheck>.Instance);
 
     private static HttpResponseMessage JsonResponse(HttpStatusCode status, string json) =>

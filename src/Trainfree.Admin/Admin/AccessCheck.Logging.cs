@@ -8,7 +8,7 @@ internal sealed partial class AccessCheck
         Level = LogLevel.Warning,
         Message = "Could not reach the access-check endpoint. {Reason}"
     )]
-    private partial void LogAccessCheckUnreachable(string reason);
+    private partial void LogAccessCheckUnreachable(string reason, Exception exception);
 
     [LoggerMessage(
         Level = LogLevel.Warning,
@@ -20,5 +20,11 @@ internal sealed partial class AccessCheck
         Level = LogLevel.Warning,
         Message = "Could not read the access-check response. {Reason}"
     )]
-    private partial void LogAccessCheckUnreadable(string reason);
+    private partial void LogAccessCheckUnreadable(string reason, Exception exception);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Access-check response parsed as JSON but did not carry a complete identity."
+    )]
+    private partial void LogAccessCheckIdentityIncomplete();
 }
