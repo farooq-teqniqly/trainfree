@@ -58,14 +58,19 @@ distinct outcome.
 - **WHEN** `GET /api/me` returns a `403` response
 - **THEN** `Trainfree.Admin` renders the "no access" page
 
-### Requirement: Network failure or 5xx shows a distinct retry state
+### Requirement: Network failure or an unexpected status shows a distinct retry state
 `Trainfree.Admin` SHALL render a "something went wrong, retry" state, distinct from the
 "no access" page, when the `GET /api/me` call fails at the transport level (no response
-reaches the app) or the response status is `5xx`.
+reaches the app) or the response status is anything other than `200`, `401`, or `403`
+-- a `5xx`, but equally a `3xx`/`4xx`/other `2xx` this endpoint has no documented reason
+to return.
 **Rationale**: Folding an infrastructure outage into "no access" would misinform an
 Administrator into thinking they lack permission when the real problem is that
 `AdminApi` or `IdentityApi` is down; `admin-api-enforcement`'s own `503` requirement
-exists to keep this distinction available to the client.
+exists to keep this distinction available to the client. Requiring `200` explicitly,
+rather than falling through to parse whatever body an unexpected status carries, also
+keeps a future intermediary or misconfigured route from being trusted just because its
+body happens to parse into an authorized-looking shape.
 
 #### Scenario: Network failure shows retry, not no-access
 - **WHEN** the `GET /api/me` call throws a transport-level exception (no HTTP response
@@ -78,26 +83,40 @@ exists to keep this distinction available to the client.
 - **THEN** `Trainfree.Admin` renders the "something went wrong, retry" state, not the
   "no access" page
 
+#### Scenario: An unexpected non-error status shows retry, not authorization
+- **WHEN** `GET /api/me` returns a status other than `200`, `401`, `403`, or `5xx` (for
+  example a `3xx` or an unexpected `2xx`), even if its body happens to parse as an
+  "authorized" shape
+- **THEN** `Trainfree.Admin` renders the "something went wrong, retry" state, not the
+  normal app
+
 ### Requirement: A non-JSON response forces a top-level reload, not a fetch retry
-`Trainfree.Admin` SHALL treat a `GET /api/me` response that is neither a valid
-"authorized" body nor a valid `401`/`403` JSON body -- for example a response that
-fails to parse as JSON -- as a fourth, distinct outcome, and SHALL force a top-level
-browser navigation reload (e.g. `NavigationManager.NavigateTo(..., forceLoad: true)` or
-`location.reload()`), rather than rendering "no access" or "something went wrong" or
-retrying with another `fetch` call.
+Status code is decided first and takes precedence over this requirement: a `401` or
+`403` is always "no access" (previous requirement) and a `5xx` is always "something
+went wrong" (next requirement), regardless of body, before the response body is ever
+read. Only for a response whose status is neither of those -- in practice, `200` --
+`Trainfree.Admin` SHALL treat a body that is neither a valid "authorized" shape nor
+parseable as the expected JSON at all as a fourth, distinct outcome, and SHALL force a
+top-level browser navigation reload (e.g. `NavigationManager.NavigateTo(...,
+forceLoad: true)` or `location.reload()`), rather than rendering "no access" or
+"something went wrong" or retrying with another `fetch` call.
 **Rationale**: `GET /api/me` is a `fetch`-style same-origin call, not a top-level
 navigation; on an expired Access session, Cloudflare Access answers with its own HTML
-login page (still same-origin, still some HTTP status) instead of the expected JSON, so
+login page at a non-error status (still same-origin) instead of the expected JSON, so
 parsing throws -- `VersionCheck.cs:58-70` already documents this exact failure shape for
 the same underlying cause. Only a real top-level navigation lets Access's edge redirect
 to its login page and re-authenticate the session; classifying this response as
 "no access" would misinform a still-valid Administrator whose session merely expired,
 and classifying it as "retry" would loop forever since a plain retry is still a `fetch`.
+Scoping this requirement to a non-401/403/5xx status keeps it from contradicting the
+"regardless of the response body" status-code precedence the other two requirements
+establish -- a `401`/`403` with an unparseable body is still "no access," never this
+outcome.
 
 #### Scenario: Non-JSON response triggers a top-level reload
-- **WHEN** `GET /api/me` returns a response whose body cannot be parsed as the expected
-  JSON shape (mirroring `VersionCheck`'s `JsonException`/`InvalidOperationException`/
-  `NotSupportedException` catch)
+- **WHEN** `GET /api/me` returns a `200` response whose body cannot be parsed as the
+  expected JSON shape (mirroring `VersionCheck`'s `JsonException`/
+  `InvalidOperationException`/`NotSupportedException` catch)
 - **THEN** `Trainfree.Admin` forces a top-level navigation reload instead of rendering
   either the "no access" page or the "something went wrong" state
 
