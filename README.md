@@ -215,7 +215,18 @@ pin the poll's URL instead of relying on the deploy step's own output.
 same internal-key secret `IdentityApi` already checks (see
 `Trainfree.IdentityApi/src/identity/config.js`'s `CALLER_CONFIG`). This is a
 manual, one-time step -- like the Access application above, it is not automated in
-`deploy.yaml`:
+`deploy.yaml`. Generate a random value first (Cloudflare secrets are never readable back
+after they're set, so save this wherever you keep other production secrets):
+
+```sh
+# PowerShell
+[System.Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
+
+# or, with OpenSSL available
+openssl rand -base64 32
+```
+
+Then set that same value on both Workers:
 
 ```sh
 wrangler secret put ADMIN_INTERNAL_KEY  # from src/Trainfree.AdminApi
@@ -225,7 +236,12 @@ wrangler secret put ADMIN_INTERNAL_KEY  # from src/Trainfree.IdentityApi
 Both commands must be given the **same** value -- `IdentityApi` compares the value
 `AdminApi` presents against its own copy. Per `CLAUDE.md`'s "Prod API URL is never
 configured, per app" rule, this is a secret (not a `vars` entry), so it never appears in
-either Worker's `wrangler.jsonc`/`wrangler.deploy.jsonc`.
+either Worker's `wrangler.jsonc`/`wrangler.deploy.jsonc`. If `AdminApi`'s copy is ever
+missing or falls out of sync with `IdentityApi`'s (e.g. one side's secret was rotated but
+not the other), `GET /api/me` fails closed with a `503` and the Blazor client's
+`AccessGate` renders "We couldn't confirm your access" -- that error is a symptom of this
+secret, not of Cloudflare Access itself (check `wrangler secret list` in both Worker
+directories to compare).
 
 ### 5. Open the app
 
