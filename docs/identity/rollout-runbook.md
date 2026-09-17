@@ -1,7 +1,15 @@
-# Slice 1/2 rollout runbook
+# Slice 1/2 rollout runbook (archived)
 
-`IdentityApi` (slice 1) and `AdminApi`'s enforcement of it (slice 2, not yet built) must
-deploy in this exact order. Deploying slice 2 before any D1 identity exists locks out
+**Archived: both slices have shipped** (`IdentityApi` in #124-128, `AdminApi`
+enforcement in #129). This runbook is kept only as the historical record of that
+one-time rollout's ordering requirement -- it is not a procedure to re-run. For the
+current, ongoing state of Cloudflare infrastructure (Access applications, D1, secrets,
+Workers), see `docs/cloudflare-infrastructure.md` instead.
+
+---
+
+`IdentityApi` (slice 1) and `AdminApi`'s enforcement of it (slice 2) had to deploy in
+this exact order. Deploying slice 2 before any D1 identity exists locks out
 every administrator, including the operator, with no in-app way to recover -- there is no
 provisioning UI in this change (see
 `docs/identity/identity-intent-01-identityapi.md`'s "Rollout order" requirement, which
@@ -21,14 +29,13 @@ this runbook implements). Do not skip step 3.
    npm run provision -- --email <owner's email> --role Administrator --remote
    ```
 
-   > **Do not run this step until `verify-identity-api-rollout`'s task 2.2 has
-   > confirmed `--remote` actually reaches the deployed database.** As shipped,
-   > `provision-identity.js` loads the shared `wrangler.jsonc`, whose D1 binding has no
-   > `"remote": true` -- `--remote` currently provisions the *local* `.wrangler-shared`
-   > database, not production, with no error to indicate that happened. Running this
-   > step as written today would silently do nothing useful and step 3 would then fail
-   > for the right reason (no identity exists) but the wrong reason (this step never
-   > reached the database it claims to).
+   > **[Fixed in #127, kept for historical context]** At the time this runbook was
+   > written, `--remote` silently provisioned the *local* `.wrangler-shared` database
+   > instead of production, with no error to indicate that happened --
+   > `provision-identity.js` loaded the shared `wrangler.jsonc`, whose D1 binding had no
+   > `"remote": true`. PR #127 routed `--remote` at the real deployed D1 database (see
+   > `scripts/wrangler.remote.jsonc`), so this caveat no longer applies to the current
+   > script.
 
    Note the email it prints -- step 3 asserts the smoke check's response names this exact
    identity.
@@ -37,11 +44,11 @@ this runbook implements). Do not skip step 3.
    production; see [Why the smoke check needs its own config](#why-the-smoke-check-needs-its-own-config)
    below for why it cannot be a plain `curl`/browser request.
 
-   > **Same caveat as step 2:** `smoke-harness/wrangler.jsonc`'s `IDENTITY` service
-   > binding also has no `"remote": true`, so this check does not yet actually reach
-   > the deployed `IdentityApi` Worker either. Do not treat a pass here as proof the
-   > real service binding works until `verify-identity-api-rollout`'s task 2.4 has
-   > confirmed and fixed this.
+   > **[Fixed in #128, kept for historical context]** At the time this runbook was
+   > written, `smoke-harness/wrangler.jsonc`'s `IDENTITY` service binding had no
+   > `"remote": true`, so this check did not yet actually reach the deployed
+   > `IdentityApi` Worker. PR #128 added `"remote": true` to that binding (see the
+   > config below), so this caveat no longer applies to the current config.
 
    ```sh
    cd src/Trainfree.IdentityApi
