@@ -1,10 +1,12 @@
+# admin-access-gating Specification
+
 ## Purpose
 
 Gates the `Trainfree.Admin` app shell itself on the caller's role, so a non-Administrator
 or unauthenticated browser never renders the normal app or fires any page's own API
 calls while the check is in flight.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Root-level gate runs before the router renders any page
 `Trainfree.Admin` SHALL call `GET /api/me` from a root component that wraps
@@ -100,35 +102,3 @@ and classifying it as "retry" would loop forever since a plain retry is still a 
 - **WHEN** the non-JSON-response outcome is handled
 - **THEN** the app issues a top-level browser navigation (forced reload), not another
   `HttpClient`/`fetch` call to `GET /api/me`
-
-## Decisions
-
-- Modeled the gate's outcome as four distinct, mutually exclusive states (Authorized,
-  NoAccess, Error, ReauthenticationRequired) rather than a single boolean
-  "isAuthorized" plus an error flag, per `CLAUDE-domain-driven-design.md`'s "no enum for
-  state with associated data" rule -- each outcome drives a different rendering path
-  and only "Authorized" carries no extra data. A boolean-plus-flags shape would let
-  invalid combinations (e.g. "authorized" and "error" both true) type-check.
-- Placed the gate in a root component wrapping `App.razor`'s `<Router>`, rather than in
-  `MainLayout` alongside `VersionIndicator`, because `MainLayout` only renders after the
-  router has already matched and started rendering a page -- too late to prevent a
-  protected page's own startup API calls. `MainLayout` remains right for
-  `VersionIndicator`, which has no "don't render the page" requirement.
-- Treated a non-JSON response as a fourth outcome distinct from both "no access" and
-  "error", rather than folding it into "error" (which already covers network
-  failure/5xx). Folding it into "error" would show a static "retry" state to a Access
-  user whose session merely expired, and simply retrying (another `fetch`) can never
-  succeed since Access only re-authenticates on a top-level navigation -- a genuine
-  distinct case is not covered by "error"'s generic retry action.
-
-## Requirement coverage
-
-Anchor: docs/identity/identity-intent-03-admin-access-gating.md (frozen intent doc)
-
-| # | Anchor requirement | Covered by |
-|---|--------------------|-----------|
-| 1 | Gate runs before `<Router>` renders any page, in `App.razor` or an equivalent root wrapper -- unlike `VersionIndicator`'s `MainLayout` placement | Req: Root-level gate runs before the router renders any page |
-| 2 | Renders normally only on `200` with `role == "Administrator"` | Req: Administrator role renders the app normally |
-| 3 | `401`/`403` JSON response shows "no access" page | Req: 401/403 JSON responses show a "no access" page |
-| 4 | Network failure or `5xx` shows a distinct "something went wrong, retry" state | Req: Network failure or 5xx shows a distinct retry state |
-| 5 | Expired Access session (non-JSON response) is a fourth, distinct outcome handled by a forced top-level reload, not "no access" and not "retry" | Req: A non-JSON response forces a top-level reload, not a fetch retry |
