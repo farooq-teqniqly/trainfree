@@ -22,7 +22,10 @@
             Build out programs and sessions for your workouts.
         </p>
     </div>
-    <AddButton TestId="add-program" Label="Add Program" OnClick="AddProgramAsync" />
+    @if (!_isLoading)
+    {
+        <AddButton TestId="add-program" Label="Add Program" OnClick="AddProgramAsync" />
+    }
 </div>
 
 <InlineError Message="@_addProgramError" TestId="add-program-error" Class="mb-2" />

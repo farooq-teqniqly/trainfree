@@ -94,6 +94,21 @@ public sealed class ProgramsPageTests : BunitContext
         Assert.Equal(columnCount, firstSkeletonRowCellCount);
     }
 
+    [Fact]
+    public void OnInitialized_ProgramTreeFetchNotYetResolved_HidesAddProgramButton()
+    {
+        // Arrange
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns(new TaskCompletionSource<IReadOnlyList<ProgramTreeItem>>().Task);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='add-program']"));
+    }
+
     [Theory]
     [InlineData("phase")]
     [InlineData("exercise")]
