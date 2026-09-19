@@ -196,7 +196,7 @@ visible flash on every load, not just a blank delay.
 - **WHEN** the Phases page has navigated to `/phases` and the phases fetch has not yet
   resolved
 - **THEN** the page renders skeleton rows using `SkeletonBlock` from `Trainfree.UI`,
-  not the empty-state view and not the table
+  not the empty-state view and not the populated data table
 
 #### Scenario: Page loads with existing phases
 
