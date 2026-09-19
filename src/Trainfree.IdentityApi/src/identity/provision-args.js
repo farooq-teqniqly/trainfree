@@ -38,6 +38,12 @@ export function parseProvisionArgs(argv) {
         }
     }
 
+    // The positional form exists only for the case where npm stripped both flags; mixing
+    // it with a named flag makes the binding order-dependent, so refuse it.
+    if (positionals.length > 0 && (args.email || args.roleName)) {
+        throw new Error("Do not mix positional and named arguments");
+    }
+
     for (const value of positionals) {
         if (!args.email) {
             args.email = value;

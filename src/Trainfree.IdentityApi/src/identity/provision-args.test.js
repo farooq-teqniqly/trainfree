@@ -26,15 +26,10 @@ describe("parseProvisionArgs", () => {
         });
     });
 
-    it("accepts a positional role alongside a named email", () => {
-        expect(parseProvisionArgs(["--email", "a@b.c", "User"])).toMatchObject({
-            email: "a@b.c",
-            roleName: "User",
-        });
-    });
-
     it.each([
         ["an unknown flag", ["--nope", "a@b.c", "User"], /Unknown argument: --nope/],
+        ["a positional role after a named email", ["--email", "a@b.c", "User"], /^Do not mix positional and named arguments$/],
+        ["a positional email after a named role", ["--role", "User", "a@b.c"], /^Do not mix positional and named arguments$/],
         ["too many positionals", ["a@b.c", "User", "extra"], /Unexpected argument: extra/],
         ["a missing email", ["--role", "User"], /^Error: --email is required$|^--email is required$/],
         ["a missing role", ["--email", "a@b.c"], /^--role is required$/],
