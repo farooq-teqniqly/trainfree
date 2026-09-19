@@ -8,7 +8,7 @@
 @switch (_outcome)
 {
     case Administrator administrator:
-        <CascadingValue Value="administrator.User">
+        <CascadingValue Value="administrator.User" IsFixed="true">
             @ChildContent
         </CascadingValue>
         break;

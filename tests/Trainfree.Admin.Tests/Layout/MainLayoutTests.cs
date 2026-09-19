@@ -5,6 +5,7 @@ using NSubstitute;
 using Trainfree.Admin.Admin;
 using Trainfree.Admin.Layout;
 using Trainfree.Admin.Pages;
+using Trainfree.Domain.Users;
 using Trainfree.Versioning;
 
 namespace Trainfree.Admin.Tests.Layout;
@@ -33,6 +34,11 @@ public sealed class MainLayoutTests : BunitContext
         builder.OpenComponent<Programs>(0);
         builder.CloseComponent();
     };
+
+    private static readonly CurrentUser TestUser = new(
+        EmailAddress.Parse("farooq@example.com"),
+        "Administrator"
+    );
 
     private readonly IVersionCheck _versionCheck = Substitute.For<IVersionCheck>();
     private readonly IProgramsApiClient _programs = Substitute.For<IProgramsApiClient>();
@@ -206,5 +212,44 @@ public sealed class MainLayoutTests : BunitContext
         // Assert
         Assert.DoesNotContain("collapse", cut.Find("nav.sidebar").ClassList);
         Assert.Equal("true", cut.Find(".navbar-toggler").GetAttribute("aria-expanded"));
+    }
+
+    [Fact]
+    public void Render_SignedInUserCascaded_ShowsTheAvatarAfterTheVersionIndicatorInTheNavbar()
+    {
+        // Arrange
+        _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new RunningLatestVersion());
+
+        // Act
+        var cut = Render<MainLayout>(p =>
+            p.AddCascadingValue(TestUser).Add(x => x.Body, WorkingPage)
+        );
+
+        // Assert
+        var navItem = cut.Find("header .nav-item");
+        Assert.Single(navItem.QuerySelectorAll(".version-stamp"));
+        var avatar = Assert.Single(navItem.QuerySelectorAll("[data-testid=user-identity]"));
+        Assert.Equal("F", cut.Find("[data-testid=user-avatar]").TextContent.Trim());
+        Assert.Equal("Administrator", cut.Find("[data-testid=user-role]").TextContent.Trim());
+        var stamp = navItem.QuerySelector(".version-stamp")!;
+        Assert.True(
+            stamp
+                .CompareDocumentPosition(avatar)
+                .HasFlag(AngleSharp.Dom.DocumentPositions.Following)
+        );
+    }
+
+    [Fact]
+    public void Render_NoSignedInUserCascaded_OmitsTheAvatarAndStillRendersThePage()
+    {
+        // Arrange
+        _versionCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new RunningLatestVersion());
+
+        // Act
+        var cut = Render<MainLayout>(p => p.Add(x => x.Body, WorkingPage));
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid=user-identity]"));
+        Assert.NotEmpty(cut.FindAll("[data-testid=page-body]"));
     }
 }

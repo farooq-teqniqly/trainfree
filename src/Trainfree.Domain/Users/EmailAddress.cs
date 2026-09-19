@@ -9,16 +9,24 @@ namespace Trainfree.Domain.Users;
 /// </summary>
 public readonly record struct EmailAddress
 {
-    /// <summary>The address exactly as issued by the identity provider.</summary>
-    public string Value { get; }
+    /// <summary>
+    /// The address exactly as issued by the identity provider; empty only for
+    /// <see langword="default"/>, which is not a valid address.
+    /// </summary>
+    public string Value => _value ?? string.Empty;
 
     /// <summary>
     /// The first character of the address, uppercased, for use as a compact identifier such
     /// as an avatar label. A surrogate pair is kept whole rather than split.
     /// </summary>
-    public string Initial => Rune.ToUpperInvariant(Value.EnumerateRunes().First()).ToString();
+    public string Initial =>
+        Value.Length == 0
+            ? string.Empty
+            : Rune.ToUpperInvariant(Value.EnumerateRunes().First()).ToString();
 
-    private EmailAddress(string value) => Value = value;
+    private readonly string? _value;
+
+    private EmailAddress(string value) => _value = value;
 
     /// <summary>Creates an <see cref="EmailAddress"/> from <paramref name="value"/>.</summary>
     /// <param name="value">The address to wrap.</param>

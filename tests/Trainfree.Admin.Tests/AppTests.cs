@@ -54,7 +54,7 @@ public sealed class AppTests : BunitContext
 
         // Assert
         Assert.NotEmpty(cut.FindAll(".navbar-brand"));
-        Assert.NotEmpty(cut.FindAll(".version-stamp"));
+        Assert.Single(cut.FindAll(".version-stamp"));
         Assert.Equal("F", cut.Find("[data-testid=user-avatar]").TextContent.Trim());
     }
 

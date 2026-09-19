@@ -7,7 +7,7 @@
 ## 2. Navbar avatar
 
 - [x] 2.1 Add a `UserAvatar` component (circle, initial, `title` and `aria-label` with the full email, role beneath, `data-testid`s); verify bUnit tests
-- [x] 2.2 Render `UserAvatar` in `MainLayout` after the version indicator, styled in `MainLayout.razor.css`; verify `MainLayoutTests` and a manual check in the browser at desktop and phone widths
+- [x] 2.2 Render `UserAvatar` in `MainLayout` after the version indicator, styled in the scoped `UserAvatar.razor.css`; verify `MainLayoutTests` and a manual check in the browser at desktop and phone widths
 
 ## 3. Mockups and docs
 

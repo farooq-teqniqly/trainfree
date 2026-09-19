@@ -49,6 +49,19 @@ public sealed class EmailAddressTests
     }
 
     [Fact]
+    public void Initial_DefaultInstance_ReturnsEmptyString()
+    {
+        // Arrange
+        var email = default(EmailAddress);
+
+        // Act
+        var initial = email.Initial;
+
+        // Assert
+        Assert.Equal(string.Empty, initial);
+    }
+
+    [Fact]
     public void Equals_SameValue_AreEqual()
     {
         // Arrange
