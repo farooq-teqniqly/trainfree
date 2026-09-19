@@ -82,7 +82,9 @@ Blazor dev server. `AdminApi` enforces the Administrator role on every data endp
 but `wrangler.jsonc` sets `LOCAL_DEV_BYPASS` by default for local dev, substituting a
 synthetic local Administrator identity instead of calling `IdentityApi` -- see step 2
 below for the one-time seed row this needs. A third server, `IdentityApi`, only needs
-to run if you're testing the real (non-bypass) `/internal/identity` path directly.
+to run if you're testing the real (non-bypass) `/internal/identity` path directly; start
+it with `npm run dev` from `src/Trainfree.IdentityApi` (port 9998 -- full setup in
+[step 4](#4-identityapi-optional)).
 
 ### 1. Worker API
 
@@ -122,6 +124,13 @@ This uses `IdentityApi`'s own provisioning script (see step 4 below), not `wrang
 dev` -- no server needs to be running for this command. It's idempotent: re-running it
 after the first time reports "already provisioned" and makes no changes, and
 [Reset the local database](#reset-the-local-database) requires re-running it.
+
+**Windows PowerShell:** PowerShell swallows the `--` separator, so npm consumes
+`--email`/`--role` as its own config and forwards only the values. The script accepts
+that form (`<email> <role>`, positional), so the command above still works, but the
+`--remote` flag is dropped the same way and the run silently targets local D1. To
+provision the deployed database from PowerShell, invoke the script directly:
+`node scripts/provision-identity.js --email <email> --role <role> --remote`.
 
 **Never append `--remote` to this exact command.** `provision-identity.js` also accepts
 `--remote` to target the deployed database (see step 4), but `local-dev@trainfree.local`

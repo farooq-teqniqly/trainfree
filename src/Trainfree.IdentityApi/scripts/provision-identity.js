@@ -19,41 +19,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPlatformProxy } from "wrangler";
 import { PROVIDER_NAME_CLOUDFLARE_ACCESS } from "../src/shared/providers.js";
+import { parseProvisionArgs } from "../src/identity/provision-args.js";
 import { provisionIdentity, UnknownRoleError } from "../src/identity/provisioning.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-function parseArgs(argv) {
-    const args = { remote: false };
-    for (let i = 0; i < argv.length; i += 1) {
-        const arg = argv[i];
-        switch (arg) {
-            case "--email":
-                args.email = argv[++i];
-                break;
-            case "--role":
-                args.roleName = argv[++i];
-                break;
-            case "--remote":
-                args.remote = true;
-                break;
-            default:
-                throw new Error(`Unknown argument: ${arg}`);
-        }
-    }
-
-    if (!args.email) {
-        throw new Error("--email is required");
-    }
-    if (!args.roleName) {
-        throw new Error("--role is required");
-    }
-
-    return args;
-}
-
 async function main() {
-    const { email, roleName, remote } = parseArgs(process.argv.slice(2));
+    const { email, roleName, remote } = parseProvisionArgs(process.argv.slice(2));
 
     const configPath = remote
         ? path.join(__dirname, "wrangler.remote.jsonc")
