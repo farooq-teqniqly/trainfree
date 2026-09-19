@@ -12,6 +12,7 @@
 /* NavLink renders the brand's <a>, which does not receive this component's scope
    attribute, so its sizing has to reach it through ::deep. */
 header ::deep .navbar-brand {
+    flex-shrink: 0;
     padding-inline: calc(1rem * var(--navbar-scale));
     gap: calc(0.5rem * var(--navbar-scale));
     font-size: calc(1.25rem * var(--navbar-scale));
@@ -20,6 +21,14 @@ header ::deep .navbar-brand {
 header ::deep .navbar-brand svg {
     width: calc(1.125rem * var(--navbar-scale));
     height: calc(1.125rem * var(--navbar-scale));
+}
+
+/* Flex items default to min-width:auto, which would let a long stale-version message
+   push the Reload button out of the viewport. Letting the chain shrink and truncating
+   only the message keeps Reload reachable at every width. */
+.navbar-nav,
+.navbar-tools {
+    min-width: 0;
 }
 
 .navbar-tools {
@@ -36,9 +45,18 @@ header ::deep .navbar-brand svg {
     padding: calc(0.25rem * var(--navbar-scale)) calc(0.75rem * var(--navbar-scale));
     border-radius: calc(0.25rem * var(--navbar-scale));
     font-size: calc(0.8rem * var(--navbar-scale));
+    min-width: 0;
+}
+
+.navbar ::deep .version-update > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .navbar ::deep .version-update .btn {
+    flex-shrink: 0;
     --bs-btn-padding-y: calc(0.25rem * var(--navbar-scale));
     --bs-btn-padding-x: calc(0.5rem * var(--navbar-scale));
     --bs-btn-font-size: calc(0.875rem * var(--navbar-scale));

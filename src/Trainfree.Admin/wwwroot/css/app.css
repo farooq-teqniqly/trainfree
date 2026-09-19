@@ -1,13 +1,13 @@
-/* The navbar and its contents scale together from one factor: 1x on phones (where the
-   header wraps), 1.65x from md up. --header-height is the header's fixed height at md+
-   and the sidebar's sticky offset, so the two cannot drift apart; 3.1875rem is the
-   unscaled header height. */
+/* The navbar and its contents scale together from one factor: 1x below xl, where the
+   stale-version banner, version stamp and avatar have to share a narrower bar, and 1.65x
+   from xl up. --header-height is the header's fixed height at md+ and the sidebar's
+   sticky offset, so the two cannot drift apart; 3.1875rem is the unscaled header height. */
 :root {
     --navbar-scale: 1;
     --header-height: calc(3.1875rem * var(--navbar-scale));
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1200px) {
     :root {
         --navbar-scale: 1.65;
     }
