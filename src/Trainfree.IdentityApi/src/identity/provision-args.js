@@ -10,15 +10,25 @@
  * @returns {{ email: string, roleName: string, remote: boolean }}
  */
 export function parseProvisionArgs(argv) {
+    // A flag's value must not itself look like a flag: `--email --role User` would
+    // otherwise bind email to "--role" and write a bogus identity instead of failing.
+    const takeValue = (flag, index) => {
+        const value = argv[index];
+        if (value === undefined || value.startsWith("--")) {
+            throw new Error(`${flag} requires a value`);
+        }
+        return value;
+    };
+
     const args = { remote: false };
     const positionals = [];
 
     for (let i = 0; i < argv.length; i += 1) {
         const arg = argv[i];
         if (arg === "--email") {
-            args.email = argv[++i];
+            args.email = takeValue(arg, ++i);
         } else if (arg === "--role") {
-            args.roleName = argv[++i];
+            args.roleName = takeValue(arg, ++i);
         } else if (arg === "--remote") {
             args.remote = true;
         } else if (arg.startsWith("--")) {
