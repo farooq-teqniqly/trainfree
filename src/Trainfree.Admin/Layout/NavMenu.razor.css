@@ -6,6 +6,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    font-size: 1.25rem;
     font-weight: 500;
     color: #333;
     border-radius: 0.25rem;
@@ -32,8 +33,8 @@
     .sidebar {
         display: block !important;
         position: sticky;
-        top: 3.5rem;
-        height: calc(100vh - 3.5rem);
+        top: var(--header-height);
+        height: calc(100vh - var(--header-height));
         overflow-y: auto;
     }
 }

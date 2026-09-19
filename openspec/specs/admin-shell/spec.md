@@ -21,6 +21,38 @@ SHALL duplicate the version display.
 - **THEN** the running version is displayed only in the navbar -- no second copy
   appears in the page body
 
+### Requirement: Navbar user identity
+The admin app's top navbar SHALL display the signed-in user's identity in its top-right,
+after the version indicator: an avatar rendered as a circle whose content is the
+uppercased first letter of the user's email address, with the user's role shown beneath
+the avatar. Hovering the avatar SHALL reveal the user's full email address as a tooltip.
+The avatar SHALL also expose the full email address to assistive technology.
+**Rationale**: The app is gated to a single provisioned identity, so showing who is
+signed in and in what role is the cheapest confirmation that the right Access session is
+live; the initial keeps the navbar compact while the tooltip preserves the full address.
+
+#### Scenario: Avatar shows the email's first letter
+- **WHEN** the signed-in administrator's email is `farooq@example.com` and any admin page
+  loads
+- **THEN** the navbar shows a circular avatar containing `F`
+
+#### Scenario: Initial is uppercased
+- **WHEN** the signed-in administrator's email begins with a lowercase letter
+- **THEN** the avatar's initial is that letter in uppercase
+
+#### Scenario: Hover reveals the full email
+- **WHEN** the user hovers the avatar
+- **THEN** a tooltip shows the full email address
+
+#### Scenario: Role appears beneath the avatar
+- **WHEN** any admin page loads
+- **THEN** the navbar shows the user's role, `Administrator`, directly beneath the avatar
+
+#### Scenario: Identity coexists with the version indicator
+- **WHEN** any admin page loads
+- **THEN** the navbar shows the version indicator exactly once, and the avatar to its
+  right
+
 ### Requirement: Sidebar navigation
 The admin app SHALL display a fixed-width sidebar listing only the pages that
 currently exist, with no wrapper link for the app's own admin-ness (the whole app is
@@ -40,7 +72,9 @@ the admin app). The active page's link SHALL be visually distinguished.
 The admin app's root route (`/`) SHALL render a tile-grid landing page. Each tile
 SHALL name a library or management area; a tile for an area with an existing page
 SHALL link to it, and a tile for an area without a page yet SHALL render without a
-link.
+link. The tiles SHALL appear in the same order as the sidebar's page links.
+**Rationale**: Two lists of the same pages in different orders make the app feel
+inconsistent; the sidebar order is the established one.
 
 #### Scenario: Programs tile links to the Programs page
 - **WHEN** the admin user clicks the `Programs` tile on the Home page
@@ -53,6 +87,11 @@ link.
 #### Scenario: Exercises tile links to the Exercises page
 - **WHEN** the admin user clicks the `Exercises` tile on the Home page
 - **THEN** the app navigates to `/exercises`
+
+#### Scenario: Tiles follow the sidebar order
+- **WHEN** the Home page loads
+- **THEN** the tiles appear as `Phases`, `Exercises`, `Programs`, matching the sidebar's
+  order after `Home`
 
 ### Requirement: Mobile nav toggler exposes its expanded state to assistive tech
 The admin app's mobile nav toggler button SHALL expose its expanded/collapsed state

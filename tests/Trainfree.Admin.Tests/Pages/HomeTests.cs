@@ -40,4 +40,17 @@ public sealed class HomeTests : BunitContext
         Assert.Equal("a", tile.TagName, ignoreCase: true);
         Assert.Equal("exercises", tile.GetAttribute("href"));
     }
+
+    [Fact]
+    public void Render_Always_ShowsTilesInSidebarOrder()
+    {
+        // Arrange / Act
+        var cut = Render<Home>();
+
+        // Assert
+        var order = cut.FindAll("[data-testid^='home-tile-']")
+            .Select(tile => tile.GetAttribute("data-testid") ?? "")
+            .ToArray();
+        Assert.Equal(["home-tile-phases", "home-tile-exercises", "home-tile-programs"], order);
+    }
 }
