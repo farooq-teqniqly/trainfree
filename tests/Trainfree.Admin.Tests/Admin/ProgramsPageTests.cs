@@ -75,11 +75,45 @@ public sealed class ProgramsPageTests : BunitContext
         Assert.Empty(cut.FindAll("tbody tr"));
     }
 
+    [Fact]
+    public void OnInitialized_ProgramTreeFetchNotYetResolved_RendersSkeletonRowsShapedLikeTheTable()
+    {
+        // Arrange
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns(new TaskCompletionSource<IReadOnlyList<ProgramTreeItem>>().Task);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll(".placeholder"));
+        Assert.Empty(cut.FindAll("[data-testid^='name-input-']"));
+        var columnCount = cut.FindAll("colgroup col").Count;
+        var firstSkeletonRowCellCount = cut.Find("tbody tr").Children.Length;
+        Assert.Equal(columnCount, firstSkeletonRowCellCount);
+    }
+
+    [Fact]
+    public void OnInitialized_ProgramTreeFetchNotYetResolved_HidesAddProgramButton()
+    {
+        // Arrange
+        _treeApiClient
+            .GetProgramTreeAsync(CancellationToken.None)
+            .Returns(new TaskCompletionSource<IReadOnlyList<ProgramTreeItem>>().Task);
+
+        // Act
+        var cut = Render<Programs>();
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='add-program']"));
+    }
+
     [Theory]
     [InlineData("phase")]
     [InlineData("exercise")]
     [InlineData("tree")]
-    public void OnInitialized_OneLoadNeverCompletes_OtherLoadsStillFetchButNoRowRenders(
+    public void OnInitialized_OneLoadNeverCompletes_OtherLoadsStillFetchButNoDataRowRenders(
         string hangingLoad
     )
     {
@@ -91,7 +125,7 @@ public sealed class ProgramsPageTests : BunitContext
 
         // Assert
         assertOtherLoadsFetched();
-        Assert.Empty(cut.FindAll("tbody tr"));
+        Assert.Empty(cut.FindAll("[data-testid^='name-input-']"));
     }
 
     private Action SetUpHangingLoad(string hangingLoad)

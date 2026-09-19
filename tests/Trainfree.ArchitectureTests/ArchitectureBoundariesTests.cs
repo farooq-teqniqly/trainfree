@@ -3,6 +3,7 @@ using ArchUnitNET.Loader;
 using ArchUnitNET.xUnitV3;
 using Trainfree.ApiClients;
 using Trainfree.Domain.Ids;
+using Trainfree.UI;
 using Trainfree.Versioning;
 using static ArchUnitNET.Fluent.ArchRuleDefinition;
 
@@ -21,6 +22,7 @@ public sealed class ArchitectureBoundariesTests
     [InlineData("Trainfree.Domain")]
     [InlineData("Trainfree.Versioning")]
     [InlineData("Trainfree.ApiClients")]
+    [InlineData("Trainfree.UI")]
     public void SharedLibraryProject_HasNoProjectReferenceToAdmin(string projectName)
     {
         // Arrange
@@ -57,6 +59,7 @@ public sealed class ArchitectureBoundariesTests
             typeof(ProgramId).Assembly,
             typeof(VersionStamp).Assembly,
             typeof(ApiClientBase).Assembly,
+            typeof(SkeletonBlock).Assembly,
             System.Reflection.Assembly.Load("Trainfree.Admin")
         )
         .Build();
@@ -75,6 +78,8 @@ public sealed class ArchitectureBoundariesTests
             .ResideInNamespaceMatching(@"^Trainfree\.Versioning(\..+)?$")
             .Or()
             .ResideInNamespaceMatching(@"^Trainfree\.ApiClients(\..+)?$")
+            .Or()
+            .ResideInNamespaceMatching(@"^Trainfree\.UI(\..+)?$")
             .Should()
             .NotDependOnAny(Types().That().ResideInNamespaceMatching(@"^Trainfree\.Admin(\..+)?$"));
 

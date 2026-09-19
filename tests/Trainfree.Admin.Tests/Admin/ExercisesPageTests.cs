@@ -31,6 +31,7 @@ public sealed class ExercisesPageTests : BunitContext
         // Assert
         Assert.NotNull(cut.Find("[data-testid=load-exercises-error]"));
         Assert.Empty(cut.FindAll("tbody tr"));
+        Assert.Empty(cut.FindAll("[data-testid='exercises-empty']"));
     }
 
     [Fact]
@@ -49,6 +50,23 @@ public sealed class ExercisesPageTests : BunitContext
         // Assert
         Assert.NotNull(cut.Find("[data-testid=load-exercises-error]"));
         Assert.Empty(cut.FindAll("tbody tr"));
+        Assert.Empty(cut.FindAll("[data-testid='exercises-empty']"));
+    }
+
+    [Fact]
+    public void OnInitialized_FetchNotYetResolved_RendersSkeletonRowsNotEmptyStateOrTable()
+    {
+        // Arrange
+        var tcs = new TaskCompletionSource<IReadOnlyList<ExerciseSummary>>();
+        _apiClient.GetExercisesAsync(CancellationToken.None).Returns(tcs.Task);
+
+        // Act
+        var cut = Render<Exercises>();
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll(".placeholder"));
+        Assert.Empty(cut.FindAll("[data-testid='exercises-empty']"));
+        Assert.Empty(cut.FindAll("[data-testid^='name-input-']"));
     }
 
     [Fact]
@@ -521,5 +539,6 @@ public sealed class ExercisesPageTests : BunitContext
         // Assert
         Assert.NotEmpty(cut.FindAll("[data-testid='load-exercises-error']"));
         Assert.Empty(cut.FindAll("tbody tr"));
+        Assert.Empty(cut.FindAll("[data-testid='exercises-empty']"));
     }
 }

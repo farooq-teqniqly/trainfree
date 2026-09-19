@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Trainfree.ApiClients\Trainfree.ApiClients.csproj" />
     <ProjectReference Include="..\Trainfree.Domain\Trainfree.Domain.csproj" />
+    <ProjectReference Include="..\Trainfree.UI\Trainfree.UI.csproj" />
     <ProjectReference Include="..\Trainfree.Versioning\Trainfree.Versioning.csproj" />
   </ItemGroup>
 </Project>

@@ -176,20 +176,32 @@ The Blazor admin app SHALL provide an `Exercises` page at `/exercises` listing e
 exercise as a row, using the same working/saved-value dirty-row pattern as the Phases
 page, with no image column and no type column. An exercise row's `Delete` action SHALL
 surface the Worker's `409` usage rejection instead of silently failing or removing the
-row.
+row. While the initial `GET /api/exercises` is in flight, the page SHALL render
+skeleton rows instead of the empty-state view, so the empty-state illustration does not
+flash on screen before every successful load.
 **Rationale**: Extends the existing page's delete flow to handle the new `409` case
 introduced by the usage guard above, matching how the Phases page already handles its
-own `409` from the `phases` capability.
+own `409` from the `phases` capability. Before this change, the page distinguished
+"loading" from "no exercises exist" only by an empty `_rows` list, so the two states
+were indistinguishable and the empty-state view always flashed first, even when
+exercises existed.
+
+#### Scenario: Page shows skeleton rows while loading
+
+- **WHEN** the Exercises page has navigated to `/exercises` and the exercises fetch has
+  not yet resolved
+- **THEN** the page renders skeleton rows using `SkeletonBlock` from `Trainfree.UI`,
+  not the empty-state view and not the populated data table
 
 #### Scenario: Page loads with existing exercises
 
-- **WHEN** the Exercises page loads and exercises exist
+- **WHEN** the Exercises page's fetch resolves and exercises exist
 - **THEN** it calls `GET /api/exercises` and renders one row per returned
   exercise
 
 #### Scenario: Page loads with no exercises
 
-- **WHEN** the Exercises page loads and no exercises exist
+- **WHEN** the Exercises page's fetch resolves and no exercises exist
 - **THEN** it renders an empty-state view with an `Add Exercise` action and
   no table
 
@@ -249,4 +261,5 @@ own `409` from the `phases` capability.
 #### Scenario: Load failure shows an error without crashing
 
 - **WHEN** `GET /api/exercises` fails on page load
-- **THEN** the page shows a load-failed message and remains usable
+- **THEN** the page shows a load-failed message and remains usable, not skeleton rows
+  or the empty-state view

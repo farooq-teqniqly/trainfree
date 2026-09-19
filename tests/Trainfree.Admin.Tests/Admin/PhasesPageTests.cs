@@ -31,6 +31,23 @@ public sealed class PhasesPageTests : BunitContext
         // Assert
         Assert.NotNull(cut.Find("[data-testid=load-phases-error]"));
         Assert.Empty(cut.FindAll("tbody tr"));
+        Assert.Empty(cut.FindAll("[data-testid='phases-empty']"));
+    }
+
+    [Fact]
+    public void OnInitialized_FetchNotYetResolved_RendersSkeletonRowsNotEmptyStateOrTable()
+    {
+        // Arrange
+        var tcs = new TaskCompletionSource<IReadOnlyList<PhaseSummary>>();
+        _apiClient.GetPhasesAsync(CancellationToken.None).Returns(tcs.Task);
+
+        // Act
+        var cut = Render<Phases>();
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll(".placeholder"));
+        Assert.Empty(cut.FindAll("[data-testid='phases-empty']"));
+        Assert.Empty(cut.FindAll("[data-testid^='name-input-']"));
     }
 
     [Fact]
@@ -437,5 +454,6 @@ public sealed class PhasesPageTests : BunitContext
         // Assert
         Assert.NotEmpty(cut.FindAll("[data-testid='load-phases-error']"));
         Assert.Empty(cut.FindAll("tbody tr"));
+        Assert.Empty(cut.FindAll("[data-testid='phases-empty']"));
     }
 }

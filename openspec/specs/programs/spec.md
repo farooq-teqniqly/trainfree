@@ -130,16 +130,29 @@ program SHALL also remove all sessions belonging to that program.
 The Blazor admin page, served at `/programs`, SHALL display all programs as rows
 within a bordered spreadsheet-style layout and allow creating, renaming, and deleting
 them without a full page reload. A row with unsaved name edits SHALL offer both `Save`
-and `Revert`; `Revert` discards the edit locally without calling the API.
+and `Revert`; `Revert` discards the edit locally without calling the API. While the
+initial `GET /api/programs-tree` (and the phase/exercise library fetches it depends
+on) is in flight, the page SHALL render a fixed number of skeleton rows shaped like
+the program table instead of an empty `<tbody>`.
+**Rationale**: The program tree is the deepest of the admin pages (programs -> sessions
+-> phases -> exercises) and, before this change, rendered nothing at all until every
+fetch resolved -- the most visible instance of the blank-screen delay this change
+addresses.
 
 #### Scenario: Page is served at /programs
 - **WHEN** the admin user navigates to `/programs`
 - **THEN** the program list page loads
 
+#### Scenario: Page shows skeleton rows while loading
+- **WHEN** the admin page has navigated to `/programs` and the program tree fetch has
+  not yet resolved
+- **THEN** the page renders skeleton rows shaped like the program table, using
+  `SkeletonBlock` from `Trainfree.UI`, instead of an empty table body
+
 #### Scenario: Page loads with existing programs
-- **WHEN** the admin page loads
-- **THEN** it calls `GET /api/programs` and renders one row per returned program,
-  showing its name
+- **WHEN** the admin page's program tree fetch resolves with existing programs
+- **THEN** the skeleton rows are replaced with one row per returned program, showing
+  its name
 
 #### Scenario: Adding a program
 - **WHEN** the admin user clicks `[+ Program]`
