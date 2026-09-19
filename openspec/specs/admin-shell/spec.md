@@ -6,7 +6,7 @@ page -- that every admin page renders within.
 
 ## Requirements
 ### Requirement: Navbar brand and version indicator
-The admin app's top navbar SHALL display a fixed-width brand block reading
+The admin app's top navbar SHALL display a brand block, sized to fit its text, reading
 "Trainfree Admin" with an icon mark, and SHALL display the running version (via
 `VersionIndicator`) exactly once, in the navbar's top-right. No other page location
 SHALL duplicate the version display.

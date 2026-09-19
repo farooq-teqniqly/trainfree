@@ -1,7 +1,16 @@
-/* Navbar height, shared by the header's own min-height and the sidebar's sticky offset
-   so the two cannot drift apart. */
+/* The navbar and its contents scale together from one factor: 1x on phones (where the
+   header wraps), 1.65x from md up. --header-height is the header's fixed height at md+
+   and the sidebar's sticky offset, so the two cannot drift apart; 3.1875rem is the
+   unscaled header height. */
 :root {
-    --header-height: 5.25rem;
+    --navbar-scale: 1;
+    --header-height: calc(3.1875rem * var(--navbar-scale));
+}
+
+@media (min-width: 768px) {
+    :root {
+        --navbar-scale: 1.65;
+    }
 }
 
 html, body {
@@ -126,17 +135,11 @@ code {
     text-align: start;
 }
 
-/* Admin shell: fixed 240px navbar-brand/sidebar rail, matching docs/design/admin-mockups. */
+/* Admin shell: fixed 240px sidebar rail. The navbar brand is deliberately not pinned to it:
+   at the enlarged navbar scale its text is wider than 240px, so it sizes to its content. */
 @media (min-width: 768px) {
     .container-fluid > .row {
         flex-wrap: nowrap;
-    }
-
-    .navbar-brand.col-md-3,
-    .navbar-brand.col-lg-2 {
-        flex: 0 0 240px;
-        width: 240px;
-        max-width: 240px;
     }
 
     .sidebar.col-md-3,
@@ -163,15 +166,15 @@ header.navbar .version-stamp {
     align-items: center;
     gap: 0.35rem;
     color: rgba(255, 255, 255, 0.75);
-    font-size: 1.32rem;
+    font-size: calc(0.8rem * var(--navbar-scale));
     white-space: nowrap;
 }
 
 header.navbar .version-stamp::before {
     content: "";
     display: inline-block;
-    width: 20px;
-    height: 20px;
+    width: calc(0.75rem * var(--navbar-scale));
+    height: calc(0.75rem * var(--navbar-scale));
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234ade80' stroke-width='1.5'%3E%3Ccircle cx='8' cy='8' r='6.5'/%3E%3Cpath d='M5.5 8l1.8 1.8L10.5 6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
         no-repeat center / contain;
 }

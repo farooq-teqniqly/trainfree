@@ -1,5 +1,7 @@
-header.navbar {
-    min-height: var(--header-height);
+@media (min-width: 768px) {
+    header.navbar {
+        height: var(--header-height);
+    }
 }
 
 .navbar-brand {
@@ -10,14 +12,19 @@ header.navbar {
 /* NavLink renders the brand's <a>, which does not receive this component's scope
    attribute, so its sizing has to reach it through ::deep. */
 header ::deep .navbar-brand {
-    padding-inline: 1.65rem;
-    gap: 0.825rem;
-    font-size: 2.0625rem;
+    padding-inline: calc(1rem * var(--navbar-scale));
+    gap: calc(0.5rem * var(--navbar-scale));
+    font-size: calc(1.25rem * var(--navbar-scale));
+}
+
+header ::deep .navbar-brand svg {
+    width: calc(1.125rem * var(--navbar-scale));
+    height: calc(1.125rem * var(--navbar-scale));
 }
 
 .navbar-tools {
-    padding-inline: 1.65rem;
-    gap: 1.65rem;
+    padding-inline: calc(1rem * var(--navbar-scale));
+    gap: calc(1rem * var(--navbar-scale));
 }
 
 .navbar ::deep .version-stamp {
@@ -25,15 +32,15 @@ header ::deep .navbar-brand {
 }
 
 .navbar ::deep .version-update {
-    gap: 1.2375rem;
-    padding: 0.4125rem 1.2375rem;
-    border-radius: 0.4125rem;
-    font-size: 1.32rem;
+    gap: calc(0.75rem * var(--navbar-scale));
+    padding: calc(0.25rem * var(--navbar-scale)) calc(0.75rem * var(--navbar-scale));
+    border-radius: calc(0.25rem * var(--navbar-scale));
+    font-size: calc(0.8rem * var(--navbar-scale));
 }
 
 .navbar ::deep .version-update .btn {
-    --bs-btn-padding-y: 0.4125rem;
-    --bs-btn-padding-x: 0.825rem;
-    --bs-btn-font-size: 1.44rem;
-    --bs-btn-border-radius: 0.4125rem;
+    --bs-btn-padding-y: calc(0.25rem * var(--navbar-scale));
+    --bs-btn-padding-x: calc(0.5rem * var(--navbar-scale));
+    --bs-btn-font-size: calc(0.875rem * var(--navbar-scale));
+    --bs-btn-border-radius: calc(0.25rem * var(--navbar-scale));
 }

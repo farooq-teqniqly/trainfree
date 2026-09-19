@@ -9,7 +9,8 @@ public sealed class EmailAddressTests
     [InlineData("Farooq@example.com", "F")]
     [InlineData("z@example.com", "Z")]
     [InlineData("1abc@example.com", "1")]
-    [InlineData("\U0001D4D0bc@example.com", "\U0001D4D0")]
+    [InlineData("\U00010428bc@example.com", "\U00010400")]
+    [InlineData("  farooq@example.com", "F")]
     public void Initial_Always_ReturnsTheUppercasedFirstCharacter(string value, string expected)
     {
         // Arrange
@@ -62,13 +63,12 @@ public sealed class EmailAddressTests
     }
 
     [Fact]
-    public void Equals_SameValue_AreEqual()
+    public void Parse_SurroundingWhitespace_ReturnsTheTrimmedAddress()
     {
-        // Arrange
-        var first = EmailAddress.Parse("a@example.com");
-        var second = EmailAddress.Parse("a@example.com");
+        // Act
+        var email = EmailAddress.Parse("  farooq@example.com 	");
 
-        // Act / Assert
-        Assert.Equal(first, second);
+        // Assert
+        Assert.Equal("farooq@example.com", email.ToString());
     }
 }
