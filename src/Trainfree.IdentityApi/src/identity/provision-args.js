@@ -14,7 +14,7 @@ export function parseProvisionArgs(argv) {
     // otherwise bind email to "--role" and write a bogus identity instead of failing.
     const takeValue = (flag, index) => {
         const value = argv[index];
-        if (value === undefined || value.startsWith("--")) {
+        if (value === undefined || value.trim() === "" || value.startsWith("--")) {
             throw new Error(`${flag} requires a value`);
         }
         return value;
