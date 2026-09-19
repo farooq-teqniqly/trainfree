@@ -5,11 +5,17 @@ using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Trainfree.Admin.Admin;
 using Trainfree.Admin.Components;
+using Trainfree.Domain.Users;
 
 namespace Trainfree.Admin.Tests.Components;
 
 public sealed class AccessGateTests : BunitContext
 {
+    private static readonly CurrentUser TestUser = new(
+        EmailAddress.Parse("farooq@example.com"),
+        "Administrator"
+    );
+
     private static readonly RenderFragment ProtectedContent = builder =>
         builder.AddMarkupContent(0, """<p data-testid="protected-content">protected</p>""");
 
@@ -35,13 +41,34 @@ public sealed class AccessGateTests : BunitContext
     public void Render_Administrator_RendersChildContent()
     {
         // Arrange
-        _accessCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new Administrator());
+        _accessCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new Administrator(TestUser));
 
         // Act
         var cut = Render<AccessGate>(p => p.Add(x => x.ChildContent, ProtectedContent));
 
         // Assert
         Assert.NotEmpty(cut.FindAll("[data-testid=protected-content]"));
+    }
+
+    [Fact]
+    public void Render_Administrator_CascadesTheSignedInUserToChildContent()
+    {
+        // Arrange
+        _accessCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new Administrator(TestUser));
+        RenderFragment content = builder =>
+        {
+            builder.OpenComponent<UserProbe>(0);
+            builder.CloseComponent();
+        };
+
+        // Act
+        var cut = Render<AccessGate>(p => p.Add(x => x.ChildContent, content));
+
+        // Assert
+        Assert.Equal(
+            "farooq@example.com Administrator",
+            cut.Find("[data-testid=user-probe]").TextContent
+        );
     }
 
     [Fact]
@@ -144,5 +171,26 @@ public sealed class AccessGateTests : BunitContext
 
         // Assert
         Assert.True(capturedToken.IsCancellationRequested);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Performance",
+        "CA1812",
+        Justification = "Instantiated by the renderer via OpenComponent."
+    )]
+    private sealed class UserProbe : ComponentBase
+    {
+        [CascadingParameter]
+        public CurrentUser? User { get; set; }
+
+        protected override void BuildRenderTree(
+            Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder
+        )
+        {
+            builder.OpenElement(0, "p");
+            builder.AddAttribute(1, "data-testid", "user-probe");
+            builder.AddContent(2, $"{User?.Email} {User?.Role}");
+            builder.CloseElement();
+        }
     }
 }

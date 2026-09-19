@@ -1,3 +1,4 @@
+@using Trainfree.Admin.Admin
 @inherits LayoutComponentBase
 <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
     <button
@@ -40,6 +41,10 @@
                 </ChildContent>
                 <ErrorContent></ErrorContent>
             </ErrorBoundary>
+            @if (User is not null)
+            {
+                <UserAvatar User="User" />
+            }
         </div>
     </div>
 </header>
@@ -62,6 +67,14 @@
 </div>
 
 @code {
+    /// <summary>
+    /// Gets or sets the signed-in user cascaded by <c>AccessGate</c>. Always present in the
+    /// running app, since the layout only renders once the gate has admitted an
+    /// Administrator; nullable so the layout does not depend on the gate to render.
+    /// </summary>
+    [CascadingParameter]
+    public CurrentUser? User { get; set; }
+
     private ErrorBoundary? _pageBoundary;
     private ErrorBoundary? _versionBoundary;
     private bool _navCollapsed = true;

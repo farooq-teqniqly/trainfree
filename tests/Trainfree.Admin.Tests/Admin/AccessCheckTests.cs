@@ -20,7 +20,7 @@ public sealed class AccessCheckTests : IDisposable
     }
 
     [Fact]
-    public async Task CheckAsync_ServerReturns200WithAdministratorRole_ReturnsAdministrator()
+    public async Task CheckAsync_ServerReturns200WithAdministratorRole_ReturnsAdministratorCarryingTheCallersIdentity()
     {
         // Arrange
         _handler.NextResponse = JsonResponse(
@@ -33,7 +33,9 @@ public sealed class AccessCheckTests : IDisposable
         var outcome = await check.CheckAsync(CancellationToken.None);
 
         // Assert
-        Assert.IsType<Administrator>(outcome);
+        var administrator = Assert.IsType<Administrator>(outcome);
+        Assert.Equal("a@x.com", administrator.User.Email.ToString());
+        Assert.Equal("Administrator", administrator.User.Role);
     }
 
     [Fact]

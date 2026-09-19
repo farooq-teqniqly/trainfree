@@ -59,6 +59,9 @@
       font-size: 0.8rem;
     }
     .version-pill .icon { color: #4ade80; }
+    .user-identity { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-left: 0.75rem; }
+    .user-avatar { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #f8f9fa; color: #212529; font-size: 13px; font-weight: 600; line-height: 1; cursor: default; }
+    .user-role { font-size: 10px; line-height: 1; color: rgba(255,255,255,.5); }
 
     .shell { display: flex; align-items: flex-start; }
     .sidebar {
@@ -150,6 +153,10 @@
       <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M5.5 8l1.8 1.8L10.5 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </span>
     v0.1.0+e1f5a2c
+    <div class="user-identity">
+      <span class="user-avatar" title="farooq@example.com">F</span>
+      <span class="user-role">Administrator</span>
+    </div>
   </div>
 </div>
 

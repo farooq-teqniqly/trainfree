@@ -3,12 +3,18 @@ using Bunit;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Trainfree.Admin.Admin;
+using Trainfree.Domain.Users;
 using Trainfree.Versioning;
 
 namespace Trainfree.Admin.Tests;
 
 public sealed class AppTests : BunitContext
 {
+    private static readonly CurrentUser TestUser = new(
+        EmailAddress.Parse("farooq@example.com"),
+        "Administrator"
+    );
+
     private readonly IAccessCheck _accessCheck = Substitute.For<IAccessCheck>();
     private readonly IVersionCheck _versionCheck = Substitute.For<IVersionCheck>();
     private readonly IProgramsApiClient _programs = Substitute.For<IProgramsApiClient>();
@@ -41,7 +47,7 @@ public sealed class AppTests : BunitContext
     public void Render_Administrator_RendersTheMatchedPageInsideMainLayout()
     {
         // Arrange
-        _accessCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new Administrator());
+        _accessCheck.CheckAsync(Arg.Any<CancellationToken>()).Returns(new Administrator(TestUser));
 
         // Act
         var cut = Render<App>();
@@ -49,6 +55,7 @@ public sealed class AppTests : BunitContext
         // Assert
         Assert.NotEmpty(cut.FindAll(".navbar-brand"));
         Assert.NotEmpty(cut.FindAll(".version-stamp"));
+        Assert.Equal("F", cut.Find("[data-testid=user-avatar]").TextContent.Trim());
     }
 
     [Fact]
