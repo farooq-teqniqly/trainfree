@@ -131,9 +131,9 @@ The Blazor admin page, served at `/programs`, SHALL display all programs as rows
 within a bordered spreadsheet-style layout and allow creating, renaming, and deleting
 them without a full page reload. A row with unsaved name edits SHALL offer both `Save`
 and `Revert`; `Revert` discards the edit locally without calling the API. While the
-initial `GET /api/programs` (and the phase/exercise library fetches it depends on) is
-in flight, the page SHALL render a fixed number of skeleton rows shaped like the
-program table instead of an empty `<tbody>`.
+initial `GET /api/programs-tree` (and the phase/exercise library fetches it depends
+on) is in flight, the page SHALL render a fixed number of skeleton rows shaped like
+the program table instead of an empty `<tbody>`.
 **Rationale**: The program tree is the deepest of the admin pages (programs -> sessions
 -> phases -> exercises) and, before this change, rendered nothing at all until every
 fetch resolved -- the most visible instance of the blank-screen delay this change
