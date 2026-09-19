@@ -63,6 +63,9 @@
     }
     .version-pill { display: flex; align-items: center; gap: 0.35rem; }
     .version-pill .icon { color: #4ade80; }
+    .user-identity { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-left: 0.75rem; }
+    .user-avatar { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #f8f9fa; color: #212529; font-size: 13px; font-weight: 600; line-height: 1; cursor: default; }
+    .user-role { font-size: 11px; line-height: 1; color: rgba(255,255,255,.5); }
 
     .shell { display: flex; align-items: flex-start; }
     .sidebar {
@@ -154,6 +157,10 @@
       </span>
       v0.1.0+e1f5a2c
     </span>
+    <div class="user-identity">
+      <span class="user-avatar" title="farooq@example.com">F</span>
+      <span class="user-role">Administrator</span>
+    </div>
   </div>
 </div>
 

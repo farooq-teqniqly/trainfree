@@ -8,7 +8,8 @@ internal abstract record AccessCheckOutcome
 }
 
 /// <summary>The caller is a provisioned Administrator; the app renders normally.</summary>
-internal sealed record Administrator : AccessCheckOutcome;
+/// <param name="User">The signed-in caller, for display in the shell.</param>
+internal sealed record Administrator(CurrentUser User) : AccessCheckOutcome;
 
 /// <summary>
 /// The caller is unauthenticated, unprovisioned, or provisioned with a non-Administrator

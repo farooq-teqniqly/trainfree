@@ -7,8 +7,10 @@
 
 @switch (_outcome)
 {
-    case Administrator:
-        @ChildContent
+    case Administrator administrator:
+        <CascadingValue Value="administrator.User" IsFixed="true">
+            @ChildContent
+        </CascadingValue>
         break;
     case NoAccess:
         <NoAccessPage />

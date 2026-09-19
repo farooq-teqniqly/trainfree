@@ -1,0 +1,18 @@
+@using Trainfree.Admin.Admin
+
+<div class="user-identity" data-testid="user-identity">
+    <span
+        class="user-avatar rounded-circle bg-light text-dark fw-semibold"
+        data-testid="user-avatar"
+        role="img"
+        title="@User.Email"
+        aria-label="Signed in as @User.Email"
+    >@User.Email.Initial</span>
+    <span class="user-role text-white text-opacity-75" data-testid="user-role">@User.Role</span>
+</div>
+
+@code {
+    /// <summary>Gets or sets the signed-in user whose avatar and role are shown.</summary>
+    [Parameter, EditorRequired]
+    public CurrentUser User { get; set; } = null!;
+}

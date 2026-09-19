@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Trainfree.Domain.Users;
 
 namespace Trainfree.Admin.Admin;
 
@@ -100,7 +101,7 @@ internal sealed partial class AccessCheck : IAccessCheck
             }
 
             return string.Equals(me.Role, "Administrator", StringComparison.Ordinal)
-                ? new Administrator()
+                ? new Administrator(new CurrentUser(EmailAddress.Parse(me.Email), me.Role))
                 : new NoAccess();
         }
     }

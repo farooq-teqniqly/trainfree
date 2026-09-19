@@ -1,3 +1,4 @@
+@using Trainfree.Admin.Admin
 @inherits LayoutComponentBase
 <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
     <button
@@ -11,12 +12,12 @@
         <span class="navbar-toggler-icon"></span>
     </button>
     <NavLink
-        class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-5 fw-semibold d-flex align-items-center gap-2"
+        class="navbar-brand me-0 fw-semibold d-flex align-items-center"
         href=""
         Match="NavLinkMatch.All"
     >
         <span class="d-inline-flex" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="1.25" y="8.5" width="2.75" height="7" rx="1" />
                 <rect x="20" y="8.5" width="2.75" height="7" rx="1" />
                 <line x1="4" y1="12" x2="20" y2="12" />
@@ -27,7 +28,7 @@
         Trainfree Admin
     </NavLink>
     <div class="navbar-nav flex-row ms-md-auto">
-        <div class="nav-item text-nowrap px-3 d-flex align-items-center gap-3">
+        <div class="nav-item navbar-tools text-nowrap d-flex align-items-center">
             @* The version banner is advisory, so its blast radius is bounded structurally
                rather than by enumerating what the check can throw. A trip costs the whole
                indicator -- stamp included, unlike VersionUnknown, which suppresses only the
@@ -40,6 +41,10 @@
                 </ChildContent>
                 <ErrorContent></ErrorContent>
             </ErrorBoundary>
+            @if (User is not null)
+            {
+                <UserAvatar User="User" />
+            }
         </div>
     </div>
 </header>
@@ -62,6 +67,14 @@
 </div>
 
 @code {
+    /// <summary>
+    /// Gets or sets the signed-in user cascaded by <c>AccessGate</c>. Always present in the
+    /// running app, since the layout only renders once the gate has admitted an
+    /// Administrator; nullable so the layout does not depend on the gate to render.
+    /// </summary>
+    [CascadingParameter]
+    public CurrentUser? User { get; set; }
+
     private ErrorBoundary? _pageBoundary;
     private ErrorBoundary? _versionBoundary;
     private bool _navCollapsed = true;
