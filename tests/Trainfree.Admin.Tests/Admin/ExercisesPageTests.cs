@@ -31,6 +31,7 @@ public sealed class ExercisesPageTests : BunitContext
         // Assert
         Assert.NotNull(cut.Find("[data-testid=load-exercises-error]"));
         Assert.Empty(cut.FindAll("tbody tr"));
+        Assert.Empty(cut.FindAll("[data-testid='exercises-empty']"));
     }
 
     [Fact]
@@ -49,6 +50,7 @@ public sealed class ExercisesPageTests : BunitContext
         // Assert
         Assert.NotNull(cut.Find("[data-testid=load-exercises-error]"));
         Assert.Empty(cut.FindAll("tbody tr"));
+        Assert.Empty(cut.FindAll("[data-testid='exercises-empty']"));
     }
 
     [Fact]
@@ -537,5 +539,6 @@ public sealed class ExercisesPageTests : BunitContext
         // Assert
         Assert.NotEmpty(cut.FindAll("[data-testid='load-exercises-error']"));
         Assert.Empty(cut.FindAll("tbody tr"));
+        Assert.Empty(cut.FindAll("[data-testid='exercises-empty']"));
     }
 }

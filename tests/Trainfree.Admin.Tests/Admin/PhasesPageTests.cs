@@ -31,6 +31,7 @@ public sealed class PhasesPageTests : BunitContext
         // Assert
         Assert.NotNull(cut.Find("[data-testid=load-phases-error]"));
         Assert.Empty(cut.FindAll("tbody tr"));
+        Assert.Empty(cut.FindAll("[data-testid='phases-empty']"));
     }
 
     [Fact]
@@ -453,5 +454,6 @@ public sealed class PhasesPageTests : BunitContext
         // Assert
         Assert.NotEmpty(cut.FindAll("[data-testid='load-phases-error']"));
         Assert.Empty(cut.FindAll("tbody tr"));
+        Assert.Empty(cut.FindAll("[data-testid='phases-empty']"));
     }
 }
