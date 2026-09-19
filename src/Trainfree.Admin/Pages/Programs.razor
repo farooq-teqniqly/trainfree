@@ -61,8 +61,8 @@
         </thead>
         @if (_isLoading)
         {
-            <tbody class="placeholder-wave">
-                @for (var i = 0; i < SkeletonRowCount; i++)
+            <tbody class="placeholder-wave" aria-busy="true" aria-live="polite">
+                @for (var i = 0; i < SkeletonDefaults.RowCount; i++)
                 {
                     <tr>
                         <td><SkeletonBlock Width="70%" /></td>
@@ -175,8 +175,6 @@
     private string? _deleteSessionError;
     private string? _loadError;
     private bool _isLoading = true;
-
-    private const int SkeletonRowCount = 4;
 
     protected override async Task OnInitializedAsync()
     {

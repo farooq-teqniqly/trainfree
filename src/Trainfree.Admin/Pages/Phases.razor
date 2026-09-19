@@ -34,8 +34,8 @@
                     <th>Name</th>
                 </tr>
             </thead>
-            <tbody class="placeholder-wave">
-                @for (var i = 0; i < SkeletonRowCount; i++)
+            <tbody class="placeholder-wave" aria-busy="true" aria-live="polite">
+                @for (var i = 0; i < SkeletonDefaults.RowCount; i++)
                 {
                     <tr>
                         <td><SkeletonBlock Width="60%" /></td>
@@ -113,7 +113,6 @@ else
 
     private const int MinNameLength = 4;
     private const int MaxNameLength = 100;
-    private const int SkeletonRowCount = 4;
 
     protected override async Task OnInitializedAsync()
     {
