@@ -1,10 +1,12 @@
+# shared-ui-components Specification
+
 ## Purpose
 
 Houses Blazor components shared by more than one Trainfree client app -- starting
 with a skeleton-loading primitive -- so `Trainfree.Admin` and the future
 `Trainfree.Workout` app consume one implementation instead of each growing its own.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Trainfree.UI shared component library
 A `Trainfree.UI` Razor Class Library SHALL exist as a project any Blazor WebAssembly
@@ -73,16 +75,3 @@ higher-level component baking in a row/column shape that would only fit some of 
   That alternative becomes right if a second and third table-shaped consumer both want
   identical uniform-width columns, at which point extracting a thin wrapper around
   `SkeletonBlock` costs little.
-
-## Requirement coverage
-
-Anchor: GitHub issue #102 (Implement skeleton loading screen)
-
-| # | Anchor requirement | Covered by |
-|---|--------------------|-----------|
-| 1 | Programs page shows a loading indicator instead of a blank screen while many sessions load | programs spec: MODIFIED Requirement: Admin program list UI |
-| 2 | Loading indicator uses a skeleton screen with a shimmer effect (better UX than a blank delay) | shared-ui-components spec: Requirement: SkeletonBlock component (shimmer scenario) |
-| 3 | Same treatment applies to Phases, to a lesser extent | phases spec: MODIFIED Requirement: Admin phases page |
-| 4 | Same treatment applies to Exercises, to a lesser extent | exercises spec: MODIFIED Requirement: Admin exercises page |
-| 5 | Build a reusable component shareable between Admin and the (not yet built) Workout app | shared-ui-components spec: Requirement: Trainfree.UI shared component library |
-| 6 | No 3rd-party libraries beyond Bootstrap | Decisions: Bootstrap's built-in `.placeholder` / `.placeholder-wave` utilities |

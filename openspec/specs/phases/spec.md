@@ -180,20 +180,32 @@ up-front check produces, rather than propagating as a raw D1 constraint error.
 The Blazor admin app SHALL provide a `Phases` page at `/phases` listing every phase as a
 row, using the same working/saved-value dirty-row pattern as the Programs page. A
 phase's `Delete` action SHALL surface the Worker's `409` usage rejection instead of
-silently failing or removing the row.
+silently failing or removing the row. While the initial `GET /api/phases` is in flight,
+the page SHALL render skeleton rows instead of the empty-state view, so the empty-state
+illustration does not flash on screen before every successful load.
 **Rationale**: Extends the existing page's delete flow to handle the new `409` case
 introduced by the usage guard above; it does not need a proactive "Used in" indicator
 in this change, since that only mattered for a searchable picker experience already
-deferred out of scope.
+deferred out of scope. Before this change, the page distinguished "loading" from "no
+phases exist" only by an empty `_rows` list, so the two states were indistinguishable
+and the page always showed the empty-state view first, even when phases existed -- a
+visible flash on every load, not just a blank delay.
+
+#### Scenario: Page shows skeleton rows while loading
+
+- **WHEN** the Phases page has navigated to `/phases` and the phases fetch has not yet
+  resolved
+- **THEN** the page renders skeleton rows using `SkeletonBlock` from `Trainfree.UI`,
+  not the empty-state view and not the table
 
 #### Scenario: Page loads with existing phases
 
-- **WHEN** the Phases page loads and phases exist
+- **WHEN** the Phases page's fetch resolves and phases exist
 - **THEN** it calls `GET /api/phases` and renders one row per returned phase
 
 #### Scenario: Page loads with no phases
 
-- **WHEN** the Phases page loads and no phases exist
+- **WHEN** the Phases page's fetch resolves and no phases exist
 - **THEN** it renders an empty-state view with an `Add Phase` action and no table
 
 #### Scenario: Adding a phase
@@ -250,5 +262,6 @@ deferred out of scope.
 #### Scenario: Load failure shows an error without crashing
 
 - **WHEN** `GET /api/phases` fails on page load
-- **THEN** the page shows a load-failed message and remains usable
+- **THEN** the page shows a load-failed message and remains usable, not skeleton rows
+  or the empty-state view
 
