@@ -1,0 +1,19 @@
+@* A single Bootstrap `.placeholder` shape. Shimmer comes from an ancestor element
+   carrying `.placeholder-wave`, not from this component, so multiple instances
+   inside one shimmering region do not each run a redundant animation. *@
+<span class="placeholder" style="width: @Width;@(Height is null ? "" : $" height: {Height};")"></span>
+
+@code {
+    /// <summary>
+    /// The CSS width of the placeholder shape (e.g. <c>"60%"</c> or <c>"3rem"</c>).
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string Width { get; set; } = "";
+
+    /// <summary>
+    /// The CSS height of the placeholder shape, or <see langword="null"/> to leave the
+    /// element's default height in place.
+    /// </summary>
+    [Parameter]
+    public string? Height { get; set; }
+}

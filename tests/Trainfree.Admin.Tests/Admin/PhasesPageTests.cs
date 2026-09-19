@@ -34,6 +34,22 @@ public sealed class PhasesPageTests : BunitContext
     }
 
     [Fact]
+    public void OnInitialized_FetchNotYetResolved_RendersSkeletonRowsNotEmptyStateOrTable()
+    {
+        // Arrange
+        var tcs = new TaskCompletionSource<IReadOnlyList<PhaseSummary>>();
+        _apiClient.GetPhasesAsync(CancellationToken.None).Returns(tcs.Task);
+
+        // Act
+        var cut = Render<Phases>();
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll(".placeholder"));
+        Assert.Empty(cut.FindAll("[data-testid='phases-empty']"));
+        Assert.Empty(cut.FindAll("[data-testid^='name-input-']"));
+    }
+
+    [Fact]
     public void OnInitialized_NoPhases_ShowsEmptyState()
     {
         // Arrange

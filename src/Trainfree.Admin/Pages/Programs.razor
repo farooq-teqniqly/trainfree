@@ -56,6 +56,26 @@
                 <th class="col-actions"></th>
             </tr>
         </thead>
+        @if (_isLoading)
+        {
+            <tbody class="placeholder-wave">
+                @for (var i = 0; i < SkeletonRowCount; i++)
+                {
+                    <tr>
+                        <td><SkeletonBlock Width="70%" /></td>
+                        <td><SkeletonBlock Width="60%" /></td>
+                        <td><SkeletonBlock Width="50%" /></td>
+                        <td><SkeletonBlock Width="50%" /></td>
+                        <td><SkeletonBlock Width="40%" /></td>
+                        <td><SkeletonBlock Width="40%" /></td>
+                        <td><SkeletonBlock Width="40%" /></td>
+                        <td><SkeletonBlock Width="30%" /></td>
+                    </tr>
+                }
+            </tbody>
+        }
+        else
+        {
         <tbody>
             @foreach (var row in _rows)
             {
@@ -127,6 +147,7 @@
                 }
             }
         </tbody>
+        }
     </table>
 </div>
 
@@ -150,6 +171,9 @@
     private string? _deleteError;
     private string? _deleteSessionError;
     private string? _loadError;
+    private bool _isLoading = true;
+
+    private const int SkeletonRowCount = 4;
 
     protected override async Task OnInitializedAsync()
     {
@@ -157,7 +181,14 @@
         var exerciseLibraryLoad = LoadExerciseLibraryAsync();
         var programTreeLoad = LoadProgramTreeAsync(phaseLibraryLoad, exerciseLibraryLoad);
 
-        await Task.WhenAll(phaseLibraryLoad, exerciseLibraryLoad, programTreeLoad);
+        try
+        {
+            await Task.WhenAll(phaseLibraryLoad, exerciseLibraryLoad, programTreeLoad);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private async Task LoadPhaseLibraryAsync()

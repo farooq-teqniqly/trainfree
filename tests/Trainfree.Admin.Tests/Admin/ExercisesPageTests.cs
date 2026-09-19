@@ -52,6 +52,22 @@ public sealed class ExercisesPageTests : BunitContext
     }
 
     [Fact]
+    public void OnInitialized_FetchNotYetResolved_RendersSkeletonRowsNotEmptyStateOrTable()
+    {
+        // Arrange
+        var tcs = new TaskCompletionSource<IReadOnlyList<ExerciseSummary>>();
+        _apiClient.GetExercisesAsync(CancellationToken.None).Returns(tcs.Task);
+
+        // Act
+        var cut = Render<Exercises>();
+
+        // Assert
+        Assert.NotEmpty(cut.FindAll(".placeholder"));
+        Assert.Empty(cut.FindAll("[data-testid='exercises-empty']"));
+        Assert.Empty(cut.FindAll("[data-testid^='name-input-']"));
+    }
+
+    [Fact]
     public void OnInitialized_NoExercises_ShowsEmptyState()
     {
         // Arrange

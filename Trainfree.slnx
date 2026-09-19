@@ -3,6 +3,7 @@
         <Project Path="src/Trainfree.ApiClients/Trainfree.ApiClients.csproj" />
         <Project Path="src/Trainfree.Domain/Trainfree.Domain.csproj" />
         <Project Path="src/Trainfree.Versioning/Trainfree.Versioning.csproj" />
+        <Project Path="src/Trainfree.UI/Trainfree.UI.csproj" />
         <Project Path="src/Trainfree.Admin/Trainfree.Admin.csproj" />
     </Folder>
     <Folder Name="/tests/">
@@ -11,5 +12,6 @@
         <Project Path="tests/Trainfree.ArchitectureTests/Trainfree.ArchitectureTests.csproj" />
         <Project Path="tests/Trainfree.Domain.Tests/Trainfree.Domain.Tests.csproj" />
         <Project Path="tests/Trainfree.Versioning.Tests/Trainfree.Versioning.Tests.csproj" />
+        <Project Path="tests/Trainfree.UI.Tests/Trainfree.UI.Tests.csproj" />
     </Folder>
 </Solution>

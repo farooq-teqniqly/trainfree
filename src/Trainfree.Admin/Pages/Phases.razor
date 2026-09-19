@@ -25,7 +25,27 @@
 <InlineError Message="@_addPhaseError" TestId="add-phase-error" Class="mb-2" />
 <InlineError Message="@_loadError" TestId="load-phases-error" Class="mb-2" />
 
-@if (_rows.Count == 0)
+@if (_isLoading)
+{
+    <div class="sheet-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                </tr>
+            </thead>
+            <tbody class="placeholder-wave">
+                @for (var i = 0; i < SkeletonRowCount; i++)
+                {
+                    <tr>
+                        <td><SkeletonBlock Width="60%" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else if (_rows.Count == 0)
 {
     <div class="text-center py-5" data-testid="phases-empty">
         <div class="tile-icon mx-auto mb-3" aria-hidden="true">
@@ -89,9 +109,11 @@ else
     private PhaseId? _editingId;
     private string? _addPhaseError;
     private string? _loadError;
+    private bool _isLoading = true;
 
     private const int MinNameLength = 4;
     private const int MaxNameLength = 100;
+    private const int SkeletonRowCount = 4;
 
     protected override async Task OnInitializedAsync()
     {
@@ -115,6 +137,10 @@ else
         {
             _loadError = "Could not load phases. Try refreshing the page.";
             LogLoadPhasesFailed(Logger, ex);
+        }
+        finally
+        {
+            _isLoading = false;
         }
     }
 
