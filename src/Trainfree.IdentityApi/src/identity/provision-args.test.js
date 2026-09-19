@@ -38,6 +38,8 @@ describe("parseProvisionArgs", () => {
         ["--role followed by --remote", ["a@b.c", "--role", "--remote"], /^--role requires a value$/],
         ["an empty --email value", ["--email", "", "User"], /^--email requires a value$/],
         ["a blank --role value", ["a@b.c", "--role", " "], /^--role requires a value$/],
+        ["a blank positional email", [" ", "User"], /^Positional arguments must not be blank$/],
+        ["an empty positional role", ["a@b.c", ""], /^Positional arguments must not be blank$/],
         ["a dangling --email", ["a@b.c", "User", "--email"], /^--email requires a value$/],
         ["a dangling --role", ["a@b.c", "--role"], /^--role requires a value$/],
     ])("throws for %s", (_name, argv, message) => {

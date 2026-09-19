@@ -45,6 +45,9 @@ export function parseProvisionArgs(argv) {
     }
 
     for (const value of positionals) {
+        if (value.trim() === "") {
+            throw new Error("Positional arguments must not be blank");
+        }
         if (!args.email) {
             args.email = value;
         } else if (!args.roleName) {
