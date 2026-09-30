@@ -12,6 +12,22 @@ function normalizeContentType(declaredType) {
     return declaredType.split(";")[0].trim().toLowerCase();
 }
 
+const UNSUPPORTED_TYPE_ERROR = "Only JPG and PNG images are supported";
+
+/**
+ * Returns the normalized supported content type for a declared type, or null when
+ * it is missing or not JPEG/PNG.
+ */
+export function supportedImageType(declaredType) {
+    const contentType = normalizeContentType(declaredType);
+    return contentType in SIGNATURES ? contentType : null;
+}
+
+/** Returns the 415 rejection for an unsupported declared type. */
+export function unsupportedTypeRejection() {
+    return { valid: false, status: 415, error: UNSUPPORTED_TYPE_ERROR };
+}
+
 function startsWith(bytes, signature) {
     return bytes.length >= signature.length && signature.every((value, i) => bytes[i] === value);
 }
@@ -22,16 +38,12 @@ function startsWith(bytes, signature) {
  * { valid: false, status, error } carrying the HTTP status to respond with.
  */
 export function validateImage(body, declaredType) {
-    const contentType = normalizeContentType(declaredType);
-    const signature = SIGNATURES[contentType];
+    const contentType = supportedImageType(declaredType);
 
-    if (!signature) {
-        return {
-            valid: false,
-            status: 415,
-            error: "Only JPG and PNG images are supported",
-        };
+    if (!contentType) {
+        return unsupportedTypeRejection();
     }
+    const signature = SIGNATURES[contentType];
 
     const bytes = body instanceof Uint8Array ? body : new Uint8Array(body);
 

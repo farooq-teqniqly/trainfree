@@ -54,7 +54,12 @@ import {
     SessionNotFoundError,
     SessionPhaseInvalidPhaseError,
 } from "./errors.js";
-import { MAX_IMAGE_BYTES, validateImage } from "./image-validation.js";
+import {
+    MAX_IMAGE_BYTES,
+    supportedImageType,
+    unsupportedTypeRejection,
+    validateImage,
+} from "./image-validation.js";
 import { versionStamp } from "./version.js";
 
 // The Worker and Blazor client are the same origin in production ([assets] + main share
@@ -388,12 +393,18 @@ async function handleExerciseImageUpload(request, env, id) {
         return jsonResponse({ error: "exercise not found" }, 404);
     }
 
+    const declaredType = request.headers.get("content-type");
+    if (!supportedImageType(declaredType)) {
+        const rejection = unsupportedTypeRejection();
+        return jsonResponse({ error: rejection.error }, rejection.status);
+    }
+
     const body = await readCappedBody(request);
     if (!body) {
         return jsonResponse({ error: tooLargeMessage() }, 413);
     }
 
-    const validation = validateImage(body, request.headers.get("content-type"));
+    const validation = validateImage(body, declaredType);
     if (!validation.valid) {
         return jsonResponse({ error: validation.error }, validation.status);
     }

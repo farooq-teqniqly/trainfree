@@ -186,6 +186,54 @@ describe("PUT /api/exercises/:id/image", () => {
         expect(await r2ObjectCount()).toBe(0);
     });
 
+    it("rejects an oversize body with an unsupported declared type with 415 without reading it", async () => {
+        const exercise = await createExercise("Bodyweight Squat");
+        const stream = new ReadableStream({
+            pull(controller) {
+                controller.enqueue(pngBytes(1024));
+            },
+        });
+        const request = new Request(imageUrlFor(exercise.id), {
+            method: "PUT",
+            headers: {
+                "content-type": "image/webp",
+                "content-length": String(MAX_IMAGE_BYTES + 1),
+            },
+            body: stream,
+            duplex: "half",
+        });
+
+        const response = await worker.fetch(request, fakeEnvFor(identityOk("Administrator")));
+
+        expect(response.status).toBe(415);
+        expect((await response.json()).error).toBeTypeOf("string");
+        expect(request.bodyUsed).toBe(false);
+        expect(await storedKey(exercise.id)).toBeNull();
+    });
+
+    it("rejects a missing Content-Type with 415 without reading the body", async () => {
+        const exercise = await createExercise("Bodyweight Squat");
+        const stream = new ReadableStream({
+            start(controller) {
+                controller.enqueue(pngBytes(64));
+                controller.close();
+            },
+        });
+        const request = new Request(imageUrlFor(exercise.id), {
+            method: "PUT",
+            body: stream,
+            duplex: "half",
+        });
+        request.headers.delete("content-type");
+
+        const response = await worker.fetch(request, fakeEnvFor(identityOk("Administrator")));
+
+        expect(response.status).toBe(415);
+        expect((await response.json()).error).toBeTypeOf("string");
+        expect(request.bodyUsed).toBe(false);
+        expect(await storedKey(exercise.id)).toBeNull();
+    });
+
     it("rejects an oversize streamed body without Content-Length with 413 and stops reading", async () => {
         const exercise = await createExercise("Bodyweight Squat");
         const chunk = pngBytes(MAX_IMAGE_BYTES / 4);
