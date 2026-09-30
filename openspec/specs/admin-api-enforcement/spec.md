@@ -32,8 +32,8 @@ would miss.
   route's handler
 
 ### Requirement: Non-Administrator identities are rejected with 403
-For every enforced endpoint except `GET /api/me`, `AdminApi` SHALL inspect the body of
-an `IdentityApi` `200` response and respond `403` itself, without calling the
+For every enforced endpoint except `GET /api/me` and `GET /api/exercises/:id/image`,
+`AdminApi` SHALL inspect the body of an `IdentityApi` `200` response and respond `403` itself, without calling the
 underlying handler, when `role !== "Administrator"`.
 **Rationale**: `IdentityApi`'s `200` means "provisioned," not "Administrator" -- it
 returns `200` for a `User` identity too. Relaying only `IdentityApi`'s own `401`/`403`
@@ -87,6 +87,28 @@ browser has no use for.
 #### Scenario: User identity via /api/me succeeds, unlike other endpoints
 - **WHEN** `IdentityApi` returns `200` with `role: "User"` for a `GET /api/me` request
 - **THEN** `AdminApi` responds `200` with that role, not `403`
+
+### Requirement: GET /api/exercises/:id/image is readable by any provisioned identity
+`AdminApi` SHALL allow `GET /api/exercises/:id/image` for any provisioned identity,
+Administrator or User, skipping the Administrator-only check for this route alone as
+`GET /api/me` does. It SHALL still call `IdentityApi` first, relay `IdentityApi`'s own
+`401` and `403` verbatim without reading R2, and apply the same `503` handling as every
+other endpoint. `PUT` and `DELETE` on `/api/exercises/:id/image` remain Administrator-only.
+**Rationale**: The workout app is used by the `User` role and shows these images, so
+blocking `User` from reading them would break that app; reading an image exposes nothing
+a `User` cannot already see in the workout, while changing or removing one stays an admin
+action. This is the second deliberate exception to the Administrator-only rule, alongside
+`GET /api/me`.
+
+#### Scenario: User reads an exercise image
+- **WHEN** `IdentityApi` returns `200` with `role: "User"` for a
+  `GET /api/exercises/:id/image` request
+- **THEN** `AdminApi` responds `200` with the image bytes, not `403`
+
+#### Scenario: User cannot change an exercise image
+- **WHEN** `IdentityApi` returns `200` with `role: "User"` for a
+  `PUT` or `DELETE /api/exercises/:id/image` request
+- **THEN** `AdminApi` responds `403` and changes nothing
 
 ### Requirement: Created programs are owned by the caller
 Every write endpoint that creates a `programs` row (`createProgram`, and any future owner-scoped create) SHALL set `programs.user_id` to the `userId` field from the same `IdentityApi` `200` response already inspected for the role check.
