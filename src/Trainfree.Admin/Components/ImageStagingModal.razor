@@ -1,0 +1,182 @@
+@using Microsoft.AspNetCore.Components.Forms
+
+<div
+    class="modal d-block"
+    tabindex="-1"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="image-modal-title"
+    data-testid="image-modal"
+    @ref="_dialog"
+    @onclick="DismissAsync"
+    @onkeydown="OnKeyDownAsync">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" data-testid="image-modal-body" @onclick="KeepOpen" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="image-modal-title">
+                    Upload image for @ExerciseName
+                </h2>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex flex-wrap gap-3 justify-content-center">
+                    @if (CurrentSrc is not null)
+                    {
+                        <figure class="image-compare m-0">
+                            <div class="image-preview-box">
+                                <img
+                                    class="image-preview"
+                                    src="@CurrentSrc"
+                                    alt="Current image of @ExerciseName"
+                                    data-testid="image-modal-current" />
+                            </div>
+                            <figcaption class="small text-secondary text-center">Current</figcaption>
+                        </figure>
+                    }
+                    <figure class="image-compare m-0">
+                        <div class="image-preview-box">
+                            <img
+                                class="image-preview"
+                                src="@PreviewSrc"
+                                alt="New image preview for @ExerciseName"
+                                data-testid="image-modal-preview" />
+                        </div>
+                        <figcaption class="small text-secondary text-center">New</figcaption>
+                    </figure>
+                </div>
+                <InlineError Message="@Error" TestId="image-modal-error" Class="mt-3" />
+            </div>
+            <div class="modal-footer">
+                <InputFile
+                    id="image-modal-input"
+                    class="visually-hidden"
+                    accept="image/jpeg,image/png"
+                    disabled="@IsUploading"
+                    data-testid="image-modal-input"
+                    OnChange="OnFilePicked" />
+                <label
+                    class="@($"btn btn-outline-secondary{(IsUploading ? " disabled" : "")}")"
+                    for="image-modal-input"
+                    data-testid="image-modal-choose">
+                    Choose different file
+                </label>
+                <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    disabled="@IsUploading"
+                    data-testid="image-modal-cancel"
+                    @onclick="DismissAsync">
+                    Cancel
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    disabled="@IsUploading"
+                    data-testid="image-modal-upload"
+                    @onclick="OnUpload">
+                    @if (IsUploading)
+                    {
+                        <span
+                            class="spinner-border spinner-border-sm me-1"
+                            role="status"
+                            aria-hidden="true"
+                            data-testid="image-modal-spinner"></span>
+                        <span>Uploading...</span>
+                    }
+                    else
+                    {
+                        <span>Upload</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal-backdrop show"></div>
+
+@code {
+    private ElementReference _dialog;
+
+    /// <summary>
+    /// Gets or sets the exercise's name, shown in the title and in the images' alt text.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string ExerciseName { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the source of the processed image the admin is about to upload, so the
+    /// admin sees what will actually be stored.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string PreviewSrc { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the source of the exercise's current image, shown beside the new one when
+    /// replacing. Nothing extra renders when <see langword="null"/>.
+    /// </summary>
+    [Parameter]
+    public string? CurrentSrc { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether an upload is in flight, disabling every control and ignoring
+    /// dismiss gestures.
+    /// </summary>
+    [Parameter]
+    public bool IsUploading { get; set; }
+
+    /// <summary>
+    /// Gets or sets the error to show, such as the Worker's rejection message. Nothing renders
+    /// when <see langword="null"/>.
+    /// </summary>
+    [Parameter]
+    public string? Error { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when Upload is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnUpload { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked on Cancel, Escape, or a click outside the dialog.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnCancel { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when a different file is chosen.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback<InputFileChangeEventArgs> OnFilePicked { get; set; }
+
+    /// <inheritdoc />
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Focus inside the dialog so Escape reaches the keydown handler.
+        if (firstRender)
+        {
+            await _dialog.FocusAsync();
+        }
+    }
+
+    private static void KeepOpen()
+    {
+        // Clicks inside the dialog must not reach the outer click-to-dismiss handler; the
+        // handler exists so stopPropagation has an onclick binding to attach to.
+    }
+
+    private async Task DismissAsync()
+    {
+        if (!IsUploading)
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await DismissAsync();
+        }
+    }
+}

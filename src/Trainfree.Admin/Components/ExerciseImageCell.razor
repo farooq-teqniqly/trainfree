@@ -1,0 +1,114 @@
+@using Microsoft.AspNetCore.Components.Forms
+
+<div class="image-cell d-flex flex-wrap align-items-center gap-2">
+    <div class="image-slot">
+        @if (Src is null)
+        {
+            <label
+                class="image-placeholder"
+                for="@InputId"
+                data-testid="@($"image-placeholder-{RowId}")"
+                title="Add image">
+                <i class="bi bi-image" aria-hidden="true"></i>
+                <span class="visually-hidden">Add image for @ExerciseName</span>
+            </label>
+        }
+        else
+        {
+            <a
+                href="@Src"
+                target="_blank"
+                rel="noopener"
+                class="image-thumb-link"
+                data-testid="@($"image-open-{RowId}")"
+                aria-label="View larger image of @ExerciseName">
+                <img
+                    class="image-thumb"
+                    src="@Src"
+                    alt="Image of @ExerciseName"
+                    data-testid="@($"image-thumb-{RowId}")" />
+            </a>
+        }
+    </div>
+    @if (Src is not null)
+    {
+        <div class="d-flex gap-1">
+            <label
+                class="btn btn-sm btn-icon btn-outline-secondary"
+                for="@InputId"
+                data-testid="@($"image-replace-{RowId}")"
+                title="Replace image">
+                <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                <span class="visually-hidden">Replace image</span>
+            </label>
+            <button
+                type="button"
+                class="btn btn-sm btn-icon btn-outline-danger"
+                data-testid="@($"image-delete-{RowId}")"
+                title="Delete image"
+                @onclick="OnDelete">
+                <i class="bi bi-trash" aria-hidden="true"></i>
+                <span class="visually-hidden">Delete image</span>
+            </button>
+        </div>
+    }
+    @* Re-keyed after every pick so choosing the same file again still raises a change event. *@
+    <InputFile
+        @key="_inputKey"
+        id="@InputId"
+        class="visually-hidden"
+        accept="image/jpeg,image/png"
+        data-testid="@($"image-input-{RowId}")"
+        OnChange="PickedAsync" />
+    <InlineError Message="@Error" TestId="@($"image-error-{RowId}")" Class="w-100" />
+</div>
+
+@code {
+    private int _inputKey;
+
+    private string InputId => $"image-input-{RowId}";
+
+    /// <summary>
+    /// Gets or sets the exercise row's identifier, used to suffix every <c>data-testid</c>
+    /// and to tie the picker labels to the file input.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string RowId { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the exercise's name, used in accessible names and the thumbnail's alt text.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string ExerciseName { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the thumbnail's resolved URL, or <see langword="null"/> when the exercise
+    /// has no image and the placeholder shows.
+    /// </summary>
+    [Parameter]
+    public string? Src { get; set; }
+
+    /// <summary>
+    /// Gets or sets the image error to show under the slot. Nothing renders when <see langword="null"/>.
+    /// </summary>
+    [Parameter]
+    public string? Error { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when a file is chosen through the placeholder or Replace.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback<InputFileChangeEventArgs> OnFilePicked { get; set; }
+
+    /// <summary>
+    /// Gets or sets the callback invoked when the image Delete button is clicked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public EventCallback OnDelete { get; set; }
+
+    private async Task PickedAsync(InputFileChangeEventArgs e)
+    {
+        await OnFilePicked.InvokeAsync(e);
+        _inputKey++;
+    }
+}

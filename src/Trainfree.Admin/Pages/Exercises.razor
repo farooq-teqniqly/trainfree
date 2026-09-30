@@ -1,10 +1,13 @@
 @page "/exercises"
 @using System.Text.Json
+@using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.Extensions.Logging
 @using Trainfree.Admin.Admin
 @using Trainfree.Domain.Ids
 @inject IExercisesApiClient Api
 @inject ILogger<Exercises> Logger
+@inject HttpClient Http
+@inject IImageResizer ImageResizer
 
 <PageTitle>Exercises - Trainfree Admin</PageTitle>
 
@@ -32,6 +35,7 @@
         <table class="table">
             <thead>
                 <tr>
+                    <th>Image</th>
                     <th>Name</th>
                 </tr>
             </thead>
@@ -39,6 +43,7 @@
                 @for (var i = 0; i < SkeletonDefaults.RowCount; i++)
                 {
                     <tr>
+                        <td><SkeletonBlock Width="44px" Height="44px" /></td>
                         <td><SkeletonBlock Width="60%" /></td>
                     </tr>
                 }
@@ -67,6 +72,7 @@ else
         <table class="table">
             <thead>
                 <tr>
+                    <th>Image</th>
                     <th>Name</th>
                 </tr>
             </thead>
@@ -74,6 +80,15 @@ else
                 @foreach (var row in _rows)
                 {
                     <tr class="row-depth-0">
+                        <td class="image-col">
+                            <ExerciseImageCell
+                                RowId="@row.Id.ToString()"
+                                ExerciseName="@row.SavedName"
+                                Src="@ImageSrc(row)"
+                                Error="@row.ImageError"
+                                OnFilePicked="e => PickFileAsync(row, e)"
+                                OnDelete="() => DeleteImageAsync(row)" />
+                        </td>
                         <td>
                             <div class="name-cell">
                                 <input
@@ -105,7 +120,21 @@ else
     </div>
 }
 
+@if (_staging is { } staging)
+{
+    <ImageStagingModal
+        ExerciseName="@staging.Row.SavedName"
+        PreviewSrc="@staging.PreviewSrc"
+        CurrentSrc="@ImageSrc(staging.Row)"
+        IsUploading="@staging.IsUploading"
+        Error="@staging.Error"
+        OnUpload="UploadStagedImageAsync"
+        OnCancel="CancelStaging"
+        OnFilePicked="e => PickFileAsync(staging.Row, e)" />
+}
+
 @code {
+    private StagingSession? _staging;
     private readonly List<ExerciseRow> _rows = [];
     private ExerciseId? _editingId;
     private string? _addExerciseError;
@@ -120,7 +149,7 @@ else
         try
         {
             var exercises = await Api.GetExercisesAsync();
-            _rows.AddRange(exercises.Select(e => new ExerciseRow(e.Id, e.Name)));
+            _rows.AddRange(exercises.Select(e => new ExerciseRow(e.Id, e.Name, e.ImageUrl)));
         }
         // HttpRequestException alone was not enough: Cloudflare Access answers a request made
         // before the session is established with its own HTML login page, which arrives as a
@@ -153,7 +182,13 @@ else
         switch (outcome)
         {
             case CreateExerciseSucceeded succeeded:
-                _rows.Add(new ExerciseRow(succeeded.Exercise.Id, succeeded.Exercise.Name));
+                _rows.Add(
+                    new ExerciseRow(
+                        succeeded.Exercise.Id,
+                        succeeded.Exercise.Name,
+                        succeeded.Exercise.ImageUrl
+                    )
+                );
                 _editingId = succeeded.Exercise.Id;
                 _addExerciseError = null;
                 break;
@@ -199,6 +234,122 @@ else
         }
     }
 
+    // The API returns a path rooted at the origin ("/api/..."); resolving it against the
+    // API base address keeps it pointing at the Worker when the app runs on another origin
+    // (local dev), and is a no-op same-origin in production.
+    private string? ImageSrc(ExerciseRow row) =>
+        row.Image is HasImage hasImage && Http.BaseAddress is { } baseAddress
+            ? new Uri(baseAddress, hasImage.Url).ToString()
+            : (row.Image as HasImage)?.Url;
+
+    private async Task PickFileAsync(ExerciseRow row, InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        var validation = ImageFileValidator.Validate(file.ContentType, file.Size);
+        switch (validation)
+        {
+            case ImageFileRejected rejected:
+                ReportPickError(row, rejected.Error);
+                break;
+            case ImageFileAccepted accepted:
+                await StageAsync(row, file, accepted.ContentType);
+                break;
+        }
+    }
+
+    private async Task StageAsync(ExerciseRow row, IBrowserFile file, string contentType)
+    {
+        try
+        {
+            using var buffer = new MemoryStream();
+            await using (var source = file.OpenReadStream(ImageFileValidator.MaxBytes))
+            {
+                await source.CopyToAsync(buffer);
+            }
+
+            var staged = await ImageResizer.ResizeAsync(buffer.ToArray(), contentType);
+            if (_staging is null)
+            {
+                _staging = new StagingSession(row, staged);
+            }
+            else
+            {
+                _staging.Restage(staged);
+            }
+
+            row.ImageError = null;
+        }
+        catch (Exception ex)
+            when (ex is IOException or JSException or ArgumentException or InvalidOperationException)
+        {
+            LogImageProcessingFailed(Logger, ex);
+            ReportPickError(row, "Could not process that image. Try a different file.");
+        }
+    }
+
+    // While the modal is open, a bad replacement file is reported in the modal and the
+    // previous preview stays; otherwise the error belongs to the row that started the pick.
+    private void ReportPickError(ExerciseRow row, string error)
+    {
+        if (_staging is null)
+        {
+            row.ImageError = error;
+        }
+        else
+        {
+            _staging.Error = error;
+        }
+    }
+
+    private void CancelStaging() => _staging = null;
+
+    private async Task UploadStagedImageAsync()
+    {
+        if (_staging is not { IsUploading: false } staging)
+        {
+            return;
+        }
+
+        staging.IsUploading = true;
+        staging.Error = null;
+        try
+        {
+            var outcome = await Api.UploadExerciseImageAsync(staging.Row.Id, staging.Staged);
+            switch (outcome)
+            {
+                case UploadExerciseImageSucceeded succeeded:
+                    staging.Row.Image = succeeded.Exercise.ImageUrl is { } url
+                        ? new HasImage(url)
+                        : new NoImage();
+                    staging.Row.ImageError = null;
+                    _staging = null;
+                    break;
+                case UploadExerciseImageFailed failed:
+                    staging.Error = failed.Error;
+                    break;
+            }
+        }
+        finally
+        {
+            staging.IsUploading = false;
+        }
+    }
+
+    private async Task DeleteImageAsync(ExerciseRow row)
+    {
+        var outcome = await Api.DeleteExerciseImageAsync(row.Id);
+        switch (outcome)
+        {
+            case DeleteExerciseImageSucceeded:
+                row.Image = new NoImage();
+                row.ImageError = null;
+                break;
+            case DeleteExerciseImageFailed failed:
+                row.ImageError = failed.Error;
+                break;
+        }
+    }
+
     private async Task OnNameKeyDownAsync(KeyboardEventArgs e, ExerciseRow row)
     {
         if (e.Key == "Enter" && row.IsDirty)
@@ -229,12 +380,16 @@ else
 
     private sealed class ExerciseRow
     {
-        public ExerciseRow(ExerciseId id, string name)
+        public ExerciseRow(ExerciseId id, string name, string? imageUrl)
         {
             Id = id;
             Name = name;
             SavedName = name;
+            Image = imageUrl is null ? new NoImage() : new HasImage(imageUrl);
         }
+
+        public ExerciseImage Image { get; set; }
+        public string? ImageError { get; set; }
 
         public ExerciseId Id { get; }
         public string Name { get; set; }
@@ -242,5 +397,31 @@ else
         public bool IsDirty => !string.Equals(Name, SavedName, StringComparison.Ordinal);
         public bool IsSaving { get; set; }
         public string? Error { get; set; }
+    }
+
+    private sealed class StagingSession
+    {
+        public StagingSession(ExerciseRow row, StagedImage staged)
+        {
+            Row = row;
+            Staged = staged;
+            PreviewSrc = ToDataUrl(staged);
+        }
+
+        public ExerciseRow Row { get; }
+        public StagedImage Staged { get; private set; }
+        public string PreviewSrc { get; private set; }
+        public bool IsUploading { get; set; }
+        public string? Error { get; set; }
+
+        public void Restage(StagedImage staged)
+        {
+            Staged = staged;
+            PreviewSrc = ToDataUrl(staged);
+            Error = null;
+        }
+
+        private static string ToDataUrl(StagedImage staged) =>
+            $"data:{staged.ContentType};base64,{Convert.ToBase64String(staged.Content.Span)}";
     }
 }
