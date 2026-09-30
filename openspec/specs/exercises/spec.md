@@ -5,7 +5,8 @@ Exercises are the canonical exercise library (e.g. "Bodyweight Squat", "Skater
 Jump") that program exercises pick from instead of typing free text. This spec
 covers an exercise's externally visible identity and name rules, the Worker's
 flat CRUD API over the `exercises` table, and the Blazor admin UI that manages
-them. An exercise carries no `type` (Reps/Timed) and no image in this slice.
+them. An exercise carries no `type` (Reps/Timed); its image is covered by the
+`exercise-images` capability.
 ## Requirements
 ### Requirement: Exercise identifier format
 Each exercise SHALL be identified externally by a surrogate key in the form
@@ -146,11 +147,13 @@ name.
 
 The system SHALL provide `DELETE /api/exercises/:id` to remove an exercise, but SHALL
 reject the deletion with `409` and make no change when the exercise is referenced by at
-least one `program_exercises` row.
+least one `program_exercises` row. When the deleted exercise had an image, the Worker
+SHALL also delete its R2 object.
 **Rationale**: An exercise is a global library entity (not scoped to a single program),
 so deleting one that a program exercise already uses would silently orphan that
 reference -- the same reasoning already applied to `phases` when `session_phases`
-started referencing them.
+started referencing them. Removing the image object with its row keeps R2 from
+accumulating files nothing can reach.
 
 #### Scenario: Exercise exists and is unused
 
@@ -170,11 +173,23 @@ started referencing them.
   least one `program_exercises` row
 - **THEN** the Worker responds `409` with a JSON error body and makes no change
 
+#### Scenario: Deleting an exercise with an image removes the image object
+
+- **WHEN** a client calls `DELETE /api/exercises/:id` for an unused exercise that has
+  an image
+- **THEN** the Worker responds `204` and the exercise's R2 object no longer exists
+
+#### Scenario: Deleting a used exercise keeps its image
+
+- **WHEN** a client calls `DELETE /api/exercises/:id` for an exercise that has an image
+  and is referenced by a `program_exercises` row
+- **THEN** the Worker responds `409` and the R2 object still exists
+
 ### Requirement: Admin exercises page
 
 The Blazor admin app SHALL provide an `Exercises` page at `/exercises` listing every
 exercise as a row, using the same working/saved-value dirty-row pattern as the Phases
-page, with no image column and no type column. An exercise row's `Delete` action SHALL
+page, with an image column (see the `exercise-images` capability) and no type column. An exercise row's `Delete` action SHALL
 surface the Worker's `409` usage rejection instead of silently failing or removing the
 row. While the initial `GET /api/exercises` is in flight, the page SHALL render
 skeleton rows instead of the empty-state view, so the empty-state illustration does not
@@ -184,7 +199,7 @@ introduced by the usage guard above, matching how the Phases page already handle
 own `409` from the `phases` capability. Before this change, the page distinguished
 "loading" from "no exercises exist" only by an empty `_rows` list, so the two states
 were indistinguishable and the empty-state view always flashed first, even when
-exercises existed.
+exercises existed. The image column is now present because the upload flow exists.
 
 #### Scenario: Page shows skeleton rows while loading
 

@@ -32,9 +32,10 @@ would miss.
   route's handler
 
 ### Requirement: Non-Administrator identities are rejected with 403
-For every enforced endpoint except `GET /api/me` and `GET /api/exercises/:id/image`,
-`AdminApi` SHALL inspect the body of an `IdentityApi` `200` response and respond `403` itself, without calling the
-underlying handler, when `role !== "Administrator"`.
+`AdminApi` SHALL, for every enforced endpoint except `GET /api/me` and
+`GET /api/exercises/:id/image`, inspect the body of an `IdentityApi` `200` response and
+respond `403` itself, without calling the underlying handler, when
+`role !== "Administrator"`.
 **Rationale**: `IdentityApi`'s `200` means "provisioned," not "Administrator" -- it
 returns `200` for a `User` identity too. Relaying only `IdentityApi`'s own `401`/`403`
 verbatim would let a provisioned `User` through to every Administrator-only endpoint,

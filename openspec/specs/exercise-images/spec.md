@@ -1,10 +1,11 @@
+# exercise-images Specification
+
 ## Purpose
 Lets the admin attach one picture to each exercise so the workout app can show it
 during a workout. Covers the Worker's image upload/serve/delete API, R2 storage, and
 the admin UI's staged-preview upload flow.
 
-## ADDED Requirements
-
+## Requirements
 ### Requirement: Upload or replace an exercise image
 The system SHALL provide `PUT /api/exercises/:id/image` with the raw image bytes as the
 request body and a `Content-Type` of `image/jpeg` or `image/png`. The Worker SHALL store
@@ -285,19 +286,3 @@ deleting the wrong thing.
 - The Worker sniffs and validates only JPEG and PNG signatures. WebP and others are a
   later addition, not a rejected design.
 
-## Requirement coverage
-
-Anchor: docs/trainfree-roadmap.md slice 14 (`add-exercise-images-r2`), narrowed by the
-request that opened this change.
-
-| # | Anchor requirement | Covered by |
-|---|--------------------|-----------|
-| 1 | Wire up the upload control on the Exercises page | Req: Staged-preview upload flow; Req: Image thumbnail column |
-| 2 | R2 bucket storage | Req: Upload or replace an exercise image |
-| 3 | URL persisted on the Exercise record | Req: Exercise responses expose the image URL; see Decisions (key stored, URL derived) |
-| 4 | Image displayed on the Exercises page | Req: Image thumbnail column |
-| 5 | Image displayed during the Trainfree.Workout runner (screens 3-4) | Partly covered - Req: Image access by role lets the `User` role read the image; the runner itself and the `WorkoutApi` copy of the route are not built yet, see Decisions |
-| 6 | Delete an image | Req: Delete an exercise image |
-| 7 | Deleting an exercise cleans up its image | Req: Delete an exercise (exercises capability delta) |
-| 8 | Bulk import of existing images | Not covered - out of scope; decided after hand-uploading a few |
-| 9 | Cropping tool | Not covered - out of scope; the admin crops before upload |
