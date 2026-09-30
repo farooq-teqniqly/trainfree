@@ -22,6 +22,7 @@ builder.Services.AddScoped<ISessionPhasesApiClient, SessionPhasesApiClient>();
 builder.Services.AddScoped<IProgramExercisesApiClient, ProgramExercisesApiClient>();
 builder.Services.AddScoped<IPhasesApiClient, PhasesApiClient>();
 builder.Services.AddScoped<IExercisesApiClient, ExercisesApiClient>();
+builder.Services.AddScoped<IImageResizer, ImageResizer>();
 builder.Services.AddScoped<IAccessCheck, AccessCheck>();
 
 // The running build's stamp comes from this assembly, so it identifies the bundle the

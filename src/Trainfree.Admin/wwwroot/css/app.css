@@ -388,3 +388,82 @@ td > .name-actions {
 .chevron-btn i.chevron-collapsed {
     transform: rotate(-90deg);
 }
+/* Exercises page image slot: a fixed square so rows keep their height whether or not an
+   image is set, with contain-fit (letterboxed) rather than cropped thumbnails because
+   source heights vary widely. Layout itself comes from Bootstrap utilities in the markup. */
+.image-col {
+    width: 1%;
+}
+
+.image-slot {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.25rem;
+    display: flex;
+    flex-shrink: 0;
+    height: 44px;
+    justify-content: center;
+    overflow: hidden;
+    width: 44px;
+}
+
+.image-placeholder {
+    align-items: center;
+    border: 1px dashed var(--bs-border-color);
+    border-radius: 0.25rem;
+    color: var(--bs-secondary-color);
+    cursor: pointer;
+    display: flex;
+    height: 100%;
+    justify-content: center;
+    width: 100%;
+}
+
+.image-placeholder:hover {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+}
+
+.image-thumb-link {
+    display: block;
+    height: 100%;
+    width: 100%;
+}
+
+.image-thumb {
+    display: block;
+    height: 100%;
+    object-fit: contain;
+    width: 100%;
+}
+
+/* The file input is visually hidden and driven through its labels, so surface its keyboard
+   focus on the labels the admin actually sees. */
+.image-cell:has(input:focus-visible) label {
+    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+/* Staged-preview modal: both previews sit in the same fixed box, contain-fit, so a 697x144
+   strip and a tall 700x1400 image are each shown whole. */
+.image-compare {
+    flex: 1 1 220px;
+    max-width: 360px;
+}
+
+.image-preview-box {
+    align-items: center;
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.25rem;
+    display: flex;
+    height: 360px;
+    justify-content: center;
+    width: 100%;
+}
+
+.image-preview {
+    max-height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+}

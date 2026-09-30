@@ -51,4 +51,33 @@ internal interface IExercisesApiClient
         ExerciseId id,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>Uploads or replaces an exercise's image.</summary>
+    /// <param name="id">The exercise's identifier.</param>
+    /// <param name="image">The processed image to upload.</param>
+    /// <param name="cancellationToken">Token used to cancel the request.</param>
+    /// <returns>
+    /// An <see cref="UploadExerciseImageSucceeded"/> carrying the updated exercise on success, or
+    /// an <see cref="UploadExerciseImageFailed"/> carrying an error message when the server
+    /// rejects the request (e.g. 404, 413, 415) or a transport/parse exception is caught.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="image"/> is <see langword="null"/>.</exception>
+    Task<UploadExerciseImageOutcome> UploadExerciseImageAsync(
+        ExerciseId id,
+        StagedImage image,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Deletes an exercise's image, leaving the exercise itself in place.</summary>
+    /// <param name="id">The exercise's identifier.</param>
+    /// <param name="cancellationToken">Token used to cancel the request.</param>
+    /// <returns>
+    /// A <see cref="DeleteExerciseImageSucceeded"/> when the image is deleted, or a
+    /// <see cref="DeleteExerciseImageFailed"/> carrying an error message for any non-success
+    /// response (including 404) or a transport exception caught during the request.
+    /// </returns>
+    Task<DeleteExerciseImageOutcome> DeleteExerciseImageAsync(
+        ExerciseId id,
+        CancellationToken cancellationToken = default
+    );
 }
