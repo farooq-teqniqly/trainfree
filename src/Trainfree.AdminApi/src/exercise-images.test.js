@@ -159,6 +159,89 @@ describe("PUT /api/exercises/:id/image", () => {
         expect(await r2ObjectCount()).toBe(0);
     });
 
+    it("rejects a large declared Content-Length with 413 before reading the body", async () => {
+        const exercise = await createExercise("Bodyweight Squat");
+        const stream = new ReadableStream({
+            start(controller) {
+                controller.enqueue(pngBytes(64));
+                controller.close();
+            },
+        });
+        const request = new Request(imageUrlFor(exercise.id), {
+            method: "PUT",
+            headers: {
+                "content-type": "image/png",
+                "content-length": String(MAX_IMAGE_BYTES + 1),
+            },
+            body: stream,
+            duplex: "half",
+        });
+
+        const response = await worker.fetch(request, fakeEnvFor(identityOk("Administrator")));
+
+        expect(response.status).toBe(413);
+        expect((await response.json()).error).toBeTypeOf("string");
+        expect(request.bodyUsed).toBe(false);
+        expect(await storedKey(exercise.id)).toBeNull();
+        expect(await r2ObjectCount()).toBe(0);
+    });
+
+    it("rejects an oversize streamed body without Content-Length with 413 and stops reading", async () => {
+        const exercise = await createExercise("Bodyweight Squat");
+        const chunk = pngBytes(MAX_IMAGE_BYTES / 4);
+        let pulls = 0;
+        const stream = new ReadableStream({
+            pull(controller) {
+                pulls += 1;
+                if (pulls > 50) {
+                    controller.close();
+                    return;
+                }
+                controller.enqueue(chunk);
+            },
+        });
+        const request = new Request(imageUrlFor(exercise.id), {
+            method: "PUT",
+            headers: { "content-type": "image/png" },
+            body: stream,
+            duplex: "half",
+        });
+        expect(request.headers.get("content-length")).toBeNull();
+
+        const response = await worker.fetch(request, fakeEnvFor(identityOk("Administrator")));
+
+        expect(response.status).toBe(413);
+        expect((await response.json()).error).toBeTypeOf("string");
+        expect(pulls).toBeLessThan(10);
+        expect(await storedKey(exercise.id)).toBeNull();
+        expect(await r2ObjectCount()).toBe(0);
+    });
+
+    it("accepts a streamed body of exactly the size limit without Content-Length", async () => {
+        const exercise = await createExercise("Bodyweight Squat");
+        const whole = pngBytes(MAX_IMAGE_BYTES);
+        const half = MAX_IMAGE_BYTES / 2;
+        const stream = new ReadableStream({
+            start(controller) {
+                controller.enqueue(whole.slice(0, half));
+                controller.enqueue(whole.slice(half));
+                controller.close();
+            },
+        });
+        const request = new Request(imageUrlFor(exercise.id), {
+            method: "PUT",
+            headers: { "content-type": "image/png" },
+            body: stream,
+            duplex: "half",
+        });
+
+        const response = await worker.fetch(request, fakeEnvFor(identityOk("Administrator")));
+
+        expect(response.status).toBe(200);
+        const object = await env.IMAGES.head(await storedKey(exercise.id));
+        expect(object.size).toBe(MAX_IMAGE_BYTES);
+    });
+
     it("keeps the existing image when a replacement is rejected", async () => {
         const exercise = await createExercise("Bodyweight Squat");
         await putImage(exercise.id, pngBytes(64));
@@ -184,6 +267,28 @@ describe("GET /api/exercises/:id/image", () => {
         expect(response.headers.get("content-type")).toBe("image/png");
         expect(response.headers.get("cache-control")).toContain("immutable");
         expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
+    });
+
+    it("sends X-Content-Type-Options nosniff", async () => {
+        const exercise = await createExercise("Bodyweight Squat");
+        await putImage(exercise.id, pngBytes(64));
+
+        const response = await SELF.fetch(imageUrlFor(exercise.id));
+        await response.arrayBuffer();
+
+        expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    });
+
+    it("falls back to application/octet-stream when the stored object has no content type", async () => {
+        const exercise = await createExercise("Bodyweight Squat");
+        await putImage(exercise.id, pngBytes(64));
+        await env.IMAGES.put(await storedKey(exercise.id), pngBytes(64));
+
+        const response = await SELF.fetch(imageUrlFor(exercise.id));
+        await response.arrayBuffer();
+
+        expect(response.status).toBe(200);
+        expect(response.headers.get("content-type")).toBe("application/octet-stream");
     });
 
     it("returns 404 for an exercise with no image", async () => {

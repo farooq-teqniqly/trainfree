@@ -54,7 +54,7 @@ import {
     SessionNotFoundError,
     SessionPhaseInvalidPhaseError,
 } from "./errors.js";
-import { validateImage } from "./image-validation.js";
+import { MAX_IMAGE_BYTES, validateImage } from "./image-validation.js";
 import { versionStamp } from "./version.js";
 
 // The Worker and Blazor client are the same origin in production ([assets] + main share
@@ -341,12 +341,58 @@ async function handleExerciseResource(request, env, id) {
     return new Response("Method not allowed", { status: 405 });
 }
 
+function tooLargeMessage() {
+    return `Image must be at most ${MAX_IMAGE_BYTES} bytes`;
+}
+
+// Returns the body bytes, or null when the body exceeds MAX_IMAGE_BYTES. Never buffers
+// more than the cap: an oversize Content-Length is rejected before any read, and a
+// body without one is read chunk by chunk and abandoned as soon as the total passes it.
+async function readCappedBody(request) {
+    const declared = Number(request.headers.get("content-length"));
+    if (declared > MAX_IMAGE_BYTES) {
+        return null;
+    }
+
+    if (!request.body) {
+        return new Uint8Array(0);
+    }
+
+    const reader = request.body.getReader();
+    const chunks = [];
+    let total = 0;
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) {
+            break;
+        }
+        total += value.byteLength;
+        if (total > MAX_IMAGE_BYTES) {
+            await reader.cancel();
+            return null;
+        }
+        chunks.push(value);
+    }
+
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+    }
+    return bytes;
+}
+
 async function handleExerciseImageUpload(request, env, id) {
     if (!(await exerciseExists(env.DB, id))) {
         return jsonResponse({ error: "exercise not found" }, 404);
     }
 
-    const body = await request.arrayBuffer();
+    const body = await readCappedBody(request);
+    if (!body) {
+        return jsonResponse({ error: tooLargeMessage() }, 413);
+    }
+
     const validation = validateImage(body, request.headers.get("content-type"));
     if (!validation.valid) {
         return jsonResponse({ error: validation.error }, validation.status);
@@ -369,7 +415,8 @@ async function handleExerciseImageServe(env, id) {
     // image is always fetched from a new URL and this response can be cached forever.
     return new Response(image.body, {
         headers: {
-            "content-type": image.contentType,
+            "content-type": image.contentType ?? "application/octet-stream",
+            "x-content-type-options": "nosniff",
             "cache-control": "private, max-age=31536000, immutable",
         },
     });
