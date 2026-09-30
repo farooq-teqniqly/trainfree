@@ -28,6 +28,16 @@
             "database_id": "f99013f2-e1c9-48d7-9f63-cfb3c853f421"
         }
     ],
+    // Exercise images. Not public: the Worker streams objects from this binding so
+    // images stay behind Cloudflare Access. Bucket is created once by
+    // scripts/Create-ExerciseImagesBucket.ps1, never by deploy.yaml. Miniflare provides
+    // a real local R2 for `wrangler dev` and vitest.
+    "r2_buckets": [
+        {
+            "binding": "IMAGES",
+            "bucket_name": "trainfree-exercise-images"
+        }
+    ],
     "observability": {
         "logs": {
             "enabled": true,

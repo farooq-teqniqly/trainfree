@@ -22,9 +22,12 @@ import {
 import {
     createExercise,
     deleteExercise,
+    deleteExerciseImage,
     exerciseExists,
+    getExerciseImage,
     listExercises,
     renameExercise,
+    setExerciseImage,
 } from "./exercises.js";
 import {
     createProgramExercise,
@@ -51,6 +54,7 @@ import {
     SessionNotFoundError,
     SessionPhaseInvalidPhaseError,
 } from "./errors.js";
+import { validateImage } from "./image-validation.js";
 import { versionStamp } from "./version.js";
 
 // The Worker and Blazor client are the same origin in production ([assets] + main share
@@ -69,7 +73,7 @@ function corsHeadersFor(request) {
 
     return {
         "Access-Control-Allow-Origin": origin,
-        "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "content-type",
     };
 }
@@ -119,6 +123,17 @@ async function enforceAdministrator(request, env) {
     }
     if (!isAdministrator(result.identity)) {
         return { response: jsonResponse({ error: "forbidden" }, 403) };
+    }
+    return { identity: result.identity };
+}
+
+// Same as enforceAdministrator but admits any provisioned identity. Only for routes the
+// spec deliberately opens to the User role (GET /api/exercises/:id/image); IdentityApi's
+// own 401/403 are still relayed verbatim.
+async function enforceAuthenticated(request, env) {
+    const result = await checkIdentity(request, env);
+    if (!result.ok) {
+        return { response: new Response(null, { status: result.status }) };
     }
     return { identity: result.identity };
 }
@@ -300,7 +315,8 @@ async function handleExercisesCollection(request, db) {
     return new Response("Method not allowed", { status: 405 });
 }
 
-async function handleExerciseResource(request, db, id) {
+async function handleExerciseResource(request, env, id) {
+    const db = env.DB;
     if (request.method === "PATCH") {
         return handleRename(
             request,
@@ -316,10 +332,63 @@ async function handleExerciseResource(request, db, id) {
         return handleDeleteWithConflict(
             db,
             id,
-            deleteExercise,
+            (database, exerciseId) => deleteExercise(database, exerciseId, env.IMAGES),
             "exercise not found",
             ExerciseInUseError
         );
+    }
+
+    return new Response("Method not allowed", { status: 405 });
+}
+
+async function handleExerciseImageUpload(request, env, id) {
+    if (!(await exerciseExists(env.DB, id))) {
+        return jsonResponse({ error: "exercise not found" }, 404);
+    }
+
+    const body = await request.arrayBuffer();
+    const validation = validateImage(body, request.headers.get("content-type"));
+    if (!validation.valid) {
+        return jsonResponse({ error: validation.error }, validation.status);
+    }
+
+    const exercise = await setExerciseImage(env.DB, env.IMAGES, id, body, validation.contentType);
+    if (!exercise) {
+        return jsonResponse({ error: "exercise not found" }, 404);
+    }
+    return jsonResponse(exercise);
+}
+
+async function handleExerciseImageServe(env, id) {
+    const image = await getExerciseImage(env.DB, env.IMAGES, id);
+    if (!image) {
+        return jsonResponse({ error: "image not found" }, 404);
+    }
+
+    // The URL carries a per-upload version (see exercises.js toExercise), so a replaced
+    // image is always fetched from a new URL and this response can be cached forever.
+    return new Response(image.body, {
+        headers: {
+            "content-type": image.contentType,
+            "cache-control": "private, max-age=31536000, immutable",
+        },
+    });
+}
+
+async function handleExerciseImageResource(request, env, id) {
+    if (request.method === "PUT") {
+        return handleExerciseImageUpload(request, env, id);
+    }
+
+    if (request.method === "GET") {
+        return handleExerciseImageServe(env, id);
+    }
+
+    if (request.method === "DELETE") {
+        if (!(await deleteExerciseImage(env.DB, env.IMAGES, id))) {
+            return jsonResponse({ error: "image not found" }, 404);
+        }
+        return new Response(null, { status: 204 });
     }
 
     return new Response("Method not allowed", { status: 405 });
@@ -518,16 +587,25 @@ async function routePhases(request, env, segments) {
     return withCors(response, request);
 }
 
-// /api/exercises (collection, length 2) or /api/exercises/:id (resource, length 3)
-// -- a flat resource, unlike programs/sessions below.
+function isExerciseImageRoute(segments) {
+    return segments.length === 4 && segments[1] === "exercises" && segments[3] === "image";
+}
+
+// /api/exercises (collection, length 2), /api/exercises/:id (resource, length 3), or
+// /api/exercises/:id/image (the exercise's single image, length 4) -- a flat resource,
+// unlike programs/sessions below.
 async function routeExercises(request, env, segments) {
+    if (isExerciseImageRoute(segments)) {
+        return withCors(await handleExerciseImageResource(request, env, segments[2]), request);
+    }
+
     if (segments.length > 3) {
         return notFoundOrAssets(request, env);
     }
 
     const id = segments[2];
     const response = id
-        ? await handleExerciseResource(request, env.DB, id)
+        ? await handleExerciseResource(request, env, id)
         : await handleExercisesCollection(request, env.DB);
     return withCors(response, request);
 }
@@ -654,7 +732,13 @@ export default {
             return notFoundOrAssets(request, env);
         }
 
-        const enforcement = await enforceAdministrator(request, env);
+        // The image read is the one data route open to the User role (the workout app
+        // shows these images); every other route, including image PUT/DELETE, requires
+        // Administrator.
+        const isImageRead = request.method === "GET" && isExerciseImageRoute(segments);
+        const enforcement = isImageRead
+            ? await enforceAuthenticated(request, env)
+            : await enforceAdministrator(request, env);
         if (enforcement.response) {
             return withCors(enforcement.response, request);
         }

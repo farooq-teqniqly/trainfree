@@ -172,6 +172,12 @@ ship either an unenforced UI or enforcement with nothing to configure it, wherea
     on slice 6 (`Exercise` entity must exist) and benefits from slice 10/11 being in place
     to see it rendered live, but is not blocked by 9-13 -- can slot in parallel after
     slice 6 if desired.
+    Storage: R2 bucket `trainfree-exercise-images` (created once by
+    `scripts/Create-ExerciseImagesBucket.ps1`), bound to `AdminApi` as `IMAGES`; the
+    bucket is not public, and images are served through the Worker at
+    `GET /api/exercises/:id/image` so they stay behind Cloudflare Access. The object key
+    is stored in `exercises.image_key` (migration 0017) and never exposed; clients get a
+    relative `imageUrl`.
 
 Slices 8a-8c add Cloudflare Access-backed authorization (D1 role lookup and enforcement)
 on top of the Access authentication already configured manually outside this repo; see

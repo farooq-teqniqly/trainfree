@@ -282,3 +282,24 @@ describe("0009_drop_categories migration", () => {
         expect(table).toBeNull();
     });
 });
+
+describe("0017_add_exercises_image_key migration", () => {
+    it("adds a nullable image_key column that an exercise row created before this migration ran keeps as NULL", async () => {
+        await env.DB.prepare("ALTER TABLE exercises DROP COLUMN image_key").run();
+        await env.DB.prepare("DELETE FROM d1_migrations WHERE name = ?")
+            .bind("0017_add_exercises_image_key.sql")
+            .run();
+        await env.DB.prepare(
+            "INSERT INTO exercises (exercise_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        )
+            .bind("EXR-PREMIG0017", "Pre-existing Exercise", "2026-09-01T00:00:00.000Z", "2026-09-01T00:00:00.000Z")
+            .run();
+
+        await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
+
+        const row = await env.DB.prepare("SELECT image_key FROM exercises WHERE exercise_id = ?")
+            .bind("EXR-PREMIG0017")
+            .first();
+        expect(row).toEqual({ image_key: null });
+    });
+});

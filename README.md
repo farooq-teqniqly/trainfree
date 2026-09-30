@@ -107,6 +107,20 @@ though both bind the same `database_id`, so without a shared `--persist-to`,
 `IdentityApi` would never see the `logins`/`users`/`roles` tables this migration
 creates.
 
+#### Exercise image storage (R2)
+
+Exercise images live in the R2 bucket `trainfree-exercise-images`, bound to `AdminApi`
+as `IMAGES` in both `wrangler.jsonc` and `wrangler.deploy.jsonc`. The bucket is not
+public: the Worker serves images through `GET /api/exercises/:id/image`, so they stay
+behind Cloudflare Access. Locally, Miniflare provides a real R2 with no setup and no
+credentials. In production the bucket is created once, never by `deploy.yaml`:
+
+```sh
+pwsh scripts/Create-ExerciseImagesBucket.ps1   # or: powershell -File scripts/Create-ExerciseImagesBucket.ps1
+```
+
+R2 must be enabled on the Cloudflare account first (dashboard, R2 Object Storage).
+
 ### 2. Seed the local-dev identity (one-time)
 
 `identity.js`'s `LOCAL_DEV_BYPASS` branch looks up a real `users` row for
