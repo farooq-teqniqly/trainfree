@@ -848,7 +848,7 @@ public sealed class ExercisesPageTests : BunitContext
 
         // Assert
         Assert.Equal(
-            "Image must be 1 MB or smaller",
+            "The resized image is larger than 1 MB. Try a smaller file.",
             cut.Find("[data-testid='image-error-EXR-AAAAAA']").TextContent.Trim()
         );
         Assert.Empty(cut.FindAll("[data-testid='image-modal']"));
@@ -871,7 +871,7 @@ public sealed class ExercisesPageTests : BunitContext
 
         // Assert
         Assert.Equal(
-            "Image must be 1 MB or smaller",
+            "The resized image is larger than 1 MB. Try a smaller file.",
             cut.Find("[data-testid='image-modal-error']").TextContent.Trim()
         );
         Assert.Equal(

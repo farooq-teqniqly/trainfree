@@ -287,10 +287,10 @@ else
             // Re-encoding can enlarge an image, so the output must pass the same limit.
             if (
                 ImageFileValidator.Validate(staged.ContentType, staged.Content.Length)
-                is ImageFileRejected rejected
+                is ImageFileRejected
             )
             {
-                ReportPickError(row, rejected.Error);
+                ReportPickError(row, "The resized image is larger than 1 MB. Try a smaller file.");
                 return;
             }
 
