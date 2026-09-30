@@ -1,7 +1,9 @@
 using System.Text.Json;
 using Bunit;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
 using NSubstitute;
 using Trainfree.Admin.Admin;
 using Trainfree.Admin.Pages;
@@ -13,7 +15,82 @@ public sealed class ExercisesPageTests : BunitContext
 {
     private readonly IExercisesApiClient _apiClient = Substitute.For<IExercisesApiClient>();
 
-    public ExercisesPageTests() => Services.AddSingleton(_apiClient);
+    private readonly IImageResizer _resizer = Substitute.For<IImageResizer>();
+
+    public ExercisesPageTests()
+    {
+        Services.AddSingleton(_apiClient);
+        Services.AddSingleton(_resizer);
+        Services.AddSingleton(_ => new HttpClient
+        {
+            BaseAddress = new Uri("http://api.test/api/"),
+        });
+        JSInterop.Mode = JSRuntimeMode.Loose;
+    }
+
+    [Fact]
+    public void Render_ExistingExercises_ImageColumnHeaderIsLeftOfName()
+    {
+        // Arrange
+        _apiClient
+            .GetExercisesAsync(CancellationToken.None)
+            .Returns([new ExerciseSummary(ExerciseId.Parse("EXR-AAAAAA"), "Bodyweight Squat")]);
+
+        // Act
+        var cut = Render<Exercises>();
+
+        // Assert
+        var headers = cut.FindAll("thead th").Select(h => h.TextContent.Trim()).ToList();
+        Assert.Equal(["Image", "Name"], headers);
+        var cells = cut.FindAll("tbody tr td");
+        Assert.NotNull(cells[0].QuerySelector("[data-testid='image-placeholder-EXR-AAAAAA']"));
+        Assert.NotNull(cells[1].QuerySelector("[data-testid='name-input-EXR-AAAAAA']"));
+    }
+
+    [Fact]
+    public void Render_ExerciseWithoutImage_ShowsPlaceholderOnly()
+    {
+        // Arrange
+        _apiClient
+            .GetExercisesAsync(CancellationToken.None)
+            .Returns([new ExerciseSummary(ExerciseId.Parse("EXR-AAAAAA"), "Bodyweight Squat")]);
+
+        // Act
+        var cut = Render<Exercises>();
+
+        // Assert
+        Assert.NotNull(cut.Find("[data-testid='image-placeholder-EXR-AAAAAA']"));
+        Assert.Empty(cut.FindAll("[data-testid='image-replace-EXR-AAAAAA']"));
+        Assert.Empty(cut.FindAll("[data-testid='image-delete-EXR-AAAAAA']"));
+    }
+
+    [Fact]
+    public void Render_ExerciseWithImage_ShowsThumbnailResolvedAgainstApiBaseWithReplaceAndDelete()
+    {
+        // Arrange
+        _apiClient
+            .GetExercisesAsync(CancellationToken.None)
+            .Returns([
+                new ExerciseSummary(
+                    ExerciseId.Parse("EXR-AAAAAA"),
+                    "Bodyweight Squat",
+                    "/api/exercises/EXR-AAAAAA/image?v=k1"
+                ),
+                new ExerciseSummary(ExerciseId.Parse("EXR-BBBBBB"), "Skater Jump"),
+            ]);
+
+        // Act
+        var cut = Render<Exercises>();
+
+        // Assert
+        Assert.Equal(
+            "http://api.test/api/exercises/EXR-AAAAAA/image?v=k1",
+            cut.Find("[data-testid='image-thumb-EXR-AAAAAA']").GetAttribute("src")
+        );
+        Assert.NotNull(cut.Find("[data-testid='image-replace-EXR-AAAAAA']"));
+        Assert.NotNull(cut.Find("[data-testid='image-delete-EXR-AAAAAA']"));
+        Assert.NotNull(cut.Find("[data-testid='image-placeholder-EXR-BBBBBB']"));
+    }
 
     [Fact]
     public void OnInitialized_ServerReturnsTheAccessLoginPage_ShowsTheLoadErrorInsteadOfFailing()
@@ -540,5 +617,546 @@ public sealed class ExercisesPageTests : BunitContext
         Assert.NotEmpty(cut.FindAll("[data-testid='load-exercises-error']"));
         Assert.Empty(cut.FindAll("tbody tr"));
         Assert.Empty(cut.FindAll("[data-testid='exercises-empty']"));
+    }
+
+    private static readonly ExerciseId SquatId = ExerciseId.Parse("EXR-AAAAAA");
+    private const string SquatImagePath = "/api/exercises/EXR-AAAAAA/image?v=k1";
+
+    private IRenderedComponent<Exercises> RenderWithSquat(string? imageUrl = null)
+    {
+        _apiClient
+            .GetExercisesAsync(CancellationToken.None)
+            .Returns([new ExerciseSummary(SquatId, "Bodyweight Squat", imageUrl)]);
+        return Render<Exercises>();
+    }
+
+    private static async Task PickAsync(
+        IRenderedComponent<Exercises> cut,
+        string testId,
+        string fileName,
+        string contentType,
+        byte[] content
+    )
+    {
+        var input = cut.FindComponents<InputFile>()
+            .Single(c =>
+                string.Equals(
+                    c.Instance.AdditionalAttributes?["data-testid"] as string,
+                    testId,
+                    StringComparison.Ordinal
+                )
+            );
+        await cut.InvokeAsync(() =>
+            input.UploadFiles(
+                InputFileContent.CreateFromBinary(content, fileName, null, contentType)
+            )
+        );
+    }
+
+    private static Task PickRowImageAsync(
+        IRenderedComponent<Exercises> cut,
+        string fileName = "squat.png",
+        string contentType = "image/png",
+        byte[]? content = null
+    ) => PickAsync(cut, "image-input-EXR-AAAAAA", fileName, contentType, content ?? [1, 2, 3]);
+
+    private StagedImage StubResizer(byte[] resized, string contentType = "image/png")
+    {
+        var staged = new StagedImage(resized, contentType);
+        _resizer
+            .ResizeAsync(Arg.Any<byte[]>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(staged);
+        return staged;
+    }
+
+    private async Task AssertNoUploadAsync() =>
+        await _apiClient
+            .DidNotReceive()
+            .UploadExerciseImageAsync(
+                Arg.Any<ExerciseId>(),
+                Arg.Any<StagedImage>(),
+                Arg.Any<CancellationToken>()
+            );
+
+    [Fact]
+    public async Task PickImage_ValidPng_OpensPreviewModalWithProcessedImageAndSendsNoRequest()
+    {
+        // Arrange
+        var staged = StubResizer([9, 8, 7]);
+        var cut = RenderWithSquat();
+
+        // Act
+        await PickRowImageAsync(cut, content: [1, 2, 3]);
+
+        // Assert
+        await _resizer
+            .Received(1)
+            .ResizeAsync(
+                Arg.Is<byte[]>(b => b.SequenceEqual(new byte[] { 1, 2, 3 })),
+                "image/png",
+                Arg.Any<CancellationToken>()
+            );
+        Assert.Equal(
+            $"data:image/png;base64,{Convert.ToBase64String(staged.Content.Span)}",
+            cut.Find("[data-testid='image-modal-preview']").GetAttribute("src")
+        );
+        Assert.Empty(cut.FindAll("[data-testid='image-modal-current']"));
+        await AssertNoUploadAsync();
+    }
+
+    [Theory]
+    [InlineData("image/gif")]
+    [InlineData("image/webp")]
+    public async Task PickImage_UnsupportedType_ShowsTypeErrorOnRowWithoutModalOrRequest(
+        string contentType
+    )
+    {
+        // Arrange
+        var cut = RenderWithSquat();
+
+        // Act
+        await PickRowImageAsync(cut, "squat.gif", contentType);
+
+        // Assert
+        Assert.Equal(
+            "Only JPG and PNG are supported",
+            cut.Find("[data-testid='image-error-EXR-AAAAAA']").TextContent.Trim()
+        );
+        Assert.Empty(cut.FindAll("[data-testid='image-modal']"));
+        await _resizer
+            .DidNotReceive()
+            .ResizeAsync(Arg.Any<byte[]>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await AssertNoUploadAsync();
+    }
+
+    [Fact]
+    public async Task PickImage_FileOverOneMegabyte_ShowsSizeErrorOnRowWithoutModalOrRequest()
+    {
+        // Arrange
+        var cut = RenderWithSquat();
+
+        // Act
+        await PickRowImageAsync(cut, content: new byte[1_048_577]);
+
+        // Assert
+        Assert.Equal(
+            "Image must be 1 MB or smaller",
+            cut.Find("[data-testid='image-error-EXR-AAAAAA']").TextContent.Trim()
+        );
+        Assert.Empty(cut.FindAll("[data-testid='image-modal']"));
+        await _resizer
+            .DidNotReceive()
+            .ResizeAsync(Arg.Any<byte[]>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await AssertNoUploadAsync();
+    }
+
+    [Fact]
+    public async Task PickImage_ResizeFails_ShowsErrorOnRowWithoutModal()
+    {
+        // Arrange
+        _resizer
+            .ResizeAsync(Arg.Any<byte[]>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns<StagedImage>(_ => throw new JSException("decode failed"));
+        var cut = RenderWithSquat();
+
+        // Act
+        await PickRowImageAsync(cut);
+
+        // Assert
+        Assert.Equal(
+            "Could not process that image. Try a different file.",
+            cut.Find("[data-testid='image-error-EXR-AAAAAA']").TextContent.Trim()
+        );
+        Assert.Empty(cut.FindAll("[data-testid='image-modal']"));
+    }
+
+    [Fact]
+    public async Task PickImage_AfterEarlierRejection_ClearsTheRowError()
+    {
+        // Arrange
+        StubResizer([9]);
+        var cut = RenderWithSquat();
+        await PickRowImageAsync(cut, "squat.gif", "image/gif");
+        Assert.NotEmpty(cut.FindAll("[data-testid='image-error-EXR-AAAAAA']"));
+
+        // Act
+        await PickRowImageAsync(cut);
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='image-error-EXR-AAAAAA']"));
+    }
+
+    [Theory]
+    [InlineData("cancel")]
+    [InlineData("escape")]
+    [InlineData("outside")]
+    public async Task StagedImage_Dismissed_DiscardsItLeavesRowUnchangedAndSendsNoRequest(
+        string gesture
+    )
+    {
+        // Arrange
+        StubResizer([9]);
+        var cut = RenderWithSquat();
+        await PickRowImageAsync(cut);
+        var dialog = cut.Find("[data-testid='image-modal']");
+
+        // Act
+        await cut.InvokeAsync(() =>
+        {
+            switch (gesture)
+            {
+                case "cancel":
+                    cut.Find("[data-testid='image-modal-cancel']").Click();
+                    break;
+                case "escape":
+                    dialog.KeyDown(new KeyboardEventArgs { Key = "Escape" });
+                    break;
+                default:
+                    dialog.Click();
+                    break;
+            }
+        });
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='image-modal']"));
+        Assert.NotNull(cut.Find("[data-testid='image-placeholder-EXR-AAAAAA']"));
+        await AssertNoUploadAsync();
+    }
+
+    [Fact]
+    public async Task UploadImage_ConfirmedAndSucceeds_SendsStagedImageClosesModalAndShowsNewThumbnail()
+    {
+        // Arrange
+        var staged = StubResizer([9, 8, 7]);
+        _apiClient
+            .UploadExerciseImageAsync(
+                SquatId,
+                Arg.Is<StagedImage>(s => ReferenceEquals(s, staged)),
+                CancellationToken.None
+            )
+            .Returns(
+                new UploadExerciseImageSucceeded(
+                    new ExerciseSummary(SquatId, "Bodyweight Squat", SquatImagePath)
+                )
+            );
+        var cut = RenderWithSquat();
+        await PickRowImageAsync(cut);
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='image-modal-upload']").Click());
+
+        // Assert
+        await _apiClient
+            .Received(1)
+            .UploadExerciseImageAsync(
+                SquatId,
+                Arg.Is<StagedImage>(s => ReferenceEquals(s, staged)),
+                CancellationToken.None
+            );
+        Assert.Empty(cut.FindAll("[data-testid='image-modal']"));
+        Assert.Equal(
+            "http://api.test/api/exercises/EXR-AAAAAA/image?v=k1",
+            cut.Find("[data-testid='image-thumb-EXR-AAAAAA']").GetAttribute("src")
+        );
+    }
+
+    [Fact]
+    public async Task UploadImage_InFlight_DisablesModalControls()
+    {
+        // Arrange
+        StubResizer([9]);
+        var tcs = new TaskCompletionSource<UploadExerciseImageOutcome>();
+        _apiClient
+            .UploadExerciseImageAsync(
+                Arg.Any<ExerciseId>(),
+                Arg.Any<StagedImage>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(tcs.Task);
+        var cut = RenderWithSquat();
+        await PickRowImageAsync(cut);
+
+        // Act
+        var upload = cut.InvokeAsync(() => cut.Find("[data-testid='image-modal-upload']").Click());
+
+        // Assert
+        Assert.True(cut.Find("[data-testid='image-modal-upload']").HasAttribute("disabled"));
+        Assert.True(cut.Find("[data-testid='image-modal-cancel']").HasAttribute("disabled"));
+        Assert.True(cut.Find("[data-testid='image-modal-input']").HasAttribute("disabled"));
+
+        await cut.InvokeAsync(() =>
+            tcs.SetResult(
+                new UploadExerciseImageSucceeded(
+                    new ExerciseSummary(SquatId, "Bodyweight Squat", SquatImagePath)
+                )
+            )
+        );
+        await upload;
+    }
+
+    [Fact]
+    public async Task UploadImage_WorkerRejects_KeepsModalOpenShowsErrorAndReEnablesControls()
+    {
+        // Arrange
+        StubResizer([9]);
+        _apiClient
+            .UploadExerciseImageAsync(
+                Arg.Any<ExerciseId>(),
+                Arg.Any<StagedImage>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new UploadExerciseImageFailed("Image must be 1 MB or smaller"));
+        var cut = RenderWithSquat();
+        await PickRowImageAsync(cut);
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='image-modal-upload']").Click());
+
+        // Assert
+        Assert.Equal(
+            "Image must be 1 MB or smaller",
+            cut.Find("[data-testid='image-modal-error']").TextContent.Trim()
+        );
+        Assert.False(cut.Find("[data-testid='image-modal-upload']").HasAttribute("disabled"));
+        Assert.False(cut.Find("[data-testid='image-modal-cancel']").HasAttribute("disabled"));
+        Assert.Empty(cut.FindAll("[data-testid='image-thumb-EXR-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task ChooseDifferentFile_ValidFile_ReplacesPreviewWithoutUploading()
+    {
+        // Arrange
+        _resizer
+            .ResizeAsync(
+                Arg.Is<byte[]>(b => b.SequenceEqual(new byte[] { 1 })),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new StagedImage([10], "image/png"));
+        _resizer
+            .ResizeAsync(
+                Arg.Is<byte[]>(b => b.SequenceEqual(new byte[] { 2 })),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new StagedImage([20], "image/png"));
+        var cut = RenderWithSquat();
+        await PickRowImageAsync(cut, content: [1]);
+
+        // Act
+        await PickAsync(cut, "image-modal-input", "other.png", "image/png", [2]);
+
+        // Assert
+        Assert.Equal(
+            $"data:image/png;base64,{Convert.ToBase64String(new byte[] { 20 })}",
+            cut.Find("[data-testid='image-modal-preview']").GetAttribute("src")
+        );
+        await AssertNoUploadAsync();
+    }
+
+    [Fact]
+    public async Task ChooseDifferentFile_InvalidFile_KeepsPreviousPreviewAndShowsErrorInModal()
+    {
+        // Arrange
+        var staged = StubResizer([9]);
+        var cut = RenderWithSquat();
+        await PickRowImageAsync(cut);
+
+        // Act
+        await PickAsync(cut, "image-modal-input", "other.gif", "image/gif", [2]);
+
+        // Assert
+        Assert.Equal(
+            "Only JPG and PNG are supported",
+            cut.Find("[data-testid='image-modal-error']").TextContent.Trim()
+        );
+        Assert.Equal(
+            $"data:image/png;base64,{Convert.ToBase64String(staged.Content.Span)}",
+            cut.Find("[data-testid='image-modal-preview']").GetAttribute("src")
+        );
+        Assert.Empty(cut.FindAll("[data-testid='image-error-EXR-AAAAAA']"));
+    }
+
+    [Fact]
+    public async Task ChooseDifferentFile_AfterUploadError_ClearsModalError()
+    {
+        // Arrange
+        StubResizer([9]);
+        _apiClient
+            .UploadExerciseImageAsync(
+                Arg.Any<ExerciseId>(),
+                Arg.Any<StagedImage>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new UploadExerciseImageFailed("boom"));
+        var cut = RenderWithSquat();
+        await PickRowImageAsync(cut);
+        await cut.InvokeAsync(() => cut.Find("[data-testid='image-modal-upload']").Click());
+        Assert.NotEmpty(cut.FindAll("[data-testid='image-modal-error']"));
+
+        // Act
+        await PickAsync(cut, "image-modal-input", "other.png", "image/png", [2]);
+
+        // Assert
+        Assert.Empty(cut.FindAll("[data-testid='image-modal-error']"));
+    }
+
+    [Fact]
+    public async Task PickImage_ExerciseAlreadyHasImage_ModalShowsCurrentBesideNew()
+    {
+        // Arrange
+        StubResizer([9]);
+        var cut = RenderWithSquat(SquatImagePath);
+
+        // Act
+        await PickRowImageAsync(cut);
+
+        // Assert
+        Assert.Equal(
+            "http://api.test/api/exercises/EXR-AAAAAA/image?v=k1",
+            cut.Find("[data-testid='image-modal-current']").GetAttribute("src")
+        );
+        Assert.NotNull(cut.Find("[data-testid='image-modal-preview']"));
+    }
+
+    [Fact]
+    public async Task UploadImage_ReplaceSucceeds_ThumbnailUsesTheNewUrl()
+    {
+        // Arrange
+        StubResizer([9]);
+        _apiClient
+            .UploadExerciseImageAsync(
+                Arg.Any<ExerciseId>(),
+                Arg.Any<StagedImage>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                new UploadExerciseImageSucceeded(
+                    new ExerciseSummary(
+                        SquatId,
+                        "Bodyweight Squat",
+                        "/api/exercises/EXR-AAAAAA/image?v=k2"
+                    )
+                )
+            );
+        var cut = RenderWithSquat(SquatImagePath);
+        await PickRowImageAsync(cut);
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='image-modal-upload']").Click());
+
+        // Assert
+        Assert.Equal(
+            "http://api.test/api/exercises/EXR-AAAAAA/image?v=k2",
+            cut.Find("[data-testid='image-thumb-EXR-AAAAAA']").GetAttribute("src")
+        );
+    }
+
+    [Fact]
+    public async Task UploadImage_UnsavedNameEdit_LeavesNameEditAndSaveRevertUnchanged()
+    {
+        // Arrange
+        StubResizer([9]);
+        _apiClient
+            .UploadExerciseImageAsync(
+                Arg.Any<ExerciseId>(),
+                Arg.Any<StagedImage>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                new UploadExerciseImageSucceeded(
+                    new ExerciseSummary(SquatId, "Bodyweight Squat", SquatImagePath)
+                )
+            );
+        var cut = RenderWithSquat();
+        await cut.InvokeAsync(() =>
+            cut.Find("[data-testid='name-input-EXR-AAAAAA']").Input("Skater Jump")
+        );
+
+        // Act
+        await PickRowImageAsync(cut);
+        await cut.InvokeAsync(() => cut.Find("[data-testid='image-modal-upload']").Click());
+
+        // Assert
+        Assert.Equal(
+            "Skater Jump",
+            cut.Find("[data-testid='name-input-EXR-AAAAAA']").GetAttribute("value")
+        );
+        Assert.Single(cut.FindAll("[data-testid='save-EXR-AAAAAA']"));
+        Assert.Single(cut.FindAll("[data-testid='revert-EXR-AAAAAA']"));
+        await _apiClient
+            .DidNotReceive()
+            .RenameExerciseAsync(
+                Arg.Any<ExerciseId>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task DeleteImage_ServerSucceeds_ShowsPlaceholderAndKeepsExerciseAndName()
+    {
+        // Arrange
+        _apiClient
+            .DeleteExerciseImageAsync(SquatId, CancellationToken.None)
+            .Returns(new DeleteExerciseImageSucceeded());
+        var cut = RenderWithSquat(SquatImagePath);
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='image-delete-EXR-AAAAAA']").Click());
+
+        // Assert
+        await _apiClient.Received(1).DeleteExerciseImageAsync(SquatId, CancellationToken.None);
+        Assert.NotNull(cut.Find("[data-testid='image-placeholder-EXR-AAAAAA']"));
+        Assert.Empty(cut.FindAll("[data-testid='image-thumb-EXR-AAAAAA']"));
+        Assert.Single(cut.FindAll("tbody tr"));
+        Assert.Equal(
+            "Bodyweight Squat",
+            cut.Find("[data-testid='name-input-EXR-AAAAAA']").GetAttribute("value")
+        );
+        await _apiClient
+            .DidNotReceive()
+            .DeleteExerciseAsync(Arg.Any<ExerciseId>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeleteImage_ServerRejects_KeepsThumbnailAndShowsError()
+    {
+        // Arrange
+        _apiClient
+            .DeleteExerciseImageAsync(SquatId, CancellationToken.None)
+            .Returns(new DeleteExerciseImageFailed("Request failed with status 500."));
+        var cut = RenderWithSquat(SquatImagePath);
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='image-delete-EXR-AAAAAA']").Click());
+
+        // Assert
+        Assert.NotNull(cut.Find("[data-testid='image-thumb-EXR-AAAAAA']"));
+        Assert.Equal(
+            "Request failed with status 500.",
+            cut.Find("[data-testid='image-error-EXR-AAAAAA']").TextContent.Trim()
+        );
+    }
+
+    [Fact]
+    public async Task AddExercise_NewRow_HasImagePlaceholder()
+    {
+        // Arrange
+        _apiClient.GetExercisesAsync(CancellationToken.None).Returns([]);
+        _apiClient
+            .CreateExerciseAsync("New Exercise", CancellationToken.None)
+            .Returns(
+                new CreateExerciseSucceeded(
+                    new ExerciseSummary(ExerciseId.Parse("EXR-CCCCCC"), "New Exercise")
+                )
+            );
+        var cut = Render<Exercises>();
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find("[data-testid='add-exercise-empty']").Click());
+
+        // Assert
+        Assert.NotNull(cut.Find("[data-testid='image-placeholder-EXR-CCCCCC']"));
     }
 }

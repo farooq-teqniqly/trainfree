@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Trainfree.ApiClients;
 using Trainfree.Domain.Ids;
@@ -141,8 +142,83 @@ internal sealed class ExercisesApiClient : ApiClientBase, IExercisesApiClient
             _logger
         );
 
-    private static ExerciseSummary ToSummary(ExerciseDto dto) =>
-        new(ExerciseId.Parse(dto.Id), dto.Name);
+    /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="image"/> is <see langword="null"/>.</exception>
+    public Task<UploadExerciseImageOutcome> UploadExerciseImageAsync(
+        ExerciseId id,
+        StagedImage image,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(image);
 
-    private sealed record ExerciseDto(string Id, string Name, string CreatedAt, string UpdatedAt);
+        return ExecuteAsync<UploadExerciseImageOutcome>(
+            async () =>
+            {
+                using var content = new ByteArrayContent(image.Content.ToArray());
+                content.Headers.ContentType = new MediaTypeHeaderValue(image.ContentType);
+
+                var response = await _httpClient.PutAsync(
+                    new Uri($"exercises/{id}/image", UriKind.Relative),
+                    content,
+                    cancellationToken
+                );
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return new UploadExerciseImageFailed(
+                        await ReadErrorAsync(response, _logger, cancellationToken)
+                    );
+                }
+
+                var dto = await response.Content.ReadFromJsonAsync<ExerciseDto>(
+                    JsonOptions,
+                    cancellationToken
+                );
+
+                return dto is null
+                    ? new UploadExerciseImageFailed("Server returned an empty response.")
+                    : new UploadExerciseImageSucceeded(ToSummary(dto));
+            },
+            error => new UploadExerciseImageFailed(error),
+            "Could not upload image. Try again.",
+            _logger
+        );
+    }
+
+    /// <inheritdoc/>
+    public Task<DeleteExerciseImageOutcome> DeleteExerciseImageAsync(
+        ExerciseId id,
+        CancellationToken cancellationToken = default
+    ) =>
+        ExecuteAsync<DeleteExerciseImageOutcome>(
+            async () =>
+            {
+                var response = await _httpClient.DeleteAsync(
+                    new Uri($"exercises/{id}/image", UriKind.Relative),
+                    cancellationToken
+                );
+
+                return
+                    response.IsSuccessStatusCode || response.StatusCode is HttpStatusCode.NotFound
+                    ? new DeleteExerciseImageSucceeded()
+                    : new DeleteExerciseImageFailed(
+                        await ReadErrorAsync(response, _logger, cancellationToken)
+                    );
+            },
+            error => new DeleteExerciseImageFailed(error),
+            "Could not delete image. Try again.",
+            _logger
+        );
+
+    private static ExerciseSummary ToSummary(ExerciseDto dto) =>
+        new(ExerciseId.Parse(dto.Id), dto.Name, dto.ImageUrl);
+
+    private sealed record ExerciseDto(
+        string Id,
+        string Name,
+        string? ImageUrl,
+        string CreatedAt,
+        string UpdatedAt
+    );
 }
