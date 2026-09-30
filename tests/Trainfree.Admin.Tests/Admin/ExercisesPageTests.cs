@@ -658,7 +658,16 @@ public sealed class ExercisesPageTests : BunitContext
         string fileName = "squat.png",
         string contentType = "image/png",
         byte[]? content = null
-    ) => PickAsync(cut, "image-input-EXR-AAAAAA", fileName, contentType, content ?? [1, 2, 3]);
+    ) => PickAsync(cut, "image-input-EXR-AAAAAA", fileName, contentType, content ?? PngBytes(16));
+
+    private static byte[] PngBytes(int length)
+    {
+        var bytes = new byte[length];
+        new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }
+            .AsSpan(0, Math.Min(8, length))
+            .CopyTo(bytes);
+        return bytes;
+    }
 
     private StagedImage StubResizer(byte[] resized, string contentType = "image/png")
     {
@@ -686,13 +695,13 @@ public sealed class ExercisesPageTests : BunitContext
         var cut = RenderWithSquat();
 
         // Act
-        await PickRowImageAsync(cut, content: [1, 2, 3]);
+        await PickRowImageAsync(cut, content: PngBytes(16));
 
         // Assert
         await _resizer
             .Received(1)
             .ResizeAsync(
-                Arg.Is<byte[]>(b => b.SequenceEqual(new byte[] { 1, 2, 3 })),
+                Arg.Is<byte[]>(b => b.SequenceEqual(PngBytes(16))),
                 "image/png",
                 Arg.Any<CancellationToken>()
             );
@@ -729,6 +738,63 @@ public sealed class ExercisesPageTests : BunitContext
         await AssertNoUploadAsync();
     }
 
+    [Theory]
+    [InlineData("image/png")]
+    [InlineData("image/jpeg")]
+    public async Task PickImage_NonImageBytesWithImageContentType_ShowsTypeErrorOnRowWithoutModalOrRequest(
+        string contentType
+    )
+    {
+        // Arrange
+        var cut = RenderWithSquat();
+
+        // Act
+        await PickRowImageAsync(cut, "notes.png", contentType, "just some text"u8.ToArray());
+
+        // Assert
+        Assert.Equal(
+            "Only JPG and PNG are supported",
+            cut.Find("[data-testid='image-error-EXR-AAAAAA']").TextContent.Trim()
+        );
+        Assert.Empty(cut.FindAll("[data-testid='image-modal']"));
+        await _resizer
+            .DidNotReceive()
+            .ResizeAsync(Arg.Any<byte[]>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await AssertNoUploadAsync();
+    }
+
+    [Fact]
+    public async Task ChooseDifferentFile_NonImageBytes_KeepsPreviousPreviewAndShowsTypeErrorInModal()
+    {
+        // Arrange
+        var staged = StubResizer([9]);
+        var cut = RenderWithSquat();
+        await PickRowImageAsync(cut);
+        _resizer.ClearReceivedCalls();
+
+        // Act
+        await PickAsync(
+            cut,
+            "image-modal-input",
+            "other.png",
+            "image/png",
+            "just some text"u8.ToArray()
+        );
+
+        // Assert
+        Assert.Equal(
+            "Only JPG and PNG are supported",
+            cut.Find("[data-testid='image-modal-error']").TextContent.Trim()
+        );
+        Assert.Equal(
+            $"data:image/png;base64,{Convert.ToBase64String(staged.Content.Span)}",
+            cut.Find("[data-testid='image-modal-preview']").GetAttribute("src")
+        );
+        await _resizer
+            .DidNotReceive()
+            .ResizeAsync(Arg.Any<byte[]>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task PickImage_FileOverOneMegabyte_ShowsSizeErrorOnRowWithoutModalOrRequest()
     {
@@ -736,7 +802,7 @@ public sealed class ExercisesPageTests : BunitContext
         var cut = RenderWithSquat();
 
         // Act
-        await PickRowImageAsync(cut, content: new byte[1_048_577]);
+        await PickRowImageAsync(cut, content: PngBytes(1_048_577));
 
         // Assert
         Assert.Equal(
@@ -801,7 +867,7 @@ public sealed class ExercisesPageTests : BunitContext
             .Returns(new StagedImage(new byte[1_048_577], "image/png"));
 
         // Act
-        await PickAsync(cut, "image-modal-input", "other.png", "image/png", [2]);
+        await PickAsync(cut, "image-modal-input", "other.png", "image/png", PngBytes(16));
 
         // Assert
         Assert.Equal(
@@ -972,23 +1038,23 @@ public sealed class ExercisesPageTests : BunitContext
         // Arrange
         _resizer
             .ResizeAsync(
-                Arg.Is<byte[]>(b => b.SequenceEqual(new byte[] { 1 })),
+                Arg.Is<byte[]>(b => b.SequenceEqual(PngBytes(8))),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(new StagedImage([10], "image/png"));
         _resizer
             .ResizeAsync(
-                Arg.Is<byte[]>(b => b.SequenceEqual(new byte[] { 2 })),
+                Arg.Is<byte[]>(b => b.SequenceEqual(PngBytes(9))),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(new StagedImage([20], "image/png"));
         var cut = RenderWithSquat();
-        await PickRowImageAsync(cut, content: [1]);
+        await PickRowImageAsync(cut, content: PngBytes(8));
 
         // Act
-        await PickAsync(cut, "image-modal-input", "other.png", "image/png", [2]);
+        await PickAsync(cut, "image-modal-input", "other.png", "image/png", PngBytes(9));
 
         // Assert
         Assert.Equal(
@@ -1039,7 +1105,7 @@ public sealed class ExercisesPageTests : BunitContext
         Assert.NotEmpty(cut.FindAll("[data-testid='image-modal-error']"));
 
         // Act
-        await PickAsync(cut, "image-modal-input", "other.png", "image/png", [2]);
+        await PickAsync(cut, "image-modal-input", "other.png", "image/png", PngBytes(16));
 
         // Assert
         Assert.Empty(cut.FindAll("[data-testid='image-modal-error']"));

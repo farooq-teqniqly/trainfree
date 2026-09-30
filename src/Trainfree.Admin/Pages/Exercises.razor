@@ -264,6 +264,22 @@ else
             using var buffer = new MemoryStream();
             await using (var source = file.OpenReadStream(ImageFileValidator.MaxBytes))
             {
+                var header = new byte[ImageFileValidator.SignatureLength];
+                var headerLength = await source.ReadAtLeastAsync(
+                    header,
+                    header.Length,
+                    throwOnEndOfStream: false
+                );
+                if (
+                    ImageFileValidator.ValidateSignature(header[..headerLength], contentType)
+                    is ImageFileRejected signatureRejected
+                )
+                {
+                    ReportPickError(row, signatureRejected.Error);
+                    return;
+                }
+
+                await buffer.WriteAsync(header.AsMemory(0, headerLength));
                 await source.CopyToAsync(buffer);
             }
 
