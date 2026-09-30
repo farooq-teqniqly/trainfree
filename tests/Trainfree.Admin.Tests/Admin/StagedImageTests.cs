@@ -14,7 +14,7 @@ public sealed class StagedImageTests
         var image = new StagedImage(content, "image/png");
 
         // Assert
-        Assert.IsAssignableFrom<ExerciseImage>(image);
+        Assert.IsType<ExerciseImage>(image, exactMatch: false);
         Assert.Equal(content, image.Content.ToArray());
         Assert.Equal("image/png", image.ContentType);
     }

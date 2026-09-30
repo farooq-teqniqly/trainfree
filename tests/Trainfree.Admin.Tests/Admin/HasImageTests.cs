@@ -11,7 +11,7 @@ public sealed class HasImageTests
         var image = new HasImage("/api/exercises/EXR-AAAAAA/image?v=abc");
 
         // Assert
-        Assert.IsAssignableFrom<ExerciseImage>(image);
+        Assert.IsType<ExerciseImage>(image, exactMatch: false);
         Assert.Equal("/api/exercises/EXR-AAAAAA/image?v=abc", image.Url);
     }
 

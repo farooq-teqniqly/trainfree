@@ -11,6 +11,6 @@ public sealed class NoImageTests
         var image = new NoImage();
 
         // Assert
-        Assert.IsAssignableFrom<ExerciseImage>(image);
+        Assert.IsType<ExerciseImage>(image, exactMatch: false);
     }
 }
