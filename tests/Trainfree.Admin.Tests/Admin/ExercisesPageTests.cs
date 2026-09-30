@@ -771,6 +771,50 @@ public sealed class ExercisesPageTests : BunitContext
     }
 
     [Fact]
+    public async Task PickImage_ResizedOutputOverOneMegabyte_ShowsSizeErrorOnRowAndStagesNothing()
+    {
+        // Arrange
+        StubResizer(new byte[1_048_577]);
+        var cut = RenderWithSquat();
+
+        // Act
+        await PickRowImageAsync(cut);
+
+        // Assert
+        Assert.Equal(
+            "Image must be 1 MB or smaller",
+            cut.Find("[data-testid='image-error-EXR-AAAAAA']").TextContent.Trim()
+        );
+        Assert.Empty(cut.FindAll("[data-testid='image-modal']"));
+        await AssertNoUploadAsync();
+    }
+
+    [Fact]
+    public async Task ChooseDifferentFile_ResizedOutputOverOneMegabyte_KeepsPreviousPreviewAndShowsErrorInModal()
+    {
+        // Arrange
+        var staged = StubResizer([9]);
+        var cut = RenderWithSquat();
+        await PickRowImageAsync(cut);
+        _resizer
+            .ResizeAsync(Arg.Any<byte[]>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new StagedImage(new byte[1_048_577], "image/png"));
+
+        // Act
+        await PickAsync(cut, "image-modal-input", "other.png", "image/png", [2]);
+
+        // Assert
+        Assert.Equal(
+            "Image must be 1 MB or smaller",
+            cut.Find("[data-testid='image-modal-error']").TextContent.Trim()
+        );
+        Assert.Equal(
+            $"data:image/png;base64,{Convert.ToBase64String(staged.Content.Span)}",
+            cut.Find("[data-testid='image-modal-preview']").GetAttribute("src")
+        );
+    }
+
+    [Fact]
     public async Task PickImage_AfterEarlierRejection_ClearsTheRowError()
     {
         // Arrange

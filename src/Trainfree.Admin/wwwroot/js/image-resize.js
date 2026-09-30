@@ -25,7 +25,9 @@ export async function resizeImage(bytes, contentType) {
     const canvas = new OffscreenCanvas(target.width, target.height);
     canvas.getContext("2d").drawImage(source, 0, 0, target.width, target.height);
     const blob = await canvas.convertToBlob({ type: contentType, quality: 0.92 });
-    return new Uint8Array(await blob.arrayBuffer());
+    const resized = new Uint8Array(await blob.arrayBuffer());
+    // Re-encoding can enlarge a file; keep the original so resizing never adds bytes.
+    return resized.byteLength < bytes.byteLength ? resized : bytes;
   } finally {
     source.close();
   }

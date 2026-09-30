@@ -46,13 +46,15 @@
                 <InlineError Message="@Error" TestId="image-modal-error" Class="mt-3" />
             </div>
             <div class="modal-footer">
+                @* Re-keyed after every pick so choosing the same file again still raises a change event. *@
                 <InputFile
+                    @key="_inputKey"
                     id="image-modal-input"
                     class="visually-hidden"
                     accept="image/jpeg,image/png"
                     disabled="@IsUploading"
                     data-testid="image-modal-input"
-                    OnChange="OnFilePicked" />
+                    OnChange="PickedAsync" />
                 <label
                     class="@($"btn btn-outline-secondary{(IsUploading ? " disabled" : "")}")"
                     for="image-modal-input"
@@ -95,6 +97,8 @@
 
 @code {
     private ElementReference _dialog;
+    private int _inputKey;
+    private bool _wasUploading;
 
     /// <summary>
     /// Gets or sets the exercise's name, shown in the title and in the images' alt text.
@@ -151,11 +155,20 @@
     /// <inheritdoc />
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Focus inside the dialog so Escape reaches the keydown handler.
-        if (firstRender)
+        // Focus inside the dialog so Escape reaches the keydown handler; a finished upload
+        // leaves focus on a control that was just disabled, so refocus then too.
+        var uploadFinished = _wasUploading && !IsUploading;
+        _wasUploading = IsUploading;
+        if (firstRender || uploadFinished)
         {
             await _dialog.FocusAsync();
         }
+    }
+
+    private async Task PickedAsync(InputFileChangeEventArgs e)
+    {
+        await OnFilePicked.InvokeAsync(e);
+        _inputKey++;
     }
 
     private static void KeepOpen()

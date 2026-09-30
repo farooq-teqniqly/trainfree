@@ -289,4 +289,58 @@ public sealed class ImageStagingModalTests : BunitContext
         Assert.Equal("b.png", _picked.File.Name);
         Assert.Equal(0, _uploads);
     }
+
+    [Fact]
+    public async Task ChooseDifferentFile_AfterPick_ReplacesTheInputSoTheSameFileCanBePickedAgain()
+    {
+        // Arrange
+        var cut = RenderModal();
+        var before = cut.FindComponent<InputFile>().Instance;
+
+        // Act
+        await cut.InvokeAsync(() =>
+            cut.FindComponent<InputFile>()
+                .UploadFiles(InputFileContent.CreateFromBinary([1], "b.png", null, "image/png"))
+        );
+
+        // Assert
+        Assert.NotSame(before, cut.FindComponent<InputFile>().Instance);
+    }
+
+    [Fact]
+    public void Render_UploadFinishes_RefocusesTheDialog()
+    {
+        // Arrange
+        var cut = RenderModal(isUploading: true);
+        var before = FocusCalls();
+
+        // Act
+        cut.Render(p => p.Add(c => c.IsUploading, false));
+
+        // Assert
+        Assert.Equal(before + 1, FocusCalls());
+    }
+
+    [Fact]
+    public void Render_UploadStarts_DoesNotRefocusTheDialog()
+    {
+        // Arrange
+        var cut = RenderModal();
+        var before = FocusCalls();
+
+        // Act
+        cut.Render(p => p.Add(c => c.IsUploading, true));
+
+        // Assert
+        Assert.Equal(before, FocusCalls());
+    }
+
+    private int FocusCalls() =>
+        JSInterop.Invocations.Count(i =>
+            string.Equals(
+                i.Identifier,
+                "Blazor._internal.domWrapper.focus",
+                StringComparison.Ordinal
+            )
+        );
 }
