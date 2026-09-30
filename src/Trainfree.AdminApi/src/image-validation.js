@@ -20,7 +20,7 @@ const UNSUPPORTED_TYPE_ERROR = "Only JPG and PNG images are supported";
  */
 export function supportedImageType(declaredType) {
     const contentType = normalizeContentType(declaredType);
-    return contentType in SIGNATURES ? contentType : null;
+    return Object.hasOwn(SIGNATURES, contentType) ? contentType : null;
 }
 
 /** Returns the 415 rejection for an unsupported declared type. */

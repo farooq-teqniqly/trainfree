@@ -36,6 +36,8 @@ describe("validateImage", () => {
         ["webp", "image/webp"],
         ["svg", "image/svg+xml"],
         ["gif", "image/gif"],
+        ["inherited object key", "constructor"],
+        ["inherited proto key", "__proto__"],
         ["missing", null],
         ["empty", ""],
     ])("rejects an unsupported declared type (%s) with 415", (_label, declared) => {
