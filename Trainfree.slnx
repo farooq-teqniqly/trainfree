@@ -5,7 +5,6 @@
         <Project Path="src/Trainfree.Versioning/Trainfree.Versioning.csproj" />
         <Project Path="src/Trainfree.UI/Trainfree.UI.csproj" />
         <Project Path="src/Trainfree.Admin/Trainfree.Admin.csproj" />
-        <Project Path="src/Trainfree.AppHost/Trainfree.AppHost.csproj" />
     </Folder>
     <Folder Name="/tests/">
         <Project Path="tests/Trainfree.Admin.Tests/Trainfree.Admin.Tests.csproj" />

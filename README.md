@@ -127,7 +127,8 @@ on that port by an earlier run and does not touch the AppHost-managed process.
 
 First run still needs the one-time `npm install`, `npm run db:migrate:local` and
 identity seed from steps 1 and 2 below -- AppHost does not run them. The AppHost is
-local-only and is not part of any deploy.
+local-only, Windows-only, not part of any deploy, and not in `Trainfree.slnx` (build it by
+project path, as above) so CI and `dotnet test` skip the Aspire SDK restore.
 
 ### Manual fallback
 
