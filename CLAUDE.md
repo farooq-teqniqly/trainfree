@@ -62,9 +62,9 @@ conventions were chosen.
   wrangler's stock 8787 -- 8787 has been observed to leak orphaned listener processes on
   Windows across restarts, silently hanging every future connection to it until reboot.
   Each Worker's `wrangler.jsonc`'s `dev.port` and `predev` npm script
-  (`scripts/Kill-Port.ps1`) pin to 9999; only one Worker runs locally at a time today
-  since `Trainfree.WorkoutApi` doesn't exist yet -- when it does, it needs its own,
-  different local dev port.
+  (`scripts/Kill-Port.ps1`) pin to its own port (`AdminApi` 9999, `IdentityApi` 9998), so
+  those two can run together; `Trainfree.WorkoutApi` doesn't exist yet -- when it does,
+  it needs its own, different local dev port.
 - **`src/Trainfree.AppHost` (.NET Aspire) is local-dev orchestration only.** `dotnet run
   --project src/Trainfree.AppHost` starts `AdminApi` (9999), `Trainfree.Admin` (5280) and,
   opt-in via config `Trainfree:IdentityApi=true` (e.g. `-- --Trainfree:IdentityApi=true`),
@@ -73,8 +73,9 @@ conventions were chosen.
   so Aspire-assigned ports and env vars never reach the browser -- do not make them
   dynamic. `IdentityApi` is off by default since `LOCAL_DEV_BYPASS` covers everyday work.
   Each Worker still runs via `npm run dev`, so its `predev` `Kill-Port.ps1` step runs under
-  the AppHost too and is harmless there. It is not deployed and changes nothing in `deploy.yaml`, any `wrangler*.jsonc`, or
-  Cloudflare Access; it is excluded from Sonar coverage via `SONAR_EXCLUSIONS`.
+  the AppHost too and is harmless there. It is not deployed and changes nothing in
+  `deploy.yaml`, any `wrangler*.jsonc`, or Cloudflare Access; it is excluded from Sonar
+  coverage via `SONAR_EXCLUSIONS`.
 - **Persistence: Cloudflare D1 (SQLite)**, reached only from the Worker via its native D1
   binding -- the Blazor client never talks to D1 directly. Exercise images: Cloudflare R2,
   URL stored on the `Exercise` record in D1.

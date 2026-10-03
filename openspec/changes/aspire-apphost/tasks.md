@@ -18,4 +18,4 @@
 - [x] 3.4 A `.dev.vars` value (e.g. `ADMIN_INTERNAL_KEY`) is picked up by wrangler under AppHost
 - [x] 3.5 After stopping AppHost, `Get-NetTCPConnection -State Listen -LocalPort 9999,9998,5280` returns nothing; restart works
 - [x] 3.6 Manual three-terminal flow from README still works
-- [ ] 3.7 `openspec validate aspire-apphost --strict` passes; run `/opsx:gate aspire-apphost` before the PR
+- [x] 3.7 `openspec validate aspire-apphost --strict` passes; run `/opsx:gate aspire-apphost` before the PR

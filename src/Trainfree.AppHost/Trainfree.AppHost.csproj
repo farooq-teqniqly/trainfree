@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsAspireHost>true</IsAspireHost>
-    <!-- ASPIRE010 nags about AspireUseCliBundle=false; the Aspire CLI is optional here. -->
+    <!-- The Aspire CLI is not required here; `dotnet run` is the documented path. -->
     <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
   </PropertyGroup>
 

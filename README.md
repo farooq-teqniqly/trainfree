@@ -116,6 +116,9 @@ value leaves it off) only when exercising the real `/internal/identity` path:
 dotnet run --project src/Trainfree.AppHost -- --Trainfree:IdentityApi=true
 ```
 
+The same key can be set as the environment variable `Trainfree__IdentityApi=true`
+instead, which avoids `--` argument quoting quirks in some shells.
+
 Each Worker is started with its own `npm run dev`, so its `predev` step
 (`scripts/Kill-Port.ps1`) still runs under the AppHost. It clears any stale listener left
 on that port by an earlier run and does not touch the AppHost-managed process.
