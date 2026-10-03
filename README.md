@@ -111,6 +111,10 @@ Workers are not OpenTelemetry-instrumented. A child `admin-api-installer` (and
 are fixed because the Blazor client reads `wwwroot/appsettings.Development.json` as a
 static file, so Aspire cannot hand it a different API address.
 
+`admin` waits for `admin-api` to pass its `/api/version` health check and has no timeout. If
+`admin` stays "Waiting", open `admin-api` in the dashboard and read its console output; the
+usual causes are a missing `npm install`, a port already in use, or a wrangler error.
+
 `IdentityApi` (port 9998) is opt-in; add the config flag (`true` or `false`; any other
 value leaves it off) only when exercising the real `/internal/identity` path:
 
