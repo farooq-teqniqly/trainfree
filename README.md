@@ -18,7 +18,9 @@ run the linters, so a missing one is a failed commit, not a degraded check.
 
 The Aspire AppHost (`src/Trainfree.AppHost`) needs nothing beyond the .NET SDK and Node.js
 already listed -- no Docker and no extra workload. Install the Aspire CLI only if you want
-`aspire run` instead of `dotnet run`.
+`aspire run` instead of `dotnet run`. The AppHost flow is Windows-only: each Worker's
+`predev` hook runs `powershell` and `scripts/Kill-Port.ps1`, which uses Windows-only APIs,
+so it fails on macOS and Linux.
 
 The two linters are single binaries with no runtime dependencies -- unpack them anywhere on
 your `PATH`. actionlint only lints the `run:` blocks inside workflows when ShellCheck is
