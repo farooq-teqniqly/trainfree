@@ -109,12 +109,16 @@ Workers are not OpenTelemetry-instrumented. A child `admin-api-installer` (and
 are fixed because the Blazor client reads `wwwroot/appsettings.Development.json` as a
 static file, so Aspire cannot hand it a different API address.
 
-`IdentityApi` (port 9998) is opt-in; add the config flag only when exercising the real
-`/internal/identity` path:
+`IdentityApi` (port 9998) is opt-in; add the config flag (`true` or `false`; any other
+value leaves it off) only when exercising the real `/internal/identity` path:
 
 ```sh
 dotnet run --project src/Trainfree.AppHost -- --Trainfree:IdentityApi=true
 ```
+
+Each Worker is started with its own `npm run dev`, so its `predev` step
+(`scripts/Kill-Port.ps1`) still runs under the AppHost. It clears any stale listener left
+on that port by an earlier run and does not touch the AppHost-managed process.
 
 First run still needs the one-time `npm install`, `npm run db:migrate:local` and
 identity seed from steps 1 and 2 below -- AppHost does not run them. The AppHost is

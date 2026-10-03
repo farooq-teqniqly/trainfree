@@ -1,5 +1,7 @@
 // Local-dev orchestration only. Ports are fixed because the Blazor client reads its API base
 // address from wwwroot/appsettings.Development.json, a static file Aspire cannot inject into.
+// The PORT env var on each endpoint is only Aspire's URL/health bookkeeping; wrangler ignores
+// it and listens on the dev.port pinned in its own wrangler.jsonc.
 var builder = DistributedApplication.CreateBuilder(args);
 
 var adminApi = builder

@@ -72,7 +72,8 @@ conventions were chosen.
   because the Blazor client reads `wwwroot/appsettings.Development.json` as a static file,
   so Aspire-assigned ports and env vars never reach the browser -- do not make them
   dynamic. `IdentityApi` is off by default since `LOCAL_DEV_BYPASS` covers everyday work.
-  It is not deployed and changes nothing in `deploy.yaml`, any `wrangler*.jsonc`, or
+  Each Worker still runs via `npm run dev`, so its `predev` `Kill-Port.ps1` step runs under
+  the AppHost too and is harmless there. It is not deployed and changes nothing in `deploy.yaml`, any `wrangler*.jsonc`, or
   Cloudflare Access; it is excluded from Sonar coverage via `SONAR_EXCLUSIONS`.
 - **Persistence: Cloudflare D1 (SQLite)**, reached only from the Worker via its native D1
   binding -- the Blazor client never talks to D1 directly. Exercise images: Cloudflare R2,
