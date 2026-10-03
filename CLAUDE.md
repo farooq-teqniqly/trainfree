@@ -65,6 +65,15 @@ conventions were chosen.
   (`scripts/Kill-Port.ps1`) pin to 9999; only one Worker runs locally at a time today
   since `Trainfree.WorkoutApi` doesn't exist yet -- when it does, it needs its own,
   different local dev port.
+- **`src/Trainfree.AppHost` (.NET Aspire) is local-dev orchestration only.** `dotnet run
+  --project src/Trainfree.AppHost` starts `AdminApi` (9999), `Trainfree.Admin` (5280) and,
+  opt-in via config `Trainfree:IdentityApi=true` (e.g. `-- --Trainfree:IdentityApi=true`),
+  `IdentityApi` (9998), with logs and health in the Aspire dashboard. Ports stay fixed
+  because the Blazor client reads `wwwroot/appsettings.Development.json` as a static file,
+  so Aspire-assigned ports and env vars never reach the browser -- do not make them
+  dynamic. `IdentityApi` is off by default since `LOCAL_DEV_BYPASS` covers everyday work.
+  It is not deployed and changes nothing in `deploy.yaml`, any `wrangler*.jsonc`, or
+  Cloudflare Access; it is excluded from Sonar coverage via `SONAR_EXCLUSIONS`.
 - **Persistence: Cloudflare D1 (SQLite)**, reached only from the Worker via its native D1
   binding -- the Blazor client never talks to D1 directly. Exercise images: Cloudflare R2,
   URL stored on the `Exercise` record in D1.

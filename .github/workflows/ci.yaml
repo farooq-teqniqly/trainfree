@@ -242,7 +242,7 @@ jobs:
       # wwwroot/js/) because the JavaScript here is:
       #  - Blazor's service-worker glue which runs in the browser's service-worker scope and no .NET test can execute.
       #  - Bootstrap JavaScript
-      SONAR_EXCLUSIONS: "**/*.Tests/**,**/*.ArchitectureTests/**,**/samples/**,**/*.py,**/Scripts/*.sql,**/*.js"
+      SONAR_EXCLUSIONS: "**/*.Tests/**,**/*.ArchitectureTests/**,**/samples/**,**/*.py,**/Scripts/*.sql,**/*.js,**/Trainfree.AppHost/**"
       # Analysis exclusions: docs/design/**/*.dc.html are Claude Design canvas
       # mockups, not application HTML -- SonarCloud's Web analyzer was scanning
       # them for real-page rules (missing <title>/lang/label) and counting their
