@@ -16,6 +16,12 @@ run the linters, so a missing one is a failed commit, not a degraded check.
 | [ShellCheck](https://github.com/koalaman/shellcheck/releases) | 0.11.0 | `.github/scripts/*.sh`, `.githooks/*` | required |
 | [jq](https://github.com/jqlang/jq/releases) | 1.8.x | running `.github/scripts/verify-deployed-version.sh` locally | optional |
 
+The Aspire AppHost (`src/Trainfree.AppHost`) needs nothing beyond the .NET SDK and Node.js
+already listed -- no Docker and no extra workload. Install the Aspire CLI only if you want
+`aspire run` instead of `dotnet run`. The AppHost flow is Windows-only: each Worker's
+`predev` hook runs `powershell` and `scripts/Kill-Port.ps1`, which uses Windows-only APIs,
+so it fails on macOS and Linux.
+
 The two linters are single binaries with no runtime dependencies -- unpack them anywhere on
 your `PATH`. actionlint only lints the `run:` blocks inside workflows when ShellCheck is
 also installed, which is why neither is optional.
@@ -85,6 +91,52 @@ below for the one-time seed row this needs. A third server, `IdentityApi`, only 
 to run if you're testing the real (non-bypass) `/internal/identity` path directly; start
 it with `npm run dev` from `src/Trainfree.IdentityApi` (port 9998 -- full setup in
 [step 4](#4-identityapi-optional)).
+
+### One command (Aspire)
+
+From the repo root:
+
+```sh
+dotnet run --project src/Trainfree.AppHost
+```
+
+This starts the `AdminApi` Worker (`http://127.0.0.1:9999`), the Blazor client
+(`http://localhost:5280`), and the Aspire dashboard (`http://localhost:15180`), which
+shows each resource's console logs and health (probed via `GET /api/version`). The launch
+profile opens the dashboard in your browser; if it does not, use the login URL (with its
+token) printed in the console. The dashboard shows logs and health, not traces -- the
+Workers are not OpenTelemetry-instrumented. A child `admin-api-installer` (and
+`identity-api-installer`) resource showing "Not started" is expected: the AppHost sets
+`install: false`, so dependencies come from your own `npm install`, not Aspire. The ports
+are fixed because the Blazor client reads `wwwroot/appsettings.Development.json` as a
+static file, so Aspire cannot hand it a different API address.
+
+`admin` waits for `admin-api` to pass its `/api/version` health check and has no timeout. If
+`admin` stays "Waiting", open `admin-api` in the dashboard and read its console output; the
+usual causes are a missing `npm install`, a port already in use, or a wrangler error.
+
+`IdentityApi` (port 9998) is opt-in; add the config flag (`true` or `false`; any other
+value leaves it off) only when exercising the real `/internal/identity` path:
+
+```sh
+dotnet run --project src/Trainfree.AppHost -- --Trainfree:IdentityApi=true
+```
+
+The same key can be set as the environment variable `Trainfree__IdentityApi=true`
+instead, which avoids `--` argument quoting quirks in some shells.
+
+Each Worker is started with its own `npm run dev`, so its `predev` step
+(`scripts/Kill-Port.ps1`) still runs under the AppHost. It clears any stale listener left
+on that port by an earlier run and does not touch the AppHost-managed process.
+
+First run still needs the one-time `npm install`, `npm run db:migrate:local` and
+identity seed from steps 1 and 2 below -- AppHost does not run them. The AppHost is
+local-only, Windows-only, not part of any deploy, and not in `Trainfree.slnx` (build it by
+project path, as above) so CI and `dotnet test` skip the Aspire SDK restore.
+
+### Manual fallback
+
+The same stack can be run without Aspire, one terminal per process, as steps 1-4 below.
 
 ### 1. Worker API
 
@@ -342,6 +394,9 @@ rm -rf src/.wrangler-shared
 cd src/Trainfree.AdminApi
 npm run db:migrate:local
 ```
+
+This works unchanged with the Aspire AppHost; stop the AppHost first so no Worker holds
+the shared D1 files open while they are deleted.
 
 This also wipes the local-dev identity seed row (see "Local development" step 2) --
 re-run it, or every `AdminApi` data endpoint fails locally until you do:
