@@ -131,6 +131,15 @@ conventions were chosen.
 - **Brand values for the Blazor UI conventions:** Inter as the typeface, black
   `.btn-primary` (`#000`, `#1a1a1a` on hover), and the Bootstrap dashboard shell (dark
   sticky navbar, light `bg-body-tertiary` sidebar) -- all overridden in `app.css`.
+- **Exception to `CLAUDE-baseline.md`'s null-guard rule for outcome records:** positional
+  `*Failed(string Error)` records, plus `ImageFileRejected(string Error)`, in the `*Outcome`
+  families under `src/Trainfree.Admin/Admin/` take no `ArgumentException.ThrowIfNullOrWhiteSpace`
+  guard on `Error`. They are internal and created only by trusted code: the `*ApiClient`
+  classes (which forward the Worker's error text or a fallback, never null, but possibly
+  blank) and `ImageFileValidator` (fixed messages). A guard would force an explicit
+  constructor on each record, and rejecting a blank message would turn reporting a failure
+  into a second failure. Revisit if an outcome record is ever constructed from caller-supplied
+  input.
 - **Override to `CLAUDE-baseline.md`'s "archive in the same PR" rule:** a change on the
   project-local `trainfree-lean` OpenSpec schema (issue #68 pilot,
   `openspec/schemas/trainfree-lean/`) is closed by syncing its deltas into
