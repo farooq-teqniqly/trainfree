@@ -1,0 +1,7 @@
+namespace Trainfree.Admin.Admin;
+
+/// <summary>
+/// The delete succeeded, or the exercise was already gone (a 404 is treated as success --
+/// the caller's desired end state, "this exercise no longer exists," already holds).
+/// </summary>
+internal sealed record DeleteExerciseSucceeded : DeleteExerciseOutcome;
