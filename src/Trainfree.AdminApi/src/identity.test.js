@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { checkIdentity, isAdministrator } from "./identity.js";
 
 // test/apply-migrations.js seeds a local-dev Administrator identity
@@ -240,6 +240,10 @@ describe("checkIdentity", () => {
 });
 
 describe("checkIdentity sessionId handling", () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
     const SESSION_ID = "0123456789abcdef0123456789abcdef";
 
     function identityResponse(body) {
