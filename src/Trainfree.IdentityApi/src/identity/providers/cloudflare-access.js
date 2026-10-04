@@ -21,8 +21,13 @@ async function deriveSessionId(nonce) {
         return undefined;
     }
 
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(nonce));
-    return Array.from(new Uint8Array(digest).slice(0, 16), (b) => b.toString(16).padStart(2, "0")).join("");
+    try {
+        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(nonce));
+        return Array.from(new Uint8Array(digest).slice(0, 16), (b) => b.toString(16).padStart(2, "0")).join("");
+    } catch (err) {
+        console.warn("Failed to derive sessionId; omitting it", err);
+        return undefined;
+    }
 }
 
 // Extracts and verifies the Cloudflare Access identity from an incoming request,

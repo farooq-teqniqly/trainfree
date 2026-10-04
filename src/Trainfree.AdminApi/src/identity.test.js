@@ -269,7 +269,8 @@ describe("checkIdentity sessionId handling", () => {
         ["too long", `${SESSION_ID}0`],
         ["uppercase hex", SESSION_ID.replace("abcdef", "ABCDEF")],
         ["non-hex characters", "g".repeat(32)],
-    ])("returns ok:false status:503 when sessionId is %s", async (_label, sessionId) => {
+    ])("drops the sessionId and still resolves the identity when sessionId is %s", async (_label, sessionId) => {
+        const span = { setAttributes: vi.fn() };
         const testEnv = makeEnv();
         testEnv.IDENTITY.fetch.mockResolvedValue(
             identityResponse({
@@ -280,9 +281,18 @@ describe("checkIdentity sessionId handling", () => {
             }),
         );
 
-        const result = await checkIdentity(makeRequest(), testEnv, () => undefined);
+        const result = await checkIdentity(makeRequest(), testEnv, () => span);
 
-        expect(result).toEqual({ ok: false, status: 503 });
+        expect(result.ok).toBe(true);
+        expect(result.identity).toEqual({
+            email: "a@x.com",
+            userId: "USR-ABC123",
+            role: "Administrator",
+        });
+        expect(span.setAttributes).toHaveBeenCalledWith({
+            "user.id": "USR-ABC123",
+            "user.role": "Administrator",
+        });
     });
 
     it("sets user.id, user.role and session.id on the span once identity resolves", async () => {

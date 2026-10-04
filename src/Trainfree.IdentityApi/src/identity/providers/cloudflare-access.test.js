@@ -1,5 +1,5 @@
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { JwtVerificationError } from "../jwt.js";
 import { extractIdentity } from "./cloudflare-access.js";
 
@@ -40,6 +40,10 @@ function requestWithCookie(token) {
         headers: token ? { Cookie: `CF_Authorization=${token}` } : {},
     });
 }
+
+afterEach(() => {
+    vi.restoreAllMocks();
+});
 
 describe("extractIdentity", () => {
     it("returns the identity's email for a valid CF_Authorization cookie", async () => {
@@ -83,6 +87,20 @@ describe("extractIdentity", () => {
         ["number", 42],
     ])("omits sessionId when identity_nonce is a %s", async (_label, nonce) => {
         const token = await signToken("user@example.com", nonce);
+
+        const identity = await extractIdentity(requestWithCookie(token), {
+            getJwks,
+            expectedIssuer: ISSUER,
+            expectedAudience: AUDIENCE,
+        });
+
+        expect(identity).toEqual({ email: "user@example.com" });
+    });
+
+    it("returns the email-only identity when the sessionId digest fails", async () => {
+        const token = await signToken("user@example.com", "nonce-one");
+        vi.spyOn(crypto.subtle, "digest").mockRejectedValue(new Error("digest unavailable"));
+        vi.spyOn(console, "warn").mockImplementation(() => {});
 
         const identity = await extractIdentity(requestWithCookie(token), {
             getJwks,

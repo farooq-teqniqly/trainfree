@@ -11,8 +11,10 @@ session, instead of every HTTP request being an anonymous, unrelated trace.
 ### Requirement: Root spans carry user.id and user.role once identity resolves
 `AdminApi` and `IdentityApi` SHALL each set `user.id` (the internal `userId`, never the
 email) and `user.role` as attributes on their active span once the caller's identity is
-resolved. A request that fails before identity resolves (missing binding or key, `401`,
-`403`, `404`, `503`) SHALL carry no user attributes.
+resolved. A request that fails before identity resolves (missing binding or key, an `IdentityApi` `401`/`403`,
+`404`, `503`) SHALL carry no user attributes. A caller whose identity does resolve but
+whom `AdminApi` then rejects with its own role-based `403` (a `User` on an
+Administrator-only endpoint) is still tagged, since the identity did resolve.
 **Rationale**: Filtering by user is the point of the change; the internal ID keeps PII
 out of a telemetry store, and an unresolved request has no honest value to attach.
 Both Workers set the attributes because cross-Worker trace propagation over the
@@ -52,6 +54,15 @@ lookup key for Access's identity record out of telemetry.
 #### Scenario: Missing nonce omits session.id without failing the request
 - **WHEN** a verified JWT has no `identity_nonce` claim
 - **THEN** the request succeeds normally and no `session.id` attribute is set
+
+#### Scenario: Failed derivation omits session.id without failing the request
+- **WHEN** `IdentityApi` cannot derive the `sessionId` (for example the digest call throws)
+- **THEN** it responds `200` with the identity and no `sessionId`, and logs a warning
+
+#### Scenario: Malformed sessionId is dropped by AdminApi
+- **WHEN** `IdentityApi` returns a `200` whose `sessionId` is not 32 lowercase hex characters
+- **THEN** `AdminApi` still resolves the identity, sets `user.id` and `user.role` but no
+  `session.id`, and does not respond `503`
 
 ### Requirement: Telemetry attribution never affects request outcomes or authorization
 Setting trace attributes SHALL NOT throw or alter any response, including when there is

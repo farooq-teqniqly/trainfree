@@ -191,7 +191,8 @@ request came through the service binding rather than the public internet.
 On success, `IdentityApi` SHALL respond `200 { "email": string, "userId": string,
 "role": "Administrator" | "User" }`, plus an optional `"sessionId": string` (32
 lowercase hex characters) present only when the verified JWT carried a per-login
-identifier; callers SHALL treat its absence as normal. It SHALL respond `401` when it
+identifier; callers SHALL treat its absence as normal. If deriving it fails, `IdentityApi` SHALL omit
+it, log a warning, and still respond `200` rather than failing the request. It SHALL respond `401` when it
 cannot authenticate the request at all (missing/malformed `X-Trainfree-Caller`, or a
 missing, malformed, expired, wrong-issuer, or wrong-audience-for-the-named-caller JWT).
 It SHALL respond `403` only once authentication has succeeded but the JWT's email has

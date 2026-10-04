@@ -69,6 +69,19 @@ one consistent meaning for each status code reaching the browser.
   service-binding call
 - **THEN** `AdminApi` responds `403` and does not run the underlying handler
 
+### Requirement: A malformed optional sessionId is dropped, not fatal
+When `IdentityApi` returns a `200` whose optional `sessionId` is present but is not 32
+lowercase hex characters, `AdminApi` SHALL discard it and treat the identity as resolved
+without a `sessionId`, rather than responding `503`. Validation of `email`, `userId`
+and `role` is unchanged: a missing or malformed value there still yields `503`.
+**Rationale**: `sessionId` is optional observability metadata; losing it must not become
+an outage.
+
+#### Scenario: Malformed sessionId does not fail the request
+- **WHEN** `IdentityApi` returns `200` with a valid `email`, `userId` and `role` and a
+  `sessionId` of `"abc"`
+- **THEN** `AdminApi` proceeds as for any resolved identity, with no `session.id` set
+
 ### Requirement: GET /api/me returns any provisioned identity's role
 `AdminApi` SHALL expose `GET /api/me`, which calls `IdentityApi` the same way every
 other endpoint does but SHALL NOT apply the Administrator-only check: it returns

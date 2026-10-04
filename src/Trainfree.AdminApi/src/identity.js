@@ -85,7 +85,7 @@ async function callIdentityApi(request, env) {
         return { ok: false, status: 503 };
     }
 
-    return { ok: true, identity };
+    return { ok: true, identity: withoutInvalidSessionId(identity) };
 }
 
 const VALID_ROLES = new Set(["Administrator", "User"]);
@@ -104,10 +104,23 @@ function isValidIdentity(identity) {
         identity.email.length > 0 &&
         typeof identity?.userId === "string" &&
         identity.userId.length > 0 &&
-        VALID_ROLES.has(identity?.role) &&
-        (identity.sessionId === undefined ||
-            (typeof identity.sessionId === "string" && SESSION_ID_PATTERN.test(identity.sessionId)))
+        VALID_ROLES.has(identity?.role)
     );
+}
+
+// sessionId is optional observability metadata, so a malformed one is dropped (the
+// identity still resolves, just untagged with session.id) instead of failing the request
+// the way a malformed email/userId/role does.
+function withoutInvalidSessionId(identity) {
+    const { sessionId, ...rest } = identity;
+    if (sessionId === undefined) {
+        return rest;
+    }
+    if (typeof sessionId === "string" && SESSION_ID_PATTERN.test(sessionId)) {
+        return identity;
+    }
+    console.warn("IdentityApi returned a malformed sessionId; ignoring it");
+    return rest;
 }
 
 // Resolves the caller's identity: the synthetic local-dev identity when
