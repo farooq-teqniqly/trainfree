@@ -120,6 +120,31 @@ Both `trainfree-admin` and `trainfree-identity-api` enable Workers Logs
 `wrangler.jsonc`/`wrangler.deploy.jsonc`. No external log sink -- inspect via the
 Cloudflare dashboard's Workers Observability tab.
 
+### Filtering traces by user and session
+
+Once a request's identity resolves, `trainfree-admin` and `trainfree-identity-api` each
+set these attributes on their root span:
+
+- `user.id` -- the internal `userId` (never the email).
+- `user.role` -- `Administrator` or `User`.
+- `session.id` -- a one-way, 32-character hex value derived by `IdentityApi` from the
+  Access JWT's per-login `identity_nonce` claim. The raw nonce is never recorded.
+
+In the Workers Observability query builder, add a filter on `user.id` to see one user's
+traces, or on `session.id` to list one login's traces across both Workers. Group by
+either attribute to compare activity per user or per login.
+
+`session.id` is login-level, not tab-level: an Access token lasts about 24 hours and
+every tab under one login shares the same value, so narrow by time range to isolate a
+single visit. A new login (even by the same user) produces a new `session.id`.
+
+The attributes are absent, not empty, when there is nothing honest to attach: requests
+that fail before identity resolves (`401`, `403`, `404`, `503`) carry no `user.*` or
+`session.id`; a JWT without `identity_nonce` yields no `session.id`; and there is no
+`session.id` under `LOCAL_DEV_BYPASS` (no JWT). With no active span (for example under
+`wrangler dev`), nothing is set and responses are unaffected. `session.id` is for
+observability only and is never used for authorization.
+
 ## Deploy stamping
 
 `deploy.yaml`'s `deploy` job (`trainfree-admin`) stamps the same value twice: once into

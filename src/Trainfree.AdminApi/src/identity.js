@@ -1,3 +1,5 @@
+import { setSpanAttributes } from "./span-attributes.js";
+
 // The IdentityApi service-binding contract this module speaks, mirroring
 // Trainfree.IdentityApi/src/shared/providers.js's PROVIDER_NAME_CLOUDFLARE_ACCESS and
 // smoke-harness/check.js's request shape -- kept as literal constants here rather than
@@ -83,10 +85,13 @@ async function callIdentityApi(request, env) {
         return { ok: false, status: 503 };
     }
 
-    return { ok: true, identity };
+    return { ok: true, identity: withoutInvalidSessionId(identity) };
 }
 
 const VALID_ROLES = new Set(["Administrator", "User"]);
+
+// IdentityApi's one-way, per-login session id: 32 lowercase hex characters.
+const SESSION_ID_PATTERN = /^[0-9a-f]{32}$/;
 
 // Guards against an incomplete-but-parseable 200 response (e.g. a valid Administrator
 // role with no usable userId) reaching a caller like createProgram, which would
@@ -103,10 +108,39 @@ function isValidIdentity(identity) {
     );
 }
 
+// sessionId is optional observability metadata, so a malformed one is dropped (the
+// identity still resolves, just untagged with session.id) instead of failing the request
+// the way a malformed email/userId/role does.
+function withoutInvalidSessionId(identity) {
+    const { sessionId, ...rest } = identity;
+    if (sessionId === undefined) {
+        return rest;
+    }
+    if (typeof sessionId === "string" && SESSION_ID_PATTERN.test(sessionId)) {
+        return identity;
+    }
+    console.warn("IdentityApi returned a malformed sessionId; ignoring it");
+    return rest;
+}
+
 // Resolves the caller's identity: the synthetic local-dev identity when
 // env.LOCAL_DEV_BYPASS is set (never in a deployed environment -- see
-// wrangler.deploy.jsonc), otherwise the real IdentityApi service-binding call.
-export async function checkIdentity(request, env) {
+// wrangler.deploy.jsonc), otherwise the real IdentityApi service-binding call. Tags the
+// active span with the resolved identity (observability only); a failure leaves it
+// untagged. getSpan is a test seam.
+export async function checkIdentity(request, env, getSpan) {
+    const result = await resolveIdentity(request, env);
+    if (result.ok) {
+        const { userId, role, sessionId } = result.identity;
+        setSpanAttributes(
+            { "user.id": userId, "user.role": role, "session.id": sessionId },
+            getSpan,
+        );
+    }
+    return result;
+}
+
+async function resolveIdentity(request, env) {
     if (env.LOCAL_DEV_BYPASS === "true") {
         const identity = await resolveLocalDevIdentity(env.DB);
         return { ok: true, identity };

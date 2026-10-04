@@ -1,5 +1,5 @@
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { JwtVerificationError } from "../jwt.js";
 import { extractIdentity } from "./cloudflare-access.js";
 
@@ -21,8 +21,12 @@ beforeAll(async () => {
     getJwks = async () => ({ keys: [publicJwk] });
 });
 
-async function signToken(email = "user@example.com") {
-    return new SignJWT(email === null ? {} : { email })
+async function signToken(email = "user@example.com", nonce) {
+    const claims = email === null ? {} : { email };
+    if (nonce !== undefined) {
+        claims.identity_nonce = nonce;
+    }
+    return new SignJWT(claims)
         .setProtectedHeader({ alg: "RS256", kid: KID })
         .setIssuer(ISSUER)
         .setAudience(AUDIENCE)
@@ -37,6 +41,10 @@ function requestWithCookie(token) {
     });
 }
 
+afterEach(() => {
+    vi.restoreAllMocks();
+});
+
 describe("extractIdentity", () => {
     it("returns the identity's email for a valid CF_Authorization cookie", async () => {
         const token = await signToken("user@example.com");
@@ -48,6 +56,60 @@ describe("extractIdentity", () => {
         });
 
         expect(identity).toEqual({ email: "user@example.com" });
+    });
+
+    it("derives a 32-character lowercase hex sessionId that is not the raw nonce", async () => {
+        const token = await signToken("user@example.com", "nonce-one");
+
+        const identity = await extractIdentity(requestWithCookie(token), {
+            getJwks,
+            expectedIssuer: ISSUER,
+            expectedAudience: AUDIENCE,
+        });
+
+        expect(identity.sessionId).toMatch(/^[0-9a-f]{32}$/);
+        expect(identity.sessionId).not.toContain("nonce-one");
+    });
+
+    it("derives the same sessionId for the same nonce and a different one for a different nonce", async () => {
+        const options = { getJwks, expectedIssuer: ISSUER, expectedAudience: AUDIENCE };
+
+        const first = await extractIdentity(requestWithCookie(await signToken("a@example.com", "n1")), options);
+        const again = await extractIdentity(requestWithCookie(await signToken("b@example.com", "n1")), options);
+        const other = await extractIdentity(requestWithCookie(await signToken("a@example.com", "n2")), options);
+
+        expect(again.sessionId).toBe(first.sessionId);
+        expect(other.sessionId).not.toBe(first.sessionId);
+    });
+
+    it.each([
+        ["empty string", ""],
+        ["number", 42],
+    ])("omits sessionId when identity_nonce is a %s", async (_label, nonce) => {
+        const token = await signToken("user@example.com", nonce);
+
+        const identity = await extractIdentity(requestWithCookie(token), {
+            getJwks,
+            expectedIssuer: ISSUER,
+            expectedAudience: AUDIENCE,
+        });
+
+        expect(identity).toEqual({ email: "user@example.com" });
+    });
+
+    it("returns the email-only identity when the sessionId digest fails", async () => {
+        const token = await signToken("user@example.com", "nonce-one");
+        vi.spyOn(crypto.subtle, "digest").mockRejectedValue(new Error("digest unavailable"));
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+        const identity = await extractIdentity(requestWithCookie(token), {
+            getJwks,
+            expectedIssuer: ISSUER,
+            expectedAudience: AUDIENCE,
+        });
+
+        expect(identity).toEqual({ email: "user@example.com" });
+        expect(warn).toHaveBeenCalledTimes(1);
     });
 
     it("throws JwtVerificationError when the CF_Authorization cookie is missing", async () => {

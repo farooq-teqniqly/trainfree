@@ -189,24 +189,38 @@ request came through the service binding rather than the public internet.
 
 ### Requirement: Response shapes and status codes are stable JSON
 On success, `IdentityApi` SHALL respond `200 { "email": string, "userId": string,
-"role": "Administrator" | "User" }`. It SHALL respond `401` when it cannot
-authenticate the request at all (missing/malformed `X-Trainfree-Caller`, or a missing,
-malformed, expired, wrong-issuer, or wrong-audience-for-the-named-caller JWT). It
-SHALL respond `403` only once authentication has succeeded but the JWT's email has no
-matching D1 user record or the record can't be resolved to a role, with no further
+"role": "Administrator" | "User" }`, plus an optional `"sessionId": string` (32
+lowercase hex characters) present only when the verified JWT carried a per-login
+identifier; callers SHALL treat its absence as normal. If deriving it fails, `IdentityApi` SHALL omit
+it, log a warning, and still respond `200` rather than failing the request. It SHALL respond `401` when it
+cannot authenticate the request at all (missing/malformed `X-Trainfree-Caller`, or a
+missing, malformed, expired, wrong-issuer, or wrong-audience-for-the-named-caller JWT).
+It SHALL respond `403` only once authentication has succeeded but the JWT's email has
+no matching D1 user record or the record can't be resolved to a role, with no further
 distinction between "unprovisioned" and "wrong role." Every non-`200` response
 (`401`, `403`, `404`, `503`) SHALL be `application/json` with a stable
 `{ "error": string }` body.
 **Rationale**: `userId` lets callers like `AdminApi` populate owner columns (e.g.
-`programs.user_id`) without a separate D1 lookup. A stable JSON error shape on every
-non-200 response matters because slice 3 treats a non-JSON response from `/api/me` as
-an expired-Access-session signal; a denial response that isn't valid JSON would be
-misread as an expired session instead of "no access."
+`programs.user_id`) without a separate D1 lookup. `sessionId` lets callers tag their
+own traces with the login without parsing the JWT themselves; it is optional because
+the underlying claim is not a documented-stable Cloudflare contract. A stable JSON
+error shape on every non-200 response matters because slice 3 treats a non-JSON
+response from `/api/me` as an expired-Access-session signal; a denial response that
+isn't valid JSON would be misread as an expired session instead of "no access."
 
 #### Scenario: Successful resolution returns email, userId, and role
 - **WHEN** a correctly keyed, correctly audienced request resolves to a provisioned
   identity
 - **THEN** `IdentityApi` responds `200` with `email`, `userId`, and `role` in the body
+
+#### Scenario: Successful resolution includes sessionId when the JWT has a login identifier
+- **WHEN** the verified JWT carries an `identity_nonce` claim
+- **THEN** the `200` body also contains `sessionId`, and it is not the raw claim value
+
+#### Scenario: Missing login identifier omits sessionId
+- **WHEN** the verified JWT carries no `identity_nonce` claim
+- **THEN** `IdentityApi` still responds `200` with `email`, `userId`, and `role`, and no
+  `sessionId` field
 
 #### Scenario: Authenticated but unprovisioned identity returns 403
 - **WHEN** a request passes key and JWT verification but the JWT's email has no
