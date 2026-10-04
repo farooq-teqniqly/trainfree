@@ -100,7 +100,7 @@ describe("extractIdentity", () => {
     it("returns the email-only identity when the sessionId digest fails", async () => {
         const token = await signToken("user@example.com", "nonce-one");
         vi.spyOn(crypto.subtle, "digest").mockRejectedValue(new Error("digest unavailable"));
-        vi.spyOn(console, "warn").mockImplementation(() => {});
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
         const identity = await extractIdentity(requestWithCookie(token), {
             getJwks,
@@ -109,6 +109,7 @@ describe("extractIdentity", () => {
         });
 
         expect(identity).toEqual({ email: "user@example.com" });
+        expect(warn).toHaveBeenCalledTimes(1);
     });
 
     it("throws JwtVerificationError when the CF_Authorization cookie is missing", async () => {
