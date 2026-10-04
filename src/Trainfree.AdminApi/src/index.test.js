@@ -2204,6 +2204,23 @@ describe("handleMe", () => {
         expect(response.headers.get("cache-control")).toBe("no-store");
     });
 
+    it("omits userId and sessionId from the response body", async () => {
+        const fakeEnv = makeFakeEnv({
+            IDENTITY: {
+                fetch: identityFetch(200, {
+                    email: "a@x.com",
+                    userId: "USR-ADMIN01",
+                    role: "Administrator",
+                    sessionId: "0123456789abcdef0123456789abcdef",
+                }),
+            },
+        });
+
+        const response = await handleMe(new Request("http://worker/api/me"), fakeEnv);
+
+        expect(await response.json()).toEqual({ email: "a@x.com", role: "Administrator" });
+    });
+
     it("returns 200 with role User, unlike other endpoints which would 403", async () => {
         const fakeEnv = makeFakeEnv({
             IDENTITY: {

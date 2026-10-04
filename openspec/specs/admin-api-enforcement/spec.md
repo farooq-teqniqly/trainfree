@@ -73,16 +73,17 @@ one consistent meaning for each status code reaching the browser.
 `AdminApi` SHALL expose `GET /api/me`, which calls `IdentityApi` the same way every
 other endpoint does but SHALL NOT apply the Administrator-only check: it returns
 `200 { "email": string, "role": "Administrator" | "User" }` for any identity
-`IdentityApi` resolves, relaying the `200` body minus the internal `userId` field. It
-relays `IdentityApi`'s `401`/`403`/`503` the same as every other endpoint.
+`IdentityApi` resolves, relaying the `200` body minus the internal `userId` and
+`sessionId` fields. It relays `IdentityApi`'s `401`/`403`/`503` the same as every other
+endpoint.
 **Rationale**: This is the one endpoint a `User`-role caller must be able to reach
 successfully, so the client (slice 8c) can distinguish "denied by role" from "not
-logged in" -- omitting `userId` keeps an internal identifier out of a response the
-browser has no use for.
+logged in" -- omitting `userId` and `sessionId` keeps internal identifiers out of a
+response the browser has no use for.
 
 #### Scenario: Administrator identity via /api/me
 - **WHEN** `IdentityApi` returns `200 { "email": "a@x.com", "userId": "1", "role":
-  "Administrator" }` for a `GET /api/me` request
+  "Administrator", "sessionId": "<32 hex>" }` for a `GET /api/me` request
 - **THEN** `AdminApi` responds `200 { "email": "a@x.com", "role": "Administrator" }`
 
 #### Scenario: User identity via /api/me succeeds, unlike other endpoints

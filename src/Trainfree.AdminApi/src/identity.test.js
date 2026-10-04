@@ -239,6 +239,111 @@ describe("checkIdentity", () => {
     });
 });
 
+describe("checkIdentity sessionId handling", () => {
+    const SESSION_ID = "0123456789abcdef0123456789abcdef";
+
+    function identityResponse(body) {
+        return new Response(JSON.stringify(body), { status: 200 });
+    }
+
+    it("passes through a well-formed sessionId", async () => {
+        const testEnv = makeEnv();
+        testEnv.IDENTITY.fetch.mockResolvedValue(
+            identityResponse({
+                email: "a@x.com",
+                userId: "USR-ABC123",
+                role: "Administrator",
+                sessionId: SESSION_ID,
+            }),
+        );
+
+        const result = await checkIdentity(makeRequest(), testEnv, () => undefined);
+
+        expect(result.ok).toBe(true);
+        expect(result.identity.sessionId).toBe(SESSION_ID);
+    });
+
+    it.each([
+        ["a non-string", 12345],
+        ["too short", "abc123"],
+        ["too long", `${SESSION_ID}0`],
+        ["uppercase hex", SESSION_ID.replace("abcdef", "ABCDEF")],
+        ["non-hex characters", "g".repeat(32)],
+    ])("returns ok:false status:503 when sessionId is %s", async (_label, sessionId) => {
+        const testEnv = makeEnv();
+        testEnv.IDENTITY.fetch.mockResolvedValue(
+            identityResponse({
+                email: "a@x.com",
+                userId: "USR-ABC123",
+                role: "Administrator",
+                sessionId,
+            }),
+        );
+
+        const result = await checkIdentity(makeRequest(), testEnv, () => undefined);
+
+        expect(result).toEqual({ ok: false, status: 503 });
+    });
+
+    it("sets user.id, user.role and session.id on the span once identity resolves", async () => {
+        const span = { setAttributes: vi.fn() };
+        const testEnv = makeEnv();
+        testEnv.IDENTITY.fetch.mockResolvedValue(
+            identityResponse({
+                email: "a@x.com",
+                userId: "USR-ABC123",
+                role: "Administrator",
+                sessionId: SESSION_ID,
+            }),
+        );
+
+        await checkIdentity(makeRequest(), testEnv, () => span);
+
+        expect(span.setAttributes).toHaveBeenCalledWith({
+            "user.id": "USR-ABC123",
+            "user.role": "Administrator",
+            "session.id": SESSION_ID,
+        });
+    });
+
+    it("sets no session.id when IdentityApi returns none", async () => {
+        const span = { setAttributes: vi.fn() };
+        const testEnv = makeEnv();
+        testEnv.IDENTITY.fetch.mockResolvedValue(
+            identityResponse({ email: "a@x.com", userId: "USR-ABC123", role: "User" }),
+        );
+
+        await checkIdentity(makeRequest(), testEnv, () => span);
+
+        expect(span.setAttributes).toHaveBeenCalledWith({
+            "user.id": "USR-ABC123",
+            "user.role": "User",
+        });
+    });
+
+    it("sets no attributes when the identity does not resolve", async () => {
+        const span = { setAttributes: vi.fn() };
+        const testEnv = makeEnv({ ADMIN_INTERNAL_KEY: undefined });
+
+        const result = await checkIdentity(makeRequest(), testEnv, () => span);
+
+        expect(result).toEqual({ ok: false, status: 503 });
+        expect(span.setAttributes).not.toHaveBeenCalled();
+    });
+
+    it("sets user attributes but no session.id under LOCAL_DEV_BYPASS", async () => {
+        const span = { setAttributes: vi.fn() };
+        const testEnv = makeEnv({ LOCAL_DEV_BYPASS: "true" });
+
+        await checkIdentity(makeRequest(), testEnv, () => span);
+
+        expect(span.setAttributes).toHaveBeenCalledWith({
+            "user.id": SEEDED_LOCAL_DEV_USER_ID,
+            "user.role": "Administrator",
+        });
+    });
+});
+
 describe("isAdministrator", () => {
     it("returns true for an Administrator identity", () => {
         expect(isAdministrator({ role: "Administrator" })).toBe(true);

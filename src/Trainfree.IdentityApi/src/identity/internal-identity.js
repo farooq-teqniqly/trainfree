@@ -1,5 +1,6 @@
 import { jsonError } from "../shared/http.js";
 import { PROVIDER_NAME_CLOUDFLARE_ACCESS } from "../shared/providers.js";
+import { setSpanAttributes } from "../shared/span-attributes.js";
 import { CALLER_CONFIG, certsUrlFor, issuerFor } from "./config.js";
 import { createJwksFetcher } from "./jwks.js";
 import { JwtVerificationError } from "./jwt.js";
@@ -50,10 +51,10 @@ function jsonErrorNoStore(message, status) {
 // 404, before the JWT is looked at at all -- see spec's "Missing or wrong internal key
 // responds 404, checked before the JWT."
 //
-// `fetcher`/`db` are an injectable seam for tests (a fake JWKS fetch, a
-// forced-throwing D1 stub); production calls omit them and get the real `fetch` and
+// `fetcher`/`db`/`getSpan` are an injectable seam for tests (a fake JWKS fetch, a
+// forced-throwing D1 stub, a recording span); production calls omit them and get the real `fetch` and
 // `env.DB`.
-export async function handleInternalIdentity(request, env, { fetcher, db } = {}) {
+export async function handleInternalIdentity(request, env, { fetcher, db, getSpan } = {}) {
     const callerName = request.headers.get("X-Trainfree-Caller");
     const caller = CALLER_CONFIG[callerName];
     if (!caller) {
@@ -100,8 +101,18 @@ export async function handleInternalIdentity(request, env, { fetcher, db } = {})
         return jsonErrorNoStore("forbidden", 403);
     }
 
+    setSpanAttributes(
+        { "user.id": resolved.userId, "user.role": resolved.role, "session.id": identity.sessionId },
+        getSpan,
+    );
+
+    const body = { email: identity.email, userId: resolved.userId, role: resolved.role };
+    if (identity.sessionId) {
+        body.sessionId = identity.sessionId;
+    }
+
     return noStore(
-        new Response(JSON.stringify({ email: identity.email, userId: resolved.userId, role: resolved.role }), {
+        new Response(JSON.stringify(body), {
             status: 200,
             headers: { "content-type": "application/json" },
         }),

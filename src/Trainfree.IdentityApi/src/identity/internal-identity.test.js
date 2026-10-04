@@ -37,8 +37,9 @@ function signToken({
     audience = ADMIN_AUDIENCE,
     email = "user@example.com",
     expiresInSeconds = 3600,
+    nonce,
 } = {}) {
-    return new SignJWT({ email })
+    return new SignJWT(nonce === undefined ? { email } : { email, identity_nonce: nonce })
         .setProtectedHeader({ alg: "RS256", kid: KID })
         .setIssuer(issuer)
         .setAudience(audience)
@@ -155,6 +156,24 @@ describe("handleInternalIdentity -- response matrix", () => {
             email: "admin@example.com",
             userId: "USR-ADMIN001",
             role: "Administrator",
+        });
+    });
+
+    it("includes sessionId in the 200 body when the JWT carries an identity_nonce", async () => {
+        await seedProvisionedAdministrator("admin@example.com");
+        const token = await signToken({ email: "admin@example.com", nonce: "login-1" });
+
+        const response = await handleInternalIdentity(
+            requestFor({ token, caller: "admin", key: env.ADMIN_INTERNAL_KEY }),
+            env,
+            { fetcher: fakeJwksFetcher() },
+        );
+
+        expect(await response.json()).toEqual({
+            email: "admin@example.com",
+            userId: "USR-ADMIN001",
+            role: "Administrator",
+            sessionId: expect.stringMatching(/^[0-9a-f]{32}$/),
         });
     });
 
@@ -322,5 +341,93 @@ describe("handleInternalIdentity -- infrastructure failures", () => {
 
         expect(response.status).toBe(503);
         expect(await response.json()).toEqual({ error: expect.any(String) });
+    });
+});
+
+describe("handleInternalIdentity -- span attributes", () => {
+    function recordingSpan() {
+        const calls = [];
+        return { calls, getSpan: () => ({ setAttributes: (attrs) => calls.push(attrs) }) };
+    }
+
+    it("sets user.id, user.role, and session.id on the span once identity resolves", async () => {
+        await seedProvisionedAdministrator("admin@example.com");
+        const token = await signToken({ email: "admin@example.com", nonce: "login-1" });
+        const { calls, getSpan } = recordingSpan();
+
+        const response = await handleInternalIdentity(
+            requestFor({ token, caller: "admin", key: env.ADMIN_INTERNAL_KEY }),
+            env,
+            { fetcher: fakeJwksFetcher(), getSpan },
+        );
+
+        const body = await response.json();
+        expect(calls).toEqual([
+            { "user.id": "USR-ADMIN001", "user.role": "Administrator", "session.id": body.sessionId },
+        ]);
+        expect(JSON.stringify(calls)).not.toContain("admin@example.com");
+        expect(JSON.stringify(calls)).not.toContain("login-1");
+    });
+
+    it("omits session.id when the JWT has no identity_nonce", async () => {
+        await seedProvisionedAdministrator("admin@example.com");
+        const token = await signToken({ email: "admin@example.com" });
+        const { calls, getSpan } = recordingSpan();
+
+        await handleInternalIdentity(requestFor({ token, caller: "admin", key: env.ADMIN_INTERNAL_KEY }), env, {
+            fetcher: fakeJwksFetcher(),
+            getSpan,
+        });
+
+        expect(calls).toEqual([{ "user.id": "USR-ADMIN001", "user.role": "Administrator" }]);
+    });
+
+    it("does not throw or change the response when there is no active span", async () => {
+        await seedProvisionedAdministrator("admin@example.com");
+        const token = await signToken({ email: "admin@example.com", nonce: "login-1" });
+
+        const response = await handleInternalIdentity(
+            requestFor({ token, caller: "admin", key: env.ADMIN_INTERNAL_KEY }),
+            env,
+            { fetcher: fakeJwksFetcher(), getSpan: () => undefined },
+        );
+
+        expect(response.status).toBe(200);
+    });
+
+    it("sets nothing when the identity does not resolve (401, 403, 404)", async () => {
+        const token = await signToken({ email: "nobody@example.com", nonce: "login-1" });
+        const { calls, getSpan } = recordingSpan();
+        const opts = { fetcher: fakeJwksFetcher(), getSpan };
+
+        const r401 = await handleInternalIdentity(requestFor({ caller: "admin", key: env.ADMIN_INTERNAL_KEY }), env, opts);
+        const r403 = await handleInternalIdentity(
+            requestFor({ token, caller: "admin", key: env.ADMIN_INTERNAL_KEY }),
+            env,
+            opts,
+        );
+        const r404 = await handleInternalIdentity(requestFor({ token, caller: "admin" }), env, opts);
+
+        expect([r401.status, r403.status, r404.status]).toEqual([401, 403, 404]);
+        expect(calls).toEqual([]);
+    });
+
+    it("sets nothing when the role lookup throws (503)", async () => {
+        const token = await signToken({ email: "admin@example.com", nonce: "login-1" });
+        const { calls, getSpan } = recordingSpan();
+        const db = {
+            prepare() {
+                throw new Error("boom");
+            },
+        };
+
+        const response = await handleInternalIdentity(
+            requestFor({ token, caller: "admin", key: env.ADMIN_INTERNAL_KEY }),
+            env,
+            { fetcher: fakeJwksFetcher(), db, getSpan },
+        );
+
+        expect(response.status).toBe(503);
+        expect(calls).toEqual([]);
     });
 });
