@@ -115,10 +115,10 @@ function handleVersion(request, env) {
     return response;
 }
 
-// Runs the IdentityApi enforcement check for every data endpoint except GET /api/me
+// Runs the identity enforcement check for every data endpoint except GET /api/me
 // (see handleMe): on ok:false, relays that status verbatim with no body; on ok:true with
 // a non-Administrator identity, synthesizes AdminApi's own 403 (distinct from
-// IdentityApi's own 401/403, which are never folded into this one -- see spec's
+// the identity service's own 401/403, which are never folded into this one -- see spec's
 // "Non-Administrator identities are rejected with 403"). Returns the resolved identity
 // so route handlers that need it (e.g. createProgram's owner) don't re-check.
 async function enforceAdministrator(request, env) {
@@ -133,8 +133,8 @@ async function enforceAdministrator(request, env) {
 }
 
 // Same as enforceAdministrator but admits any provisioned identity. Only for routes the
-// spec deliberately opens to the User role (GET /api/exercises/:id/image); IdentityApi's
-// own 401/403 are still relayed verbatim.
+// spec deliberately opens to the User role (GET /api/exercises/:id/image); the identity
+// service's own 401/403 are still relayed verbatim.
 async function enforceAuthenticated(request, env) {
     const result = await checkIdentity(request, env);
     if (!result.ok) {

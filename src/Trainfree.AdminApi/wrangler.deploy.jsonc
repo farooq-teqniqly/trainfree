@@ -15,7 +15,7 @@
     "services": [
         {
             "binding": "IDENTITY",
-            "service": "trainfree-identity-api"
+            "service": "cloudfare-identity"
         }
     ],
     "d1_databases": [

@@ -115,12 +115,11 @@ jobs:
         run: dotnet test "Trainfree.slnx" --configuration Release --no-build --verbosity normal
 
   # The `if` guard lives on each step, not the job, so the matrix always expands into
-  # both `worker-tests (Trainfree.AdminApi)`/`worker-tests (Trainfree.IdentityApi)`
-  # check-run names even for a docs-only PR. A job-level `if: false` skips matrix
-  # expansion entirely, collapsing this into one bare `worker-tests` context -- but
-  # branch protection requires the two matrix-expanded names specifically, so a
-  # docs-only PR would leave those two required checks permanently "Expected" and the
-  # PR unmergeable without an admin override (#132).
+  # the `worker-tests (Trainfree.AdminApi)` check-run name even for a docs-only PR. A
+  # job-level `if: false` skips matrix expansion entirely, collapsing this into one
+  # bare `worker-tests` context -- but branch protection requires the matrix-expanded
+  # name specifically, so a docs-only PR would leave that required check permanently
+  # "Expected" and the PR unmergeable without an admin override (#132).
   worker-tests:
     needs: changes
     runs-on: ubuntu-latest
@@ -129,7 +128,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        worker: [Trainfree.AdminApi, Trainfree.IdentityApi]
+        worker: [Trainfree.AdminApi]
 
     steps:
       - name: Checkout code

@@ -7,6 +7,7 @@
     "dev": "wrangler dev --persist-to ../.wrangler-shared",
     "test": "vitest run",
     "db:migrate:local": "wrangler d1 migrations apply trainfree_db --local --persist-to ../.wrangler-shared",
+    "db:seed:local": "wrangler d1 execute trainfree_db --local --persist-to ../.wrangler-shared --file scripts/seed-local-dev-user.sql",
     "db:migrate:remote": "wrangler d1 migrations apply trainfree_db --remote"
   },
   "devDependencies": {

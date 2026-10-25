@@ -2,14 +2,11 @@ import { applyD1Migrations, env } from "cloudflare:test";
 
 await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
 
-// wrangler.jsonc sets LOCAL_DEV_BYPASS by default (see that file's comment), and
-// vitest.config.js points vitest-pool-workers at this same config -- so every
-// SELF.fetch call in index.test.js resolves its identity via identity.js's
-// LOCAL_DEV_BYPASS branch, which requires this exact seed row to exist. Without it,
-// every enforced route would fail closed with "no local-dev identity is seeded" instead
-// of exercising the route under test. Mirrors the shape IdentityApi's
-// provision-identity.js script would create in real local dev, but inlined here since
-// AdminApi's test pool has no IdentityApi Worker to call.
+// Stage-one only: programs.user_id still has a foreign key to users(user_id), so the fixed
+// synthetic identity identity.js returns under LOCAL_DEV_BYPASS (USR-LOCALDEV) needs a
+// matching users row for any test that creates a program. identity.js itself does no
+// lookup. Remove this seed, with scripts/seed-local-dev-user.sql, when the stage-two
+// baseline migration drops the foreign key.
 const administratorRole = await env.DB.prepare(
     "SELECT role_id as roleId FROM roles WHERE name = 'Administrator'",
 ).first();

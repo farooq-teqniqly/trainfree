@@ -1,8 +1,7 @@
 # Trainfree Identity -- Slice 3: Trainfree.Admin access gating
 
-See [identity-intent.md](identity-intent.md) for shared context and
-[identity-intent-02-adminapi-enforcement.md](identity-intent-02-adminapi-enforcement.md)
-for the `GET /api/me` endpoint this slice calls. This is pure UX on top of an
+See [rollout-runbook.md](rollout-runbook.md) for shared context. This slice calls the
+`GET /api/me` endpoint. This is pure UX on top of an
 already-secure API -- `AdminApi` already rejects unauthorized requests without this slice.
 
 ## Scope

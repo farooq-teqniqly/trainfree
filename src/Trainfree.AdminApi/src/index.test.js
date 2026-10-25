@@ -1967,30 +1967,11 @@ describe("GET /api/programs-tree", () => {
 // vitest-pool-workers bakes wrangler.jsonc's `vars`/`services` bindings into the
 // Miniflare runtime at startup -- mutating the `env` object imported from
 // "cloudflare:test" does not change what SELF.fetch's worker instance sees on the next
-// request (verified empirically: assigning env.LOCAL_DEV_BYPASS/env.IDENTITY here has no
-// effect on a subsequent SELF.fetch call). So every SELF.fetch call in this file runs
-// under LOCAL_DEV_BYPASS, and the tests below verify the enforcement wiring two ways:
-// (1) through D1, which genuinely is mutable per test (deleting the seed row makes
-// identity.js's bypass branch throw, proving a given route does call it, while a route
-// that's exempt keeps succeeding); (2) by unit-testing enforceAdministrator/handleMe
-// directly (exported by index.js) against a fake env, the same way identity.test.js
-// unit-tests checkIdentity -- this covers the 401/403/503/Administrator/User mapping
-// that requires controlling IdentityApi's response, which SELF.fetch's fixed bypass
-// config can't exercise.
-import { enforceAdministrator, handleMe } from "./index.js";
-
-async function deleteLocalDevSeed() {
-    await env.DB.prepare(
-        `DELETE FROM users WHERE login_id IN (
-             SELECT id FROM logins WHERE provider_name = ? AND provider_id = ?
-         )`,
-    )
-        .bind("cloudflare-access", "local-dev@trainfree.local")
-        .run();
-    await env.DB.prepare("DELETE FROM logins WHERE provider_name = ? AND provider_id = ?")
-        .bind("cloudflare-access", "local-dev@trainfree.local")
-        .run();
-}
+// request. So every SELF.fetch call in this file runs under LOCAL_DEV_BYPASS, and the
+// enforcement wiring is verified by calling the worker's default export (and
+// enforceAdministrator/handleMe) directly with a fake env whose IDENTITY binding answers
+// with the status under test.
+import worker, { enforceAdministrator, handleMe } from "./index.js";
 
 function makeFakeEnv(overrides = {}) {
     return {
@@ -2010,96 +1991,48 @@ function identityFetch(status, body) {
     );
 }
 
-describe("Identity enforcement wiring (via D1, under LOCAL_DEV_BYPASS)", () => {
-    it("GET /api/programs-tree calls the enforcement check before its handler", async () => {
-        await deleteLocalDevSeed();
+describe("Identity enforcement wiring", () => {
+    it.each([
+        "/api/programs-tree",
+        "/api/programs",
+        "/api/programs/PRG-AAAAAA/sessions",
+        "/api/phases",
+        "/api/exercises",
+        "/api/me",
+    ])("GET %s resolves identity before its handler and relays a 401", async (path) => {
+        const fakeEnv = makeFakeEnv({ IDENTITY: { fetch: identityFetch(401) } });
 
-        await expect(SELF.fetch("http://worker/api/programs-tree")).rejects.toThrow(
-            /no local-dev identity is seeded/,
-        );
+        const response = await worker.fetch(new Request(`http://worker${path}`), fakeEnv);
+
+        expect(response.status).toBe(401);
+        expect(fakeEnv.IDENTITY.fetch).toHaveBeenCalledTimes(1);
     });
 
-    it("GET /api/programs/:id/sessions calls the enforcement check before its handler", async () => {
-        // Inserted directly (not via createProgram/SELF.fetch, which would itself need
-        // the seed identity) and owned by a throwaway login/user pair unrelated to the
-        // seed identity, so deleting the seed identity below doesn't trip D1's enforced
-        // FK from programs.user_id -> users.user_id.
-        const now = new Date().toISOString();
-        await env.DB.prepare(
-            "INSERT INTO logins (provider_name, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?)",
-        )
-            .bind("cloudflare-access", "throwaway-owner@trainfree.local", now, now)
-            .run();
-        await env.DB.prepare(
-            `INSERT INTO users (user_id, login_id, role_id, created_at, updated_at)
-             SELECT ?, logins.id, ?, ?, ?
-             FROM logins WHERE provider_name = ? AND provider_id = ?`,
-        )
-            .bind(
-                "USR-NOOWNR1",
-                "ROL-A3F7K2",
-                now,
-                now,
-                "cloudflare-access",
-                "throwaway-owner@trainfree.local",
-            )
-            .run();
-        await env.DB.prepare(
-            "INSERT INTO programs (program_id, name, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-        )
-            .bind("PRG-NOOWNR", "Workout A", "USR-NOOWNR1", now, now)
-            .run();
-        await deleteLocalDevSeed();
+    it("GET /api/version makes no identity call", async () => {
+        const fakeEnv = makeFakeEnv();
 
-        await expect(
-            SELF.fetch("http://worker/api/programs/PRG-NOOWNR/sessions"),
-        ).rejects.toThrow(/no local-dev identity is seeded/);
-    });
-
-    it("GET /api/phases calls the enforcement check before its handler", async () => {
-        await deleteLocalDevSeed();
-
-        await expect(SELF.fetch("http://worker/api/phases")).rejects.toThrow(
-            /no local-dev identity is seeded/,
-        );
-    });
-
-    it("GET /api/exercises calls the enforcement check before its handler", async () => {
-        await deleteLocalDevSeed();
-
-        await expect(SELF.fetch("http://worker/api/exercises")).rejects.toThrow(
-            /no local-dev identity is seeded/,
-        );
-    });
-
-    it("GET /api/me calls the enforcement check", async () => {
-        await deleteLocalDevSeed();
-
-        await expect(SELF.fetch("http://worker/api/me")).rejects.toThrow(
-            /no local-dev identity is seeded/,
-        );
-    });
-
-    it("GET /api/version makes no enforcement call, so it still succeeds with no identity seeded", async () => {
-        await deleteLocalDevSeed();
-
-        const response = await SELF.fetch("http://worker/api/version");
+        const response = await worker.fetch(new Request("http://worker/api/version"), fakeEnv);
 
         expect(response.status).toBe(200);
+        expect(fakeEnv.IDENTITY.fetch).not.toHaveBeenCalled();
     });
 
-    it("an OPTIONS preflight makes no enforcement call, so it still succeeds with no identity seeded", async () => {
-        await deleteLocalDevSeed();
+    it("an OPTIONS preflight makes no identity call", async () => {
+        const fakeEnv = makeFakeEnv();
 
-        const response = await SELF.fetch("http://worker/api/programs", {
-            method: "OPTIONS",
-            headers: {
-                "Access-Control-Request-Method": "POST",
-                Origin: "http://localhost:5280",
-            },
-        });
+        const response = await worker.fetch(
+            new Request("http://worker/api/programs", {
+                method: "OPTIONS",
+                headers: {
+                    "Access-Control-Request-Method": "POST",
+                    Origin: "http://localhost:5280",
+                },
+            }),
+            fakeEnv,
+        );
 
         expect(response.status).toBe(204);
+        expect(fakeEnv.IDENTITY.fetch).not.toHaveBeenCalled();
     });
 
     it("succeeds and attributes the created program to the caller under LOCAL_DEV_BYPASS", async () => {
@@ -2117,7 +2050,7 @@ describe("Identity enforcement wiring (via D1, under LOCAL_DEV_BYPASS)", () => {
 });
 
 describe("enforceAdministrator", () => {
-    it("relays IdentityApi's 401 verbatim without an identity", async () => {
+    it("relays cloudfare-identity's 401 verbatim without an identity", async () => {
         const fakeEnv = makeFakeEnv({ IDENTITY: { fetch: identityFetch(401) } });
 
         const result = await enforceAdministrator(new Request("http://worker/api/programs"), fakeEnv);
@@ -2126,7 +2059,7 @@ describe("enforceAdministrator", () => {
         expect(result.identity).toBeUndefined();
     });
 
-    it("relays IdentityApi's 403 verbatim without an identity", async () => {
+    it("relays cloudfare-identity's 403 verbatim without an identity", async () => {
         const fakeEnv = makeFakeEnv({ IDENTITY: { fetch: identityFetch(403) } });
 
         const result = await enforceAdministrator(new Request("http://worker/api/programs"), fakeEnv);
@@ -2134,7 +2067,7 @@ describe("enforceAdministrator", () => {
         expect(result.response.status).toBe(403);
     });
 
-    it("surfaces IdentityApi's 503 as 503", async () => {
+    it("surfaces cloudfare-identity's 503 as 503", async () => {
         const fakeEnv = makeFakeEnv({ IDENTITY: { fetch: identityFetch(503) } });
 
         const result = await enforceAdministrator(new Request("http://worker/api/programs"), fakeEnv);
@@ -2234,7 +2167,7 @@ describe("handleMe", () => {
         expect(await response.json()).toEqual({ email: "u@x.com", role: "User" });
     });
 
-    it("relays IdentityApi's 401 verbatim", async () => {
+    it("relays cloudfare-identity's 401 verbatim", async () => {
         const fakeEnv = makeFakeEnv({ IDENTITY: { fetch: identityFetch(401) } });
 
         const response = await handleMe(new Request("http://worker/api/me"), fakeEnv);
@@ -2242,7 +2175,7 @@ describe("handleMe", () => {
         expect(response.status).toBe(401);
     });
 
-    it("relays IdentityApi's 403 verbatim", async () => {
+    it("relays cloudfare-identity's 403 verbatim", async () => {
         const fakeEnv = makeFakeEnv({ IDENTITY: { fetch: identityFetch(403) } });
 
         const response = await handleMe(new Request("http://worker/api/me"), fakeEnv);
@@ -2250,7 +2183,7 @@ describe("handleMe", () => {
         expect(response.status).toBe(403);
     });
 
-    it("surfaces IdentityApi's 503 as 503", async () => {
+    it("surfaces cloudfare-identity's 503 as 503", async () => {
         const fakeEnv = makeFakeEnv({ IDENTITY: { fetch: identityFetch(503) } });
 
         const response = await handleMe(new Request("http://worker/api/me"), fakeEnv);
