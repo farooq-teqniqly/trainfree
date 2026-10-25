@@ -29,7 +29,7 @@ conventions were chosen.
   Worker's `[assets]` binding serves only its own app's static output and its `main`
   handles only its own `/api/*` routes -- no combined assets directory, no path-prefixed
   SPA fallback shared between two apps. Both Workers bind the same physical D1 database
-  (`trainfree_db`) -- one logical dataset, two Workers reading/writing it, no data
+  (`trainfree_db_v2`) -- one logical dataset, two Workers reading/writing it, no data
   duplication or sync step. This was chosen over a single Worker serving both apps'
   assets under different paths (`/` and `/admin`) because one
   `not_found_handling: single-page-application` fallback document cannot unambiguously
@@ -46,7 +46,7 @@ conventions were chosen.
   `GET /v1/identity`, sending `X-Identity-Application`, `X-Identity-Credential` and the
   user's Access token in `X-Identity-Token`). The former in-repo `Trainfree.IdentityApi`
   was retired by the `use-cloudfare-identity` change. The `logins`/`users`/`roles` tables
-  still exist in `trainfree_db` until that change's stage-two baseline migration drops them.
+  do not exist in `trainfree_db_v2`; only the original `trainfree_db` still has them.
 - **Prod API URL is never configured, per app.** Same-origin design means each app's API
   base address is the relative path `/api` in production, resolved against that app's own
   Worker -- no environment-specific URL, no secret. Only each app's

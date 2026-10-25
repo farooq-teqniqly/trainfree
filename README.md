@@ -87,8 +87,7 @@ Two servers run side by side to use the admin UI: the Worker (D1-backed API) and
 Blazor dev server. `AdminApi` enforces the Administrator role on every data endpoint by
 calling the shared `cloudfare-identity` Worker, but `wrangler.jsonc` sets
 `LOCAL_DEV_BYPASS` by default for local dev, substituting a fixed synthetic local
-Administrator identity so nothing external is called. See step 2 below for the one-time
-seed row this still needs while `programs.user_id` keeps its foreign key to `users`.
+Administrator identity so nothing external is called.
 
 ### One command (Aspire)
 
@@ -117,14 +116,14 @@ The Worker is started with its own `npm run dev`, so its `predev` step
 (`scripts/Kill-Port.ps1`) still runs under the AppHost. It clears any stale listener left
 on that port by an earlier run and does not touch the AppHost-managed process.
 
-First run still needs the one-time `npm install`, `npm run db:migrate:local` and
-local-dev seed from steps 1 and 2 below -- AppHost does not run them. The AppHost is
+First run still needs the one-time `npm install` and `npm run db:migrate:local`
+from step 1 below -- AppHost does not run them. The AppHost is
 local-only, Windows-only, not part of any deploy, and not in `Trainfree.slnx` (build it by
 project path, as above) so CI and `dotnet test` skip the Aspire SDK restore.
 
 ### Manual fallback
 
-The same stack can be run without Aspire, one terminal per process, as steps 1-3 below.
+The same stack can be run without Aspire, one terminal per process, as steps 1-2 below.
 
 ### 1. Worker API
 
@@ -157,22 +156,7 @@ pwsh scripts/Create-ExerciseImagesBucket.ps1   # or: powershell -File scripts/Cr
 
 R2 must be enabled on the Cloudflare account first (dashboard, R2 Object Storage).
 
-### 2. Seed the local-dev user (one-time)
-
-`LOCAL_DEV_BYPASS` returns a fixed synthetic identity (`USR-LOCALDEV`) without any lookup,
-but `programs.user_id` still has a foreign key to `users(user_id)` until the stage-two
-baseline migration of the `use-cloudfare-identity` change removes it, so a matching row
-must exist locally. Seed it once, against the local D1 step 1 just migrated:
-
-```sh
-cd src/Trainfree.AdminApi
-npm run db:seed:local
-```
-
-The script is idempotent and local-only; never run it against `--remote`.
-[Reset the local database](#reset-the-local-database) requires re-running it.
-
-### 3. Blazor client
+### 2. Blazor client
 
 In a second terminal, from the repo root:
 
@@ -235,7 +219,7 @@ same saved value on both Workers.
 
 ## Database migrations
 
-The API is backed by Cloudflare D1 (`trainfree_db`). Schema changes are versioned as SQL
+The API is backed by Cloudflare D1 (`trainfree_db_v2`). Schema changes are versioned as SQL
 files under `src/Trainfree.AdminApi/migrations/`, applied with `wrangler d1 migrations`. All
 commands below run from `src/Trainfree.AdminApi`.
 
@@ -271,7 +255,7 @@ same migrations to a throwaway Miniflare D1 instance on every run (see
 ### Add a migration
 
 ```sh
-npx wrangler d1 migrations create trainfree_db <short_description>
+npx wrangler d1 migrations create trainfree_db_v2 <short_description>
 ```
 
 This creates the next numbered file (e.g. `0003_<short_description>.sql`); write the SQL
@@ -281,7 +265,7 @@ the same PR as the code that depends on it.
 ### Apply migrations remotely
 
 You normally do not run this by hand. `deploy.yaml` runs
-`wrangler d1 migrations apply trainfree_db --remote` on every `v*.*.*` tag, before the
+`wrangler d1 migrations apply trainfree_db_v2 --remote` on every `v*.*.*` tag, before the
 Worker deploy. The tag must point at a commit on `main` -- the workflow verifies this and
 fails the deploy otherwise, because a single fixed Worker name means a deploy from a
 feature branch would overwrite production. The manual equivalent, which needs Cloudflare
@@ -297,14 +281,6 @@ npm run db:migrate:local
 
 This works unchanged with the Aspire AppHost; stop the AppHost first so no Worker holds
 the shared D1 files open while they are deleted.
-
-This also wipes the local-dev seed row (see "Local development" step 2) -- re-run it, or
-every `AdminApi` write that sets a program owner fails locally until you do:
-
-```sh
-cd src/Trainfree.AdminApi
-npm run db:seed:local
-```
 
 ## OpenSpec changes
 

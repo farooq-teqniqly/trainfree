@@ -31,18 +31,19 @@ hostname are deleted manually at the end of that change's rollout.
 
 ## D1
 
-- One physical database, `trainfree_db` (`database_id:
-  f99013f2-e1c9-48d7-9f63-cfb3c853f421`), bound by `trainfree-admin` under the binding
+- One physical database, `trainfree_db_v2` (`database_id:
+  3b4d4abf-993f-43a3-ab09-f5eb1c4353fa`), bound by `trainfree-admin` under the binding
   name `DB`; the future `trainfree-workout` Worker will bind it too once built. Not a
   secret -- committed in the Worker's `wrangler.jsonc`. The `use-cloudfare-identity`
-  change's stage two cuts over to a new database without the identity tables.
+  change's stage two cut over to this database, which has no identity tables; the original
+  `trainfree_db` (`database_id: f99013f2-e1c9-48d7-9f63-cfb3c853f421`) is kept unmodified
+  until it is deleted after a soak period.
 - Created once with `wrangler d1 create trainfree_db`, a one-time setup step outside the
   deploy pipeline (same category as R2 bucket creation, once that's needed -- see
   `CLAUDE.md`).
-- `AdminApi`'s migrations (`src/Trainfree.AdminApi/migrations/`) own every table. The
-  `logins`/`users`/`roles` tables remain until stage two's baseline migration drops them;
-  nothing reads them any more.
-- `deploy.yaml`'s `deploy` job runs `wrangler d1 migrations apply trainfree_db --remote`
+- `AdminApi`'s migrations (`src/Trainfree.AdminApi/migrations/`) own every table. A single baseline
+  migration (`0001_baseline.sql`) replaces the former history, which lives in git.
+- `deploy.yaml`'s `deploy` job runs `wrangler d1 migrations apply trainfree_db_v2 --remote`
   before the Worker deploys.
 - Local dev: `wrangler dev` passes `--persist-to ../.wrangler-shared` -- see README.md's
   "Worker API" section.
@@ -146,7 +147,7 @@ stripping.
 
 These are run once, by hand, and are never re-run by CI:
 
-1. `wrangler d1 create trainfree_db`
+1. `wrangler d1 create trainfree_db_v2`
 2. Create the Access application above via the Cloudflare API/dashboard, reusing the two
    reusable policies
 3. `wrangler secret put ADMIN_INTERNAL_KEY` on `trainfree-admin`, with the same value

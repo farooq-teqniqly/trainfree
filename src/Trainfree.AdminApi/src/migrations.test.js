@@ -1,305 +1,152 @@
-import { applyD1Migrations, env } from "cloudflare:test";
+import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
-async function insertProgram(db, { programId, userId }) {
-    return db
-        .prepare(
-            "INSERT INTO programs (program_id, name, created_at, updated_at, user_id) VALUES (?, ?, ?, ?, ?)",
+const APP_TABLES = [
+    "exercises",
+    "phases",
+    "program_exercises",
+    "programs",
+    "session_phases",
+    "sessions",
+];
+
+const NOW = "2026-10-24T00:00:00.000Z";
+
+describe("baseline schema", () => {
+    it.each(APP_TABLES)("creates the %s table", async (table) => {
+        const row = await env.DB.prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
         )
-        .bind(programId, "Test Program", "2026-09-15T00:00:00.000Z", "2026-09-15T00:00:00.000Z", userId)
-        .run();
-}
-
-describe("0015_add_programs_user_id migration", () => {
-    it("adds a nullable user_id column that a program row created before this migration ran keeps as NULL", async () => {
-        // Reverses just this migration's effect (not tracked as its own migration --
-        // SQLite/D1 support DROP COLUMN, but this repo has no migration that undoes
-        // 0015, so the drop happens here in test setup only) to genuinely recreate a
-        // pre-migration table shape, rather than just inserting a row and omitting the
-        // column on an already-migrated table -- the two are observably identical once
-        // the column exists, so the first version of this test never actually exercised
-        // the migration's own backfill behavior against a non-empty table.
-        // 0016 adds triggers referencing NEW.user_id, so they must be dropped before
-        // the column itself is dropped below, or the DROP COLUMN's own trigger
-        // recompilation fails with "no such column: NEW.user_id".
-        await env.DB.prepare("DROP TRIGGER trg_programs_user_id_not_null_insert").run();
-        await env.DB.prepare("DROP TRIGGER trg_programs_user_id_not_null_update").run();
-        await env.DB.prepare("ALTER TABLE programs DROP COLUMN user_id").run();
-        await env.DB.prepare("DELETE FROM d1_migrations WHERE name = ?")
-            .bind("0016_make_programs_user_id_not_null.sql")
-            .run();
-        await env.DB.prepare("DELETE FROM d1_migrations WHERE name = ?")
-            .bind("0015_add_programs_user_id.sql")
-            .run();
-        await env.DB.prepare(
-            "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
-        )
-            .bind("PGM-PREMIGRATION1", "Pre-existing Program", "2026-09-01T00:00:00.000Z", "2026-09-01T00:00:00.000Z")
-            .run();
-
-        await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
-
-        const row = await env.DB.prepare("SELECT user_id FROM programs WHERE program_id = ?")
-            .bind("PGM-PREMIGRATION1")
+            .bind(table)
             .first();
-        expect(row).toEqual({ user_id: null });
+
+        expect(row).toEqual({ name: table });
     });
 
-    it("enforces the user_id foreign key against users(user_id) -- an unknown value is rejected", async () => {
-        await expect(insertProgram(env.DB, { programId: "PGM-BADOWNER1", userId: "USR-NOTREAL" })).rejects.toThrow();
-    });
-
-    it("accepts a user_id that matches a real users row", async () => {
-        const now = "2026-09-15T00:00:00.000Z";
-        const loginResult = await env.DB.prepare(
-            "INSERT INTO logins (provider_name, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?)",
+    it.each(["logins", "users", "roles", "categories"])("does not create the %s table", async (table) => {
+        const row = await env.DB.prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
         )
-            .bind("cloudflare-access", "migration-test-owner@example.com", now, now)
-            .run();
-        await env.DB.prepare(
-            "INSERT INTO users (user_id, login_id, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-        )
-            .bind("USR-MIGTEST1", loginResult.meta.last_row_id, "ROL-A3F7K2", now, now)
-            .run();
-
-        await insertProgram(env.DB, { programId: "PGM-REALOWNER1", userId: "USR-MIGTEST1" });
-
-        const row = await env.DB.prepare("SELECT user_id FROM programs WHERE program_id = ?")
-            .bind("PGM-REALOWNER1")
+            .bind(table)
             .first();
-        expect(row).toEqual({ user_id: "USR-MIGTEST1" });
-    });
-});
 
-describe("0016_make_programs_user_id_not_null migration", () => {
-    it("re-applying it against a database with sessions/session_phases/program_exercises does not delete any of that data", async () => {
-        // Regression test for a real bug caught during PR #129 review: an earlier
-        // version of this migration rebuilt `programs` via CREATE-new/DROP-old/RENAME,
-        // and dropping `programs` while `sessions.program_id REFERENCES
-        // programs(program_id) ON DELETE CASCADE` is live triggers SQLite's documented
-        // implicit "DELETE FROM programs" before the drop, cascading through
-        // sessions -> session_phases -> program_exercises. Confirmed empirically against
-        // a local D1 instance before switching to the trigger-based approach below.
-        const now = "2026-09-16T00:00:00.000Z";
-        const loginResult = await env.DB.prepare(
-            "INSERT INTO logins (provider_name, provider_id, created_at, updated_at) VALUES (?, ?, ?, ?)",
-        )
-            .bind("cloudflare-access", "migration-0016-owner@example.com", now, now)
-            .run();
-        await env.DB.prepare(
-            "INSERT INTO users (user_id, login_id, role_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-        )
-            .bind("USR-MIG0016A", loginResult.meta.last_row_id, "ROL-A3F7K2", now, now)
-            .run();
+        expect(row).toBeNull();
+    });
+
+    it("leaves programs.user_id without a foreign key", async () => {
+        const { results } = await env.DB.prepare("PRAGMA foreign_key_list(programs)").all();
+
+        expect(results).toEqual([]);
+    });
+
+    it("accepts a program whose user_id names no users row", async () => {
         await env.DB.prepare(
             "INSERT INTO programs (program_id, name, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
         )
-            .bind("PGM-MIG0016A", "Migration 0016 Program", "USR-MIG0016A", now, now)
-            .run();
-        await env.DB.prepare(
-            "INSERT INTO sessions (session_id, program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-        )
-            .bind("SES-MIG0016A", "PGM-MIG0016A", "Migration 0016 Session", now, now)
-            .run();
-        await env.DB.prepare(
-            "INSERT INTO phases (phase_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
-        )
-            .bind("PHS-MIG0016A", "Migration 0016 Phase", now, now)
-            .run();
-        await env.DB.prepare(
-            "INSERT INTO session_phases (session_phase_id, session_id, phase_id, created_at) VALUES (?, ?, ?, ?)",
-        )
-            .bind("SPH-MIG0016A", "SES-MIG0016A", "PHS-MIG0016A", now)
-            .run();
-        await env.DB.prepare(
-            "INSERT INTO exercises (exercise_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
-        )
-            .bind("EXR-MIG0016A", "Migration 0016 Exercise", now, now)
-            .run();
-        await env.DB.prepare(
-            `INSERT INTO program_exercises
-                (program_exercise_id, session_phase_id, exercise_id, type, reps, weight,
-                 sets, rest_seconds, side, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-            .bind(
-                "PEX-MIG0016A",
-                "SPH-MIG0016A",
-                "EXR-MIG0016A",
-                "Reps",
-                10,
-                45,
-                3,
-                60,
-                "Both",
-                now,
-                now,
-            )
+            .bind("PGM-BASELINE1", "Baseline Program", "USR-ANYONE", NOW, NOW)
             .run();
 
-        // Re-run 0016 against this now-populated database, exactly as it would run
-        // against a real deployed database with existing data.
-        await env.DB.prepare("DROP TRIGGER trg_programs_user_id_not_null_insert").run();
-        await env.DB.prepare("DROP TRIGGER trg_programs_user_id_not_null_update").run();
-        await env.DB.prepare("DELETE FROM d1_migrations WHERE name = ?")
-            .bind("0016_make_programs_user_id_not_null.sql")
-            .run();
-        await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
-
-        const program = await env.DB.prepare("SELECT 1 FROM programs WHERE program_id = ?")
-            .bind("PGM-MIG0016A")
+        const row = await env.DB.prepare("SELECT user_id as userId FROM programs WHERE program_id = ?")
+            .bind("PGM-BASELINE1")
             .first();
-        const session = await env.DB.prepare("SELECT 1 FROM sessions WHERE session_id = ?")
-            .bind("SES-MIG0016A")
-            .first();
-        const sessionPhase = await env.DB.prepare(
-            "SELECT 1 FROM session_phases WHERE session_phase_id = ?",
-        )
-            .bind("SPH-MIG0016A")
-            .first();
-        const programExercise = await env.DB.prepare(
-            "SELECT 1 FROM program_exercises WHERE program_exercise_id = ?",
-        )
-            .bind("PEX-MIG0016A")
-            .first();
-
-        expect(program).not.toBeNull();
-        expect(session).not.toBeNull();
-        expect(sessionPhase).not.toBeNull();
-        expect(programExercise).not.toBeNull();
+        expect(row).toEqual({ userId: "USR-ANYONE" });
     });
 
-    it("rejects a raw INSERT that omits user_id, independent of createProgram's own app-level guard", async () => {
-        // The INSERT trigger is the database-level backstop against any writer that
-        // omits user_id -- including the previously-deployed Worker during a rollout
-        // window (see this migration's own rollout-ordering comment) -- not just
-        // createProgram's guard. Exercises the trigger directly via a raw INSERT that
-        // bypasses createProgram entirely, so a regression in the trigger itself would
-        // fail here even if createProgram's own guard still worked.
-        const now = "2026-09-16T00:00:00.000Z";
+    it("rejects an insert into programs with a NULL user_id", async () => {
+        await expect(
+            env.DB.prepare(
+                "INSERT INTO programs (program_id, name, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            )
+                .bind("PGM-NULLOWNER1", "No Owner", null, NOW, NOW)
+                .run(),
+        ).rejects.toThrow(/user_id must not be NULL/);
+    });
 
+    it("rejects an insert into programs that omits user_id", async () => {
         await expect(
             env.DB.prepare(
                 "INSERT INTO programs (program_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
             )
-                .bind("PGM-NOUSERID1", "No Owner", now, now)
+                .bind("PGM-NOOWNER1", "No Owner", NOW, NOW)
                 .run(),
         ).rejects.toThrow(/user_id must not be NULL/);
     });
 
-    it("still allows renaming a legacy ownerless program, but rejects explicitly nulling user_id", async () => {
-        // Regression test for a second real bug from the same review round: an
-        // unscoped `BEFORE UPDATE ON programs` trigger would also fire for a rename
-        // that never touches user_id, because SQLite carries a column's old value into
-        // NEW for any UPDATE that doesn't set it -- so a legacy pre-0015 row with a
-        // NULL owner could never be renamed. Scoping the trigger to
-        // `BEFORE UPDATE OF user_id` fixes this.
-        const now = "2026-09-16T00:00:00.000Z";
-        // The INSERT trigger would reject a NULL user_id outright, so insert the
-        // legacy ownerless row with the triggers dropped, then recreate them --
-        // mirroring how such a row could only exist from before migration 0016 (or
-        // 0015) ever ran.
-        await env.DB.prepare("DROP TRIGGER trg_programs_user_id_not_null_insert").run();
-        await env.DB.prepare("DROP TRIGGER trg_programs_user_id_not_null_update").run();
+    it("rejects an update that sets programs.user_id to NULL", async () => {
         await env.DB.prepare(
             "INSERT INTO programs (program_id, name, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
         )
-            .bind("PGM-LEGACY01", "Legacy Program", null, now, now)
+            .bind("PGM-UPDNULL1", "Owned", "USR-ANYONE", NOW, NOW)
             .run();
-        await env.DB.prepare("DELETE FROM d1_migrations WHERE name = ?")
-            .bind("0016_make_programs_user_id_not_null.sql")
-            .run();
-        await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
-
-        await expect(
-            env.DB.prepare("UPDATE programs SET name = ?, updated_at = ? WHERE program_id = ?")
-                .bind("Renamed Legacy Program", now, "PGM-LEGACY01")
-                .run(),
-        ).resolves.toBeTruthy();
-
-        const renamed = await env.DB.prepare(
-            "SELECT name FROM programs WHERE program_id = ?",
-        )
-            .bind("PGM-LEGACY01")
-            .first();
-        expect(renamed).toEqual({ name: "Renamed Legacy Program" });
 
         await expect(
             env.DB.prepare("UPDATE programs SET user_id = NULL WHERE program_id = ?")
-                .bind("PGM-LEGACY01")
+                .bind("PGM-UPDNULL1")
                 .run(),
         ).rejects.toThrow(/user_id must not be NULL/);
     });
-});
 
-describe("0009_drop_categories migration", () => {
-    it("drops the categories table", async () => {
-        const table = await env.DB.prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'categories'",
-        ).first();
-
-        expect(table).toBeNull();
-    });
-
-    it("leaves the phases row that 0008 copied from categories intact after the drop", async () => {
-        await env.DB.prepare("DELETE FROM d1_migrations WHERE name = ?")
-            .bind("0004_create_categories.sql")
-            .run();
-        await env.DB.prepare("DELETE FROM d1_migrations WHERE name = ?")
-            .bind("0005_add_categories_name_unique_index.sql")
-            .run();
-        await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
-
+    it("allows renaming a program without touching user_id", async () => {
         await env.DB.prepare(
-            "INSERT INTO categories (category_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO programs (program_id, name, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
         )
-            .bind("CAT-ZZ9999", "Cooldown", "2026-09-04T00:00:00.000Z", "2026-09-04T00:00:00.000Z")
+            .bind("PGM-RENAME1", "Before", "USR-ANYONE", NOW, NOW)
             .run();
 
-        await env.DB.prepare("DELETE FROM d1_migrations WHERE name = ?")
-            .bind("0008_copy_categories_to_phases.sql")
+        await env.DB.prepare("UPDATE programs SET name = ? WHERE program_id = ?")
+            .bind("After", "PGM-RENAME1")
             .run();
-        await env.DB.prepare("DELETE FROM d1_migrations WHERE name = ?")
-            .bind("0009_drop_categories.sql")
-            .run();
-        await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
 
-        const phase = await env.DB.prepare(
-            "SELECT phase_id, name, created_at, updated_at FROM phases WHERE phase_id = ?",
-        )
-            .bind("PHS-ZZ9999")
+        const row = await env.DB.prepare("SELECT name FROM programs WHERE program_id = ?")
+            .bind("PGM-RENAME1")
             .first();
-        expect(phase).toEqual({
-            phase_id: "PHS-ZZ9999",
-            name: "Cooldown",
-            created_at: "2026-09-04T00:00:00.000Z",
-            updated_at: "2026-09-04T00:00:00.000Z",
-        });
-
-        const table = await env.DB.prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'categories'",
-        ).first();
-        expect(table).toBeNull();
+        expect(row).toEqual({ name: "After" });
     });
-});
 
-describe("0017_add_exercises_image_key migration", () => {
-    it("adds a nullable image_key column that an exercise row created before this migration ran keeps as NULL", async () => {
-        await env.DB.prepare("ALTER TABLE exercises DROP COLUMN image_key").run();
-        await env.DB.prepare("DELETE FROM d1_migrations WHERE name = ?")
-            .bind("0017_add_exercises_image_key.sql")
-            .run();
+    it("cascades a program delete through sessions, session phases and program exercises", async () => {
+        await env.DB.batch([
+            env.DB.prepare(
+                "INSERT INTO programs (program_id, name, user_id, created_at, updated_at) VALUES ('PGM-CASC1', 'P', 'USR-ANYONE', ?, ?)",
+            ).bind(NOW, NOW),
+            env.DB.prepare(
+                "INSERT INTO sessions (session_id, program_id, name, created_at, updated_at) VALUES ('SES-CASC1', 'PGM-CASC1', 'S', ?, ?)",
+            ).bind(NOW, NOW),
+            env.DB.prepare(
+                "INSERT INTO phases (phase_id, name, created_at, updated_at) VALUES ('PHS-CASC1', 'Ph', ?, ?)",
+            ).bind(NOW, NOW),
+            env.DB.prepare(
+                "INSERT INTO session_phases (session_phase_id, session_id, phase_id, created_at) VALUES ('SPH-CASC1', 'SES-CASC1', 'PHS-CASC1', ?)",
+            ).bind(NOW),
+            env.DB.prepare(
+                "INSERT INTO exercises (exercise_id, name, created_at, updated_at) VALUES ('EXR-CASC1', 'E', ?, ?)",
+            ).bind(NOW, NOW),
+            env.DB.prepare(
+                `INSERT INTO program_exercises
+                    (program_exercise_id, session_phase_id, exercise_id, type, reps, weight, sets, rest_seconds, side, created_at, updated_at)
+                 VALUES ('PEX-CASC1', 'SPH-CASC1', 'EXR-CASC1', 'Reps', 10, 45, 3, 60, 'Both', ?, ?)`,
+            ).bind(NOW, NOW),
+        ]);
+
+        await env.DB.prepare("DELETE FROM programs WHERE program_id = 'PGM-CASC1'").run();
+
+        const counts = await env.DB.prepare(
+            `SELECT (SELECT COUNT(*) FROM sessions) as sessions,
+                    (SELECT COUNT(*) FROM session_phases) as sessionPhases,
+                    (SELECT COUNT(*) FROM program_exercises) as programExercises`,
+        ).first();
+        expect(counts).toEqual({ sessions: 0, sessionPhases: 0, programExercises: 0 });
+    });
+
+    it("adds a nullable image_key column to exercises", async () => {
         await env.DB.prepare(
             "INSERT INTO exercises (exercise_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
         )
-            .bind("EXR-PREMIG0017", "Pre-existing Exercise", "2026-09-01T00:00:00.000Z", "2026-09-01T00:00:00.000Z")
+            .bind("EXR-IMGKEY1", "No Image", NOW, NOW)
             .run();
 
-        await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
-
-        const row = await env.DB.prepare("SELECT image_key FROM exercises WHERE exercise_id = ?")
-            .bind("EXR-PREMIG0017")
+        const row = await env.DB.prepare("SELECT image_key as imageKey FROM exercises WHERE exercise_id = ?")
+            .bind("EXR-IMGKEY1")
             .first();
-        expect(row).toEqual({ image_key: null });
+        expect(row).toEqual({ imageKey: null });
     });
 });

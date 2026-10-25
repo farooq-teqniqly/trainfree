@@ -244,8 +244,6 @@ describe("checkIdentity", () => {
     });
 
     it("substitutes the synthetic identity under LOCAL_DEV_BYPASS with no identity rows in the database", async () => {
-        await env.DB.prepare("DELETE FROM users").run();
-        await env.DB.prepare("DELETE FROM logins").run();
         const testEnv = makeEnv({ LOCAL_DEV_BYPASS: "true", DB: undefined });
 
         const result = await checkIdentity(makeRequest(), testEnv);

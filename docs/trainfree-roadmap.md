@@ -39,7 +39,7 @@ ship either an unenforced UI or enforcement with nothing to configure it, wherea
    libraries -- `src/Trainfree.Domain` (domain IDs, e.g. `ProgramId`) and
    `src/Trainfree.Versioning` (the deploy-stamp check + its Razor component). Each app
    ends up with its own independent Worker (own assets, own `/api/*`, own D1 binding to
-   the shared `trainfree_db` database) rather than one Worker serving both apps' assets
+   the shared `trainfree_db_v2` database) rather than one Worker serving both apps' assets
    under different paths -- see the change's `design.md` for why (that section of
    `trainfree-proposal.md` originally sketched a single shared Worker; it now describes
    the two-Worker shape this slice built). `src/Trainfree.Workout` and

@@ -86,7 +86,7 @@ unambiguously serve two different SPA shells depending on which path segment fai
 resolve, and the two apps have no coupling that requires sharing a Worker or an origin
 -- see that change's `design.md` for the fuller rationale.
 
-Both Workers bind the same physical D1 database (`trainfree_db`) and both apps talk to
+Both Workers bind the same physical D1 database (`trainfree_db_v2`) and both apps talk to
 their own relative `/api` base address, resolved against their own Worker -- one
 logical dataset, no data duplication or sync step between the two apps.
 

@@ -12,9 +12,7 @@ const IDENTITY_URL = "https://cloudfare-identity/v1/identity";
 // is not rewritten. Pending the production check in tasks.md 1.4.
 const ACCESS_TOKEN_HEADER = "Cf-Access-Jwt-Assertion";
 
-// Fixed synthetic identity used when LOCAL_DEV_BYPASS is set. No database lookup: the
-// local database must hold a matching users row only while programs.user_id still has its
-// foreign key (see scripts/seed-local-dev-user.sql and test/apply-migrations.js).
+// Fixed synthetic identity used when LOCAL_DEV_BYPASS is set. No database lookup.
 const LOCAL_DEV_IDENTITY = Object.freeze({
     email: "local-dev@trainfree.local",
     role: "Administrator",
