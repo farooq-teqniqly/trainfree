@@ -41,19 +41,12 @@ conventions were chosen.
   class libraries both apps reference, so slice 8 doesn't duplicate what `Trainfree.Admin`
   already built. The `.NET everywhere` convention in the baseline applies to all of these
   client-side projects; the Workers stay JavaScript.
-  A third Worker, `src/Trainfree.IdentityApi`, is a deliberate exception to the "one
-  Worker per app" half of this rule: unlike `AdminApi`/`WorkoutApi` it serves no Blazor
-  client and has no `[assets]` binding -- it centralizes Cloudflare Access JWT
-  verification and D1 role lookup so neither app Worker duplicates that logic, reached
-  only via service binding (`X-Trainfree-Caller: admin`/`workout` on
-  `GET /internal/identity`), never directly by a browser. It still needs a public
-  hostname, gated by its own Cloudflare Access application, solely so `deploy.yaml` can
-  poll its `GET /api/version` in CI. It binds the same physical `trainfree_db` D1
-  database as the other two Workers but reads/writes only the `logins`, `users`, and
-  `roles` tables, never `programs`; the migration that creates those tables lives under
-  `src/Trainfree.AdminApi/migrations/` (`AdminApi`'s existing migration history), not a
-  second, independently tracked one against the same database. Its local dev port is
-  9998, distinct from `AdminApi`'s 9999, so both Workers' dev servers can run at once.
+  Identity is not a Worker of this repo: each app Worker resolves the caller by calling
+  the shared `cloudfare-identity` Worker over a service binding (`IDENTITY`,
+  `GET /v1/identity`, sending `X-Identity-Application`, `X-Identity-Credential` and the
+  user's Access token in `X-Identity-Token`). The former in-repo `Trainfree.IdentityApi`
+  was retired by the `use-cloudfare-identity` change. The `logins`/`users`/`roles` tables
+  still exist in `trainfree_db` until that change's stage-two baseline migration drops them.
 - **Prod API URL is never configured, per app.** Same-origin design means each app's API
   base address is the relative path `/api` in production, resolved against that app's own
   Worker -- no environment-specific URL, no secret. Only each app's
@@ -62,16 +55,15 @@ conventions were chosen.
   wrangler's stock 8787 -- 8787 has been observed to leak orphaned listener processes on
   Windows across restarts, silently hanging every future connection to it until reboot.
   Each Worker's `wrangler.jsonc`'s `dev.port` and `predev` npm script
-  (`scripts/Kill-Port.ps1`) pin to its own port (`AdminApi` 9999, `IdentityApi` 9998), so
-  those two can run together; `Trainfree.WorkoutApi` doesn't exist yet -- when it does,
-  it needs its own, different local dev port.
+  (`scripts/Kill-Port.ps1`) pin to its own port (`AdminApi` 9999); `Trainfree.WorkoutApi`
+  doesn't exist yet -- when it does, it needs its own, different local dev port so both
+  can run together.
 - **`src/Trainfree.AppHost` (.NET Aspire) is local-dev orchestration only.** `dotnet run
-  --project src/Trainfree.AppHost` starts `AdminApi` (9999), `Trainfree.Admin` (5280) and,
-  opt-in via config `Trainfree:IdentityApi=true` (e.g. `-- --Trainfree:IdentityApi=true`),
-  `IdentityApi` (9998), with logs and health in the Aspire dashboard. Ports stay fixed
+  --project src/Trainfree.AppHost` starts `AdminApi` (9999) and `Trainfree.Admin` (5280), with
+  logs and health in the Aspire dashboard. Ports stay fixed
   because the Blazor client reads `wwwroot/appsettings.Development.json` as a static file,
   so Aspire-assigned ports and env vars never reach the browser -- do not make them
-  dynamic. `IdentityApi` is off by default since `LOCAL_DEV_BYPASS` covers everyday work.
+  dynamic.
   Each Worker still runs via `npm run dev`, so its `predev` `Kill-Port.ps1` step runs under
   the AppHost too and is harmless there. It is not deployed and changes nothing in
   `deploy.yaml`, any `wrangler*.jsonc`, or Cloudflare Access; it is excluded from Sonar
@@ -121,8 +113,7 @@ conventions were chosen.
 - **Cloudflare Access applications are provisioned via the Cloudflare API as a one-time
   setup step**, not represented as code in this repo -- same category as `wrangler d1
   create`/`r2 bucket create` (owner's email only for identity-based policies). Each app
-  (Blazor client Workers, plus `IdentityApi`'s own public hostname per its "Third Worker"
-  paragraph above) reuses the account's two existing reusable Access policies
+  (the Blazor client Workers) reuses the account's two existing reusable Access policies
   (`trainfree-ci` for CI's service token, `trainfree - Production` for the owner's email)
   by ID rather than duplicating policies per app -- see README.md's "Cloudflare Access
   application (production, one-time)" section.

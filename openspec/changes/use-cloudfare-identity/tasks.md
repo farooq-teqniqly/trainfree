@@ -19,13 +19,13 @@ new database) and start only after group 5 passes. Run every Worker task test-fi
 
 ## 3. Retire the internal implementation
 
-- [ ] 3.1 Remove the `deploy-identity-api` job from `.github/workflows/deploy.yaml`, fix the remaining job's `needs`, and verify the file passes `actionlint` or a dry run of the workflow
+- [x] 3.1 Remove the `deploy-identity-api` job from `.github/workflows/deploy.yaml`, fix the remaining job's `needs`, and verify the file passes `actionlint` or a dry run of the workflow
 - [ ] 3.2 Remove `Trainfree.IdentityApi` from the `worker-tests` matrix and comments in `.github/workflows/ci.yaml`; verify CI's required-check names still match the branch protection rule
-- [ ] 3.3 Remove the `IdentityApi` entry and its opt-in `Trainfree:IdentityApi` setting from `src/Trainfree.AppHost/Program.cs`; verify `dotnet build src/Trainfree.AppHost` succeeds
-- [ ] 3.4 Delete `src/Trainfree.IdentityApi` (including its provisioning script and smoke harness) and verify `git grep -i "IdentityApi" -- src .github` finds nothing outside historical migrations and comments that say it was retired
-- [ ] 3.5 Update `CLAUDE.md` (third-Worker paragraph, port 9998 mention, AppHost paragraph, Access-application paragraph), `README.md`, `.github/copilot-instructions.md` and `.pr_agent.toml`; verify none describes `IdentityApi` as current
-- [ ] 3.6 Update `docs/identity/*`, `docs/cloudflare-infrastructure.md`, `docs/trainfree-roadmap.md` and `docs/identity/rollout-runbook.md` to describe cloudfare-identity and the two-stage rollout; verify with `git grep -i "IdentityApi" -- docs ':!docs/pr-reviews'`
-- [ ] 3.7 Edit the `Purpose` text in `openspec/specs/admin-api-enforcement/spec.md` to drop the `IdentityApi` wording, and the `admin-access-gating` rationale that names `IdentityApi`; run `openspec validate --strict`
+- [x] 3.3 Remove the `IdentityApi` entry and its opt-in `Trainfree:IdentityApi` setting from `src/Trainfree.AppHost/Program.cs`; verify `dotnet build src/Trainfree.AppHost` succeeds
+- [x] 3.4 Delete `src/Trainfree.IdentityApi` (including its provisioning script and smoke harness) and verify `git grep -i "IdentityApi" -- src .github` finds nothing outside historical migrations and comments that say it was retired
+- [x] 3.5 Update `CLAUDE.md` (third-Worker paragraph, port 9998 mention, AppHost paragraph, Access-application paragraph), `README.md`, `.github/copilot-instructions.md` and `.pr_agent.toml`; verify none describes `IdentityApi` as current
+- [x] 3.6 Update `docs/identity/*`, `docs/cloudflare-infrastructure.md`, `docs/trainfree-roadmap.md` and `docs/identity/rollout-runbook.md` to describe cloudfare-identity and the two-stage rollout; verify with `git grep -i "IdentityApi" -- docs ':!docs/pr-reviews'`
+- [x] 3.7 Edit the `Purpose` text in `openspec/specs/admin-api-enforcement/spec.md` to drop the `IdentityApi` wording, and the `admin-access-gating` rationale that names `IdentityApi`; run `openspec validate --strict`
 
 ## 4. Pre-release checks
 

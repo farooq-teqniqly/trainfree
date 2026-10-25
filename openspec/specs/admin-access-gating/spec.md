@@ -66,7 +66,7 @@ reaches the app) or the response status is anything other than `200`, `401`, or 
 to return.
 **Rationale**: Folding an infrastructure outage into "no access" would misinform an
 Administrator into thinking they lack permission when the real problem is that
-`AdminApi` or `IdentityApi` is down; `admin-api-enforcement`'s own `503` requirement
+`AdminApi` or the identity service is down; `admin-api-enforcement`'s own `503` requirement
 exists to keep this distinction available to the client. Requiring `200` explicitly,
 rather than falling through to parse whatever body an unexpected status carries, also
 keeps a future intermediary or misconfigured route from being trusted just because its

@@ -3,9 +3,8 @@
 ## Purpose
 
 Enforces the Administrator role on every `Trainfree.AdminApi` data endpoint by calling
-`Trainfree.IdentityApi` over its service binding before carrying out the underlying
-operation, closing the security gap left open by slice 8a (`IdentityApi` deployed but
-uncalled).
+the shared `cloudfare-identity` Worker over its service binding before carrying out the
+underlying operation.
 
 ## Requirements
 

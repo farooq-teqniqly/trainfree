@@ -1,104 +1,67 @@
-# Slice 1/2 rollout runbook (archived)
+# Rollout runbook: switch to cloudfare-identity
 
-**Archived: both slices have shipped** (`IdentityApi` in #124-128, `AdminApi`
-enforcement in #129). This runbook is kept only as the historical record of that
-one-time rollout's ordering requirement -- it is not a procedure to re-run. For the
-current, ongoing state of Cloudflare infrastructure (Access applications, D1, secrets,
-Workers), see `docs/cloudflare-infrastructure.md` instead.
+Procedure for the `use-cloudfare-identity` change (issue #158), which replaces the in-repo
+`IdentityApi` Worker with the shared `cloudfare-identity` Worker and then moves program
+data to a database without identity tables. It ships in two releases so each can be
+verified, and rolled back, on its own. The change's `tasks.md` is the checklist; this
+runbook records the order and the reasons. For the current state of Cloudflare
+infrastructure, see `docs/cloudflare-infrastructure.md`.
 
----
+The previous slice-1/2 rollout (deploying the old `IdentityApi` before `AdminApi`
+enforced it) is superseded and kept only in git history.
 
-`IdentityApi` (slice 1) and `AdminApi`'s enforcement of it (slice 2) had to deploy in
-this exact order. Deploying slice 2 before any D1 identity exists locks out
-every administrator, including the operator, with no in-app way to recover -- there is no
-provisioning UI in this change (see
-`docs/identity/identity-intent-01-identityapi.md`'s "Rollout order" requirement, which
-this runbook implements). Do not skip step 3.
+## Preconditions
 
-## Steps
+- `cloudfare-identity` already holds the existing administrator, with `userId`
+  `USR-S6PHKJ` preserved, and a registered application `Trainfree.Admin` whose audience
+  matches `trainfree-admin`'s Access application.
+- `ADMIN_INTERNAL_KEY` has the same value in `trainfree-admin` and `cloudfare-identity`
+  (`wrangler secret list` shows the name on both; values are never printed).
+- The `IDENTITY` service binding in `wrangler.jsonc` and `wrangler.deploy.jsonc` points at
+  `cloudfare-identity`.
 
-1. **Deploy slice 1.** Push a `v0.0.N` tag (or run `deploy.yaml` manually via
-   `workflow_dispatch`) with `IdentityApi` live. Merging this change's PR to `main` alone
-   does **not** deploy anything -- `deploy.yaml` only triggers on a `v*.*.*` tag push or a
-   manual dispatch. `AdminApi` does not call `IdentityApi` yet, so there is nothing to
-   lock out at this point.
-2. **Provision at least one `Administrator` identity** against the deployed D1 database:
+## Stage one: the switch (existing database)
 
-   ```sh
-   cd src/Trainfree.IdentityApi
-   npm run provision -- --email <owner's email> --role Administrator --remote
-   ```
+1. Confirm which header carries the Access token on a request reaching `AdminApi` in
+   production (expected `Cf-Access-Jwt-Assertion`), logging presence only, never the
+   value. Record the result in the stage-one PR.
+2. Merge the stage-one PR (squash), push the next `v0.0.N` tag, and confirm `deploy.yaml`
+   succeeds and its version poll reports the tag's stamp. The change also removes the
+   `deploy-identity-api` job and `Trainfree.IdentityApi`.
+3. In production, sign in as the administrator: `GET /api/me` returns `200` with the admin
+   email and role `Administrator`, and creating a program records `user_id` `USR-S6PHKJ`.
+4. Verify the no-access path: a login with no `Trainfree.Admin` role gets `403`.
+5. Record the results in the stage-one PR and confirm with the owner before stage two.
 
-   > **[Fixed in #127, kept for historical context]** At the time this runbook was
-   > written, `--remote` silently provisioned the *local* `.wrangler-shared` database
-   > instead of production, with no error to indicate that happened --
-   > `provision-identity.js` loaded the shared `wrangler.jsonc`, whose D1 binding had no
-   > `"remote": true`. PR #127 routed `--remote` at the real deployed D1 database (see
-   > `scripts/wrangler.remote.jsonc`), so this caveat no longer applies to the current
-   > script.
+If step 3 or 4 fails, redeploy the previous tag; the database is untouched in this stage.
 
-   Note the email it prints -- step 3 asserts the smoke check's response names this exact
-   identity.
-3. **Run the rollout smoke check** and confirm it passes before proceeding. This is the
-   only step that actually exercises the real service-binding path `AdminApi` will use in
-   production; see [Why the smoke check needs its own config](#why-the-smoke-check-needs-its-own-config)
-   below for why it cannot be a plain `curl`/browser request.
+## Stage two: cutover to a new database
 
-   > **[Fixed in #128, kept for historical context]** At the time this runbook was
-   > written, `smoke-harness/wrangler.jsonc`'s `IDENTITY` service binding had no
-   > `"remote": true`, so this check did not yet actually reach the deployed
-   > `IdentityApi` Worker. PR #128 added `"remote": true` to that binding (see the
-   > config below), so this caveat no longer applies to the current config.
+1. Build the baseline schema (no identity tables, no `programs.user_id` foreign key,
+   NOT NULL triggers kept) as a single migration and compare it with the live schema
+   (`wrangler d1 export --remote --no-data`); the only differences
+   must be the removed tables and foreign key.
+2. Create the new database once with `wrangler d1 create` (for example `trainfree_db_v2`)
+   and record its `database_id`. This is a one-time setup step, never part of the deploy.
+3. Rehearse locally: import an export of the app tables into a database built from the
+   baseline, note whether `PRAGMA defer_foreign_keys` or a table order is needed, and
+   check per-table row counts.
+4. Pause use of the app, export the original's app tables only (excluding `logins`,
+   `users`, `roles`), keep the file, apply the baseline to the new database, import, and
+   verify row counts and that the `USR-S6PHKJ` program keeps its `user_id`.
+5. Repoint `database_id` and the database name used by `deploy.yaml`'s migrate step,
+   leaving the original database untouched. Open the stage-two PR, merge, tag, and
+   confirm the deploy and version poll.
+6. Re-run the production checks from stage one and confirm an existing program and its
+   children load.
 
-   ```sh
-   cd src/Trainfree.IdentityApi
-   read -rs SMOKE_CHECK_INTERNAL_KEY  # paste ADMIN_INTERNAL_KEY's deployed value, then Enter
-   export SMOKE_CHECK_INTERNAL_KEY
-   read -rs SMOKE_CHECK_JWT  # paste the CF_Authorization cookie value, then Enter
-   export SMOKE_CHECK_JWT
-   npm run smoke-check -- --expect-email <the email step 2 provisioned>
-   unset SMOKE_CHECK_INTERNAL_KEY SMOKE_CHECK_JWT
-   ```
+Rollback: repoint `database_id` back to the original database and redeploy. The original
+is unmodified throughout.
 
-   `read -rs` reads each secret silently from the terminal (not echoed, not passed as
-   command text) rather than typing `export VAR=<value>`, which a shell records in its
-   history the same way it would a CLI argument. The internal key and JWT are read from
-   `SMOKE_CHECK_INTERNAL_KEY`/`SMOKE_CHECK_JWT` environment variables, not CLI flags, so
-   they never land in shell history or a
-   process listing; `unset` them once the check completes. This uses the dedicated
-   config at `src/Trainfree.IdentityApi/smoke-harness/wrangler.jsonc`
-   (script: `src/Trainfree.IdentityApi/smoke-harness/check.js`), which sends:
+## Cleanup
 
-   | Header/value | Content |
-   | --- | --- |
-   | `X-Trainfree-Caller` | `admin` |
-   | `X-Trainfree-Internal-Key` | `SMOKE_CHECK_INTERNAL_KEY` (the deployed `ADMIN_INTERNAL_KEY` secret's value) |
-   | `Cookie` | `CF_Authorization=<SMOKE_CHECK_JWT>` |
-
-   to `GET /internal/identity` over the real `IDENTITY` service binding to the deployed
-   `trainfree-identity-api` Worker. Passing means the script printed `Smoke check PASSED`
-   with the email from `--expect-email`; anything else (including a `403`, which means
-   "authenticated but unprovisioned") means step 2 or the deployed secrets need fixing
-   before continuing -- **do not deploy slice 2 yet.**
-4. **Deploy slice 2** (once it exists) with `AdminApi` enforcement enabled.
-
-## Why the smoke check needs its own config
-
-`GET /api/me` -- slice 2's own admin-facing endpoint -- can't be the check, since slice 2
-is exactly what step 3 gates. The check has to call `IdentityApi` directly. A plain
-`curl`/browser request to `IdentityApi`'s public hostname won't work either: that
-hostname is gated by `IdentityApi`'s own, separately-configured Access application (see
-`README.md`'s "Cloudflare Access application" section), whose edge policy the
-administrator isn't necessarily whitelisted into, and even if they were, the JWT that
-edge issues carries `IdentityApi`'s own audience, which fails the caller-specific
-audience check regardless.
-
-The check must instead go through the service binding -- the same path `AdminApi` uses
-in production -- bypassing the public edge entirely. `smoke-harness/wrangler.jsonc` is a
-dedicated Wrangler config for exactly this, kept separate from `AdminApi`'s own local
-`wrangler.jsonc` on purpose: `AdminApi`'s local config will carry `LOCAL_DEV_BYPASS` once
-slice 2 exists, which synthesizes a local `Administrator` identity and never actually
-invokes the binding -- reusing that config would let the check pass even if the real
-binding or internal key is broken. `smoke-harness/wrangler.jsonc` has no such var, so
-`check.js`'s call always exercises the real binding, and the script asserts the response
-names the exact identity step 2 provisioned rather than accepting a bare `200`.
+- Delete the deployed `trainfree-identity-api` Worker, its Access application and its
+  public hostname.
+- After a soak period of the owner's choosing, and only once stage two's checks have
+  passed and the export file is archived, delete the original `trainfree_db`.
+- Sync the change's deltas into `openspec/specs/` and delete the change directory.

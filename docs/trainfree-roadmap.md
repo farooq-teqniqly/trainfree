@@ -134,14 +134,14 @@ ship either an unenforced UI or enforcement with nothing to configure it, wherea
    dirty-row pattern as other admin rows. This is the last purely-admin slice --
    `Trainfree.Admin` is feature-complete for v0.1 after this, and slice 9 begins the
    workout app.
-8a. **`add-identityapi`** -- New `Trainfree.IdentityApi` Worker: JWT verification, D1
+8a. **`add-identityapi`** (shipped, later retired: identity now comes from the shared
+    `cloudfare-identity` Worker via the `use-cloudfare-identity` change) -- New in-repo
+    identity Worker: JWT verification, D1
     `logins`/`users`/`roles` schema plus `programs.user_id`, service-binding contract.
-    Deployable and testable standalone, no callers wired up yet. See
-    `docs/identity/identity-intent-01-identityapi.md`.
+    Deployable and testable standalone, no callers wired up yet.
 8b. **`adminapi-identity-enforcement`** -- Wires every `Trainfree.AdminApi` endpoint to
-    call `Trainfree.IdentityApi` and enforce the Administrator role; adds
-    `GET /api/me`. Closes the security gap before any UI changes. Depends on 8a. See
-    `docs/identity/identity-intent-02-adminapi-enforcement.md`.
+    call the identity service and enforce the Administrator role; adds
+    `GET /api/me`. Closes the security gap before any UI changes. Depends on 8a.
 8c. **`admin-access-gating`** -- `Trainfree.Admin` startup `/api/me` check and "no
     access" page. Pure UX on top of an already-secure API. Depends on 8b. See
     `docs/identity/identity-intent-03-admin-access-gating.md`.
@@ -181,7 +181,7 @@ ship either an unenforced UI or enforcement with nothing to configure it, wherea
 
 Slices 8a-8c add Cloudflare Access-backed authorization (D1 role lookup and enforcement)
 on top of the Access authentication already configured manually outside this repo; see
-`docs/identity/identity-intent.md` for the full design. No further slice is planned for
+`docs/identity/rollout-runbook.md` for the current design. No further slice is planned for
 Access *configuration* itself (whitelisting emails, the login flow) -- that stays manual.
 
 ## Dependency graph
@@ -204,7 +204,7 @@ Access *configuration* itself (whitelisting emails, the login flow) -- that stay
   where the still-deploying old Worker 500s on `/api/categories`.
 - An authorization policy for the `Trainfree.Workout`-facing API (slice 9+). Admitting a
   `User`-role caller past a role check is necessary but **not sufficient** on its own:
-  today's program/tree queries return every program with no owner filter. `IdentityApi`
+  today's program/tree queries return every program with no owner filter. the identity service
   *does* already return the caller's `user_id` (its `200` response's `userId` field,
   added in 8a for `AdminApi` to populate `programs.user_id` on create) -- the ID is
   available, so the missing piece is owner-scoped *filtering*, not identity mapping. A
@@ -213,7 +213,7 @@ Access *configuration* itself (whitelisting emails, the login flow) -- that stay
   just their own. This isn't resolved by this identity change and shouldn't be treated
   as resolved by merely depending on 8a-8c: slice 9 (or `Trainfree.WorkoutApi`) still
   needs to design owner-scoped filtering on every read path a `User` can reach,
-  including nested collections, using the `userId` `IdentityApi` already provides.
+  including nested collections, using the `userId` the identity service already provides.
   Slice 8b's Administrator-only rule is `AdminApi`'s own policy and doesn't need to
   change for this identity work to ship; this is entirely slice 9's problem to solve
   before it relaxes anything.

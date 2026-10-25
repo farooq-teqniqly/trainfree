@@ -10,18 +10,6 @@ var adminApi = builder
     .WithHttpEndpoint(port: 9999, env: "PORT", isProxied: false)
     .WithHttpHealthCheck("/api/version");
 
-if (
-    bool.TryParse(builder.Configuration["Trainfree:IdentityApi"], out var identityApiEnabled)
-    && identityApiEnabled
-)
-{
-    builder
-        .AddJavaScriptApp("identity-api", "../Trainfree.IdentityApi", "dev")
-        .WithNpm(install: false)
-        .WithHttpEndpoint(port: 9998, env: "PORT", isProxied: false)
-        .WithHttpHealthCheck("/api/version");
-}
-
 builder.AddProject<Projects.Trainfree_Admin>("admin", "http").WaitFor(adminApi);
 
 await builder.Build().RunAsync();
