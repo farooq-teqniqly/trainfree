@@ -528,7 +528,7 @@ describe("image access by role", () => {
         expect(response.status).toBe(200);
     });
 
-    it.each([401, 403])("relays IdentityApi's %i on image read without reading R2", async (status) => {
+    it.each([401, 403])("relays cloudfare-identity's %i on image read without reading R2", async (status) => {
         const exercise = await createExercise("Bodyweight Squat");
         await putImage(exercise.id, pngBytes(64));
         const fakeEnv = fakeEnvFor(new Response(null, { status }));

@@ -2,10 +2,7 @@ import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { checkIdentity, isAdministrator } from "./identity.js";
 
-// test/apply-migrations.js seeds a local-dev Administrator identity
-// (provider_id "local-dev@trainfree.local", userId "USR-LOCALDEV") into every test
-// file's D1 instance -- see that file's comment for why.
-const SEEDED_LOCAL_DEV_USER_ID = "USR-LOCALDEV";
+const LOCAL_DEV_USER_ID = "USR-LOCALDEV";
 
 function makeEnv(overrides = {}) {
     return {
@@ -16,13 +13,19 @@ function makeEnv(overrides = {}) {
     };
 }
 
-function makeRequest(cookie) {
-    const headers = cookie ? { Cookie: cookie } : {};
+function makeRequest({ token, cookie } = {}) {
+    const headers = {};
+    if (token) {
+        headers["Cf-Access-Jwt-Assertion"] = token;
+    }
+    if (cookie) {
+        headers.Cookie = cookie;
+    }
     return new Request("http://worker/api/programs", { headers });
 }
 
 describe("checkIdentity", () => {
-    it("returns ok:true with the identity on a 200 from IdentityApi", async () => {
+    it("returns ok:true with the identity on a 200 from cloudfare-identity", async () => {
         const testEnv = makeEnv();
         testEnv.IDENTITY.fetch.mockResolvedValue(
             new Response(
@@ -31,25 +34,45 @@ describe("checkIdentity", () => {
             ),
         );
 
-        const result = await checkIdentity(makeRequest("CF_Authorization=jwt"), testEnv);
+        const result = await checkIdentity(makeRequest({ token: "access-jwt" }), testEnv);
 
         expect(result).toEqual({
             ok: true,
             identity: { email: "a@x.com", userId: "USR-ABC123", role: "Administrator" },
         });
-        expect(testEnv.IDENTITY.fetch).toHaveBeenCalledWith(
-            "https://trainfree-identity-api/internal/identity",
-            expect.objectContaining({
-                headers: expect.objectContaining({
-                    "X-Trainfree-Caller": "admin",
-                    "X-Trainfree-Internal-Key": "the-internal-key",
-                    Cookie: "CF_Authorization=jwt",
-                }),
-            }),
-        );
     });
 
-    it("returns ok:false status:401 when IdentityApi responds 401", async () => {
+    it("sends the application, credential and Access token headers to /v1/identity", async () => {
+        const testEnv = makeEnv();
+        testEnv.IDENTITY.fetch.mockResolvedValue(new Response(null, { status: 401 }));
+
+        await checkIdentity(makeRequest({ token: "access-jwt" }), testEnv);
+
+        expect(testEnv.IDENTITY.fetch).toHaveBeenCalledTimes(1);
+        const [url, init] = testEnv.IDENTITY.fetch.mock.calls[0];
+        expect(new URL(url).pathname).toBe("/v1/identity");
+        expect(init.headers).toEqual({
+            "X-Identity-Application": "Trainfree.Admin",
+            "X-Identity-Credential": "the-internal-key",
+            "X-Identity-Token": "access-jwt",
+        });
+    });
+
+    it("sends the Access-supplied token, not the rewritten CF_Authorization cookie", async () => {
+        const testEnv = makeEnv();
+        testEnv.IDENTITY.fetch.mockResolvedValue(new Response(null, { status: 401 }));
+
+        await checkIdentity(
+            makeRequest({ token: "access-jwt", cookie: "CF_Authorization=rewritten" }),
+            testEnv,
+        );
+
+        const [, init] = testEnv.IDENTITY.fetch.mock.calls[0];
+        expect(init.headers["X-Identity-Token"]).toBe("access-jwt");
+        expect(init.headers.Cookie).toBeUndefined();
+    });
+
+    it("returns ok:false status:401 when cloudfare-identity responds 401", async () => {
         const testEnv = makeEnv();
         testEnv.IDENTITY.fetch.mockResolvedValue(new Response(null, { status: 401 }));
 
@@ -58,7 +81,7 @@ describe("checkIdentity", () => {
         expect(result).toEqual({ ok: false, status: 401 });
     });
 
-    it("returns ok:false status:403 when IdentityApi responds 403", async () => {
+    it("returns ok:false status:403 when cloudfare-identity responds 403", async () => {
         const testEnv = makeEnv();
         testEnv.IDENTITY.fetch.mockResolvedValue(new Response(null, { status: 403 }));
 
@@ -67,7 +90,7 @@ describe("checkIdentity", () => {
         expect(result).toEqual({ ok: false, status: 403 });
     });
 
-    it("returns ok:false status:503 when IdentityApi responds 503", async () => {
+    it("returns ok:false status:503 when cloudfare-identity responds 503", async () => {
         const testEnv = makeEnv();
         testEnv.IDENTITY.fetch.mockResolvedValue(new Response(null, { status: 503 }));
 
@@ -147,7 +170,7 @@ describe("checkIdentity", () => {
         expect(result).toEqual({ ok: false, status: 503 });
     });
 
-    it("returns ok:false status:503 when a 200 response body has a role IdentityApi doesn't define", async () => {
+    it("returns ok:false status:503 when a 200 response body has a role cloudfare-identity doesn't define", async () => {
         const testEnv = makeEnv();
         testEnv.IDENTITY.fetch.mockResolvedValue(
             new Response(
@@ -186,7 +209,7 @@ describe("checkIdentity", () => {
         expect(result).toEqual({ ok: false, status: 503 });
     });
 
-    it("uses the real IdentityApi call, not the local-dev bypass, when LOCAL_DEV_BYPASS is the string \"false\"", async () => {
+    it("uses the real cloudfare-identity call, not the local-dev bypass, when LOCAL_DEV_BYPASS is the string \"false\"", async () => {
         const testEnv = makeEnv({ LOCAL_DEV_BYPASS: "false" });
         testEnv.IDENTITY.fetch.mockResolvedValue(
             new Response(
@@ -214,28 +237,35 @@ describe("checkIdentity", () => {
             identity: {
                 email: "local-dev@trainfree.local",
                 role: "Administrator",
-                userId: SEEDED_LOCAL_DEV_USER_ID,
+                userId: LOCAL_DEV_USER_ID,
             },
         });
         expect(testEnv.IDENTITY.fetch).not.toHaveBeenCalled();
     });
 
-    it("throws a clear error when LOCAL_DEV_BYPASS is set but no seed row exists", async () => {
-        await env.DB.prepare(
-            `DELETE FROM users WHERE login_id IN (
-                 SELECT id FROM logins WHERE provider_name = ? AND provider_id = ?
-             )`,
-        )
-            .bind("cloudflare-access", "local-dev@trainfree.local")
-            .run();
-        await env.DB.prepare("DELETE FROM logins WHERE provider_name = ? AND provider_id = ?")
-            .bind("cloudflare-access", "local-dev@trainfree.local")
-            .run();
-        const testEnv = makeEnv({ LOCAL_DEV_BYPASS: "true" });
+    it("substitutes the synthetic identity under LOCAL_DEV_BYPASS with no identity rows in the database", async () => {
+        await env.DB.prepare("DELETE FROM users").run();
+        await env.DB.prepare("DELETE FROM logins").run();
+        const testEnv = makeEnv({ LOCAL_DEV_BYPASS: "true", DB: undefined });
 
-        await expect(checkIdentity(makeRequest(), testEnv)).rejects.toThrow(
-            /no local-dev identity is seeded/,
-        );
+        const result = await checkIdentity(makeRequest(), testEnv);
+
+        expect(result).toEqual({
+            ok: true,
+            identity: {
+                email: "local-dev@trainfree.local",
+                role: "Administrator",
+                userId: LOCAL_DEV_USER_ID,
+            },
+        });
+    });
+
+    it("returns ok:false status:503 when LOCAL_DEV_BYPASS is unset and the IDENTITY binding is absent", async () => {
+        const testEnv = makeEnv({ IDENTITY: undefined });
+
+        const result = await checkIdentity(makeRequest(), testEnv);
+
+        expect(result).toEqual({ ok: false, status: 503 });
     });
 });
 
@@ -323,7 +353,7 @@ describe("checkIdentity sessionId handling", () => {
         });
     });
 
-    it("sets no session.id when IdentityApi returns none", async () => {
+    it("sets no session.id when cloudfare-identity returns none", async () => {
         const span = { setAttributes: vi.fn() };
         const testEnv = makeEnv();
         testEnv.IDENTITY.fetch.mockResolvedValue(
@@ -355,7 +385,7 @@ describe("checkIdentity sessionId handling", () => {
         await checkIdentity(makeRequest(), testEnv, () => span);
 
         expect(span.setAttributes).toHaveBeenCalledWith({
-            "user.id": SEEDED_LOCAL_DEV_USER_ID,
+            "user.id": LOCAL_DEV_USER_ID,
             "user.role": "Administrator",
         });
     });

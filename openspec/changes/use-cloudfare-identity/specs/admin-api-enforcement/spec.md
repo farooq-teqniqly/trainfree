@@ -272,18 +272,21 @@ CI verification step fail every deploy. `OPTIONS` carries no token at all.
 `wrangler dev` configuration and never in any deployed configuration. When set,
 `AdminApi` SHALL substitute a fixed synthetic local identity
 (`{ "email": "local-dev@trainfree.local", "role": "Administrator", "userId": <a fixed
-synthetic id> }`) for the identity service's result, with no database lookup and no
-setup script, then continue running each endpoint's normal handler and
+synthetic id> }`) for the identity service's result, with no database lookup by
+`AdminApi`, then continue running each endpoint's normal handler and
 Administrator-role check against that synthetic identity exactly as it would for a real
 `200` -- including `/api/me`, which relays this identity to the caller. A deployed
 environment where the `services` binding or the credential secret is absent SHALL fail
 closed with `503`; it SHALL NOT fall back to bypass behavior. The synthetic identity
 SHALL NOT be seeded by any committed migration or reachable via any `--remote` path.
+Until the stage-two cutover removes the `programs.user_id` foreign key, a local-only seed
+(test setup and a local-dev seed script) MAY insert the matching `users` row so owned
+rows satisfy that key; `AdminApi` itself SHALL NOT read or write it.
 **Rationale**: There is no Cloudflare Access edge in front of `wrangler dev`, so no token
 ever reaches `AdminApi` locally; substituting the identity rather than skipping the
 endpoint's own checks keeps local dev exercising the same authorization code path
-production runs. With the identity tables gone there is no local row for the id to
-reference, so a fixed value replaces the seeded lookup. Detecting "local" by an explicit
+production runs. A fixed value replaces the seeded lookup; while the foreign key
+remains (stage one), a local-only seed row satisfies it, and stage two removes both. Detecting "local" by an explicit
 flag rather than "binding/credential missing" keeps a production deploy that is
 accidentally missing either failing closed instead of silently behaving like local dev.
 
@@ -300,13 +303,12 @@ accidentally missing either failing closed instead of silently behaving like loc
   local identity
 
 #### Scenario: Seed script never runs against the remote database
-- **WHEN** a local-dev setup is run
-- **THEN** no identity seed script exists or runs, and nothing identity-related is written
-  to the local or remote database
+- **WHEN** a local-dev setup is run during stage one
+- **THEN** the local-only seed script targets only the local database, and nothing
+  identity-related is written to the remote database
 
-#### Scenario: Local bypass needs no database seed
-- **WHEN** `LOCAL_DEV_BYPASS` is set against a freshly migrated local database with no
-  identity rows or tables
+#### Scenario: Identity resolution needs no database access
+- **WHEN** `LOCAL_DEV_BYPASS` is set and the database holds no identity rows
 - **THEN** a request resolves to the synthetic Administrator identity without error
 
 ## Decisions
@@ -351,9 +353,10 @@ accidentally missing either failing closed instead of silently behaving like loc
   worth keeping only if the original database were to keep being migrated, which it is
   not.
 
-- **Fixed synthetic id for local dev**: the seeded lookup read `logins`/`users`, which no
-  longer exist, so the bypass returns a constant. A seeded local row would be right only
-  if a foreign key on `programs.user_id` were retained.
+- **Fixed synthetic id for local dev**: the seeded lookup read `logins`/`users`, which
+  stage two removes, so the bypass returns a constant with no lookup. Because stage one
+  keeps the `programs.user_id` foreign key, a local-only seed row (test setup and
+  `scripts/seed-local-dev-user.sql`) satisfies it until stage two removes both.
 
 - **Writes are paused during the cutover rather than replicated**: The app has one user,
   so avoiding use between export and repointing the binding is simpler than any sync

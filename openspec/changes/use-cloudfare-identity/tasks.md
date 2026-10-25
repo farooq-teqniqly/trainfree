@@ -4,12 +4,12 @@ new database) and start only after group 5 passes. Run every Worker task test-fi
 
 ## 1. Switch AdminApi to cloudfare-identity
 
-- [ ] 1.1 Write failing vitest cases in `identity.test.js` for the request: `X-Identity-Application: Trainfree.Admin`, `X-Identity-Credential` equal to `ADMIN_INTERNAL_KEY`, `X-Identity-Token` equal to the Access-supplied token (not a rewritten `CF_Authorization` cookie), and the URL path `/v1/identity`; confirm they fail for the right reason
-- [ ] 1.2 Write failing vitest cases for each response: `200` success shape `{ email, userId, role }`, `401` and `403` relayed, and `404`, `503`, an unexpected status and a thrown binding call all mapped to `503`; confirm red
-- [ ] 1.3 Rewrite `callIdentityApi` in `identity.js` as a cloudfare-identity call (rename to match, drop the `X-Trainfree-*` headers and `Cookie` forwarding, drop the `IdentityApi` wording in comments) and verify 1.1 and 1.2 pass with the existing `isValidIdentity` and `sessionId` checks untouched
+- [x] 1.1 Write failing vitest cases in `identity.test.js` for the request: `X-Identity-Application: Trainfree.Admin`, `X-Identity-Credential` equal to `ADMIN_INTERNAL_KEY`, `X-Identity-Token` equal to the Access-supplied token (not a rewritten `CF_Authorization` cookie), and the URL path `/v1/identity`; confirm they fail for the right reason
+- [x] 1.2 Write failing vitest cases for each response: `200` success shape `{ email, userId, role }`, `401` and `403` relayed, and `404`, `503`, an unexpected status and a thrown binding call all mapped to `503`; confirm red
+- [x] 1.3 Rewrite `callIdentityApi` in `identity.js` as a cloudfare-identity call (rename to match, drop the `X-Trainfree-*` headers and `Cookie` forwarding, drop the `IdentityApi` wording in comments) and verify 1.1 and 1.2 pass with the existing `isValidIdentity` and `sessionId` checks untouched
 - [ ] 1.4 Confirm which header carries the Access token on a request reaching `AdminApi` in production (expected `Cf-Access-Jwt-Assertion`) by logging its presence only, never its value, on a deployed preview or a temporary trace attribute; record the result in the PR, and fall back to the header name verified there
-- [ ] 1.5 Replace the local-dev lookup in `resolveLocalDevIdentity` with a fixed synthetic identity; verify a vitest case with `LOCAL_DEV_BYPASS` set and no identity tables passes and that a case with it unset and no binding still returns `503`
-- [ ] 1.6 Update the remaining specs-adjacent tests (`index.test.js`, `exercise-images.test.js`, `test/apply-migrations.js`, `vitest.config.js`) so none seeds or reads `logins`/`users`/`roles` or stubs `IDENTITY` with the old contract; verify `npm test` in `src/Trainfree.AdminApi` is green
+- [x] 1.5 Replace the local-dev lookup in `resolveLocalDevIdentity` with a fixed synthetic identity (no lookup in the Worker; a local-only seed of the `users` row stays in test setup and `scripts/seed-local-dev-user.sql` while the foreign key remains); verify a vitest case with `LOCAL_DEV_BYPASS` set and no identity rows passes and that a case with it unset and no binding still returns `503`
+- [x] 1.6 Update the remaining specs-adjacent tests (`index.test.js`, `exercise-images.test.js`, `test/apply-migrations.js`, `vitest.config.js`) so none reads `logins`/`users`/`roles` beyond the stage-one foreign-key seed in `test/apply-migrations.js`, or stubs `IDENTITY` with the old contract; verify `npm test` in `src/Trainfree.AdminApi` is green
 
 ## 2. Bind the service and secret
 
@@ -42,7 +42,7 @@ new database) and start only after group 5 passes. Run every Worker task test-fi
 ## 6. New database and baseline schema
 
 - [ ] 6.1 Write a failing vitest case (real D1 binding) asserting the baseline schema: every app table exists, `logins`/`users`/`roles` do not, `programs.user_id` has no foreign key, and a NULL `user_id` insert and update both abort; confirm red
-- [ ] 6.2 Replace `src/Trainfree.AdminApi/migrations/0001`-`0017` with a single baseline migration generated from the current app schema (no identity tables, no `programs.user_id` foreign key, NOT NULL triggers kept), with a comment saying the history lives in git; verify 6.1 passes and the rest of the Worker suite stays green
+- [ ] 6.2 Replace `src/Trainfree.AdminApi/migrations/0001`-`0017` with a single baseline migration generated from the current app schema (no identity tables, no `programs.user_id` foreign key, NOT NULL triggers kept), with a comment saying the history lives in git; remove the stage-one local-dev seed (`scripts/seed-local-dev-user.sql`, its `db:seed:local` npm script, and the seed in `test/apply-migrations.js`); verify 6.1 passes and the rest of the Worker suite stays green
 - [ ] 6.3 Compare the baseline against the live schema (`wrangler d1 export --remote --no-data` on the original) and verify the only differences are the removed identity tables and foreign key
 - [ ] 6.4 Run the one-time `wrangler d1 create` for the new database (name it per the repo convention, e.g. `trainfree_db_v2`), record its `database_id`, and verify it appears in `wrangler d1 list`
 
