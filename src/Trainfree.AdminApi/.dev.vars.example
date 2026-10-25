@@ -1,8 +1,10 @@
 # Copy to .dev.vars (gitignored) for local `wrangler dev`. In production this is set via
 # `wrangler secret put ADMIN_INTERNAL_KEY`, never committed here or in wrangler.jsonc.
 #
-# Mirrors Trainfree.IdentityApi/.dev.vars.example's ADMIN_INTERNAL_KEY entry -- copy the
-# same value into both Workers' .dev.vars. Not needed for everyday local dev, since
-# wrangler.jsonc's LOCAL_DEV_BYPASS bypasses the IDENTITY service-binding call entirely;
-# only required to exercise the real service-binding path locally (LOCAL_DEV_BYPASS unset).
+# Sent as the X-Identity-Credential header on every call to the cloudfare-identity
+# Worker (alongside X-Identity-Application: Trainfree.Admin and the user's Access token
+# in X-Identity-Token). It must equal the ADMIN_INTERNAL_KEY value held by
+# cloudfare-identity. Not needed for everyday local dev, since wrangler.jsonc's
+# LOCAL_DEV_BYPASS returns a synthetic identity without calling the IDENTITY binding;
+# only required to exercise the real service-binding path (LOCAL_DEV_BYPASS unset).
 ADMIN_INTERNAL_KEY=

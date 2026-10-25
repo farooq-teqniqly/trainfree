@@ -13,9 +13,9 @@ new database) and start only after group 5 passes. Run every Worker task test-fi
 
 ## 2. Bind the service and secret
 
-- [ ] 2.1 In `wrangler.jsonc` and `wrangler.deploy.jsonc`, point the `IDENTITY` service binding at the `cloudfare-identity` Worker and remove the comments describing multi-worker local dev against `trainfree-identity-api`; verify `npx wrangler deploy --dry-run --config wrangler.deploy.jsonc` accepts both files
-- [ ] 2.2 Confirm `ADMIN_INTERNAL_KEY` holds the same value in `trainfree-admin` and in `cloudfare-identity` without printing it (`wrangler secret list` shows the name on both); update `.dev.vars.example` to describe the new header and credential
-- [ ] 2.3 Verify `trainfree-admin`'s deployed Access application and `cloudfare-identity`'s registered audience for `Trainfree.Admin` match, by checking the registered application record
+- [x] 2.1 In `wrangler.jsonc` and `wrangler.deploy.jsonc`, point the `IDENTITY` service binding at the `cloudfare-identity` Worker and remove the comments describing multi-worker local dev against `trainfree-identity-api`; verify `npx wrangler deploy --dry-run --config wrangler.deploy.jsonc` accepts both files
+- [x] 2.2 Confirm `ADMIN_INTERNAL_KEY` holds the same value in `trainfree-admin` and in `cloudfare-identity` without printing it (`wrangler secret list` shows the name on both); update `.dev.vars.example` to describe the new header and credential
+- [x] 2.3 Verify `trainfree-admin`'s deployed Access application and `cloudfare-identity`'s registered audience for `Trainfree.Admin` match, by checking the registered application record
 
 ## 3. Retire the internal implementation
 

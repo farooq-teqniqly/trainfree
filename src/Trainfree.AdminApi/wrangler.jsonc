@@ -22,15 +22,12 @@
     "vars": {
         "LOCAL_DEV_BYPASS": "true"
     },
-    // Routes GET /internal/identity calls to a locally running `wrangler dev` for
-    // Trainfree.IdentityApi (multi-worker local dev auto-discovers it by `service`
-    // name -- no "remote": true needed, unlike smoke-harness/wrangler.jsonc's binding
-    // of the same name, which deliberately reaches the deployed Worker instead). Only
-    // exercised when LOCAL_DEV_BYPASS is unset.
+    // The deployed cloudfare-identity Worker, reached over a service binding. Only
+    // exercised when LOCAL_DEV_BYPASS is unset; local dev does not run it.
     "services": [
         {
             "binding": "IDENTITY",
-            "service": "trainfree-identity-api"
+            "service": "cloudfare-identity"
         }
     ],
     "d1_databases": [
