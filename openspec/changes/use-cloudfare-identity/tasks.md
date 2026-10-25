@@ -29,7 +29,7 @@ new database) and start only after group 5 passes. Run every Worker task test-fi
 
 ## 4. Pre-release checks
 
-- [ ] 4.1 Run the full solution and Worker suites (`dotnet test Trainfree.slnx --configuration Release`; `npm test` in `src/Trainfree.AdminApi`) and verify both are green
+- [x] 4.1 Run the full solution and Worker suites (`dotnet test Trainfree.slnx --configuration Release`; `npm test` in `src/Trainfree.AdminApi`) and verify both are green
 - [ ] 4.2 Stop for review and approval before committing; open the stage-one PR and verify CI is green
 
 ## 5. Stage-one rollout and production check
