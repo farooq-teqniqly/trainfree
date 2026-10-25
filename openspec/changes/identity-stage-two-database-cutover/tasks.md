@@ -1,9 +1,9 @@
 ## 1. New database and baseline schema
 
-- [ ] 1.1 Write a failing vitest case (real D1 binding) asserting the baseline schema: every app table exists, `logins`/`users`/`roles` do not, `programs.user_id` has no foreign key, and a NULL `user_id` insert and update both abort; confirm red
-- [ ] 1.2 Replace `src/Trainfree.AdminApi/migrations/0001`-`0017` with a single baseline migration generated from the current app schema (no identity tables, no `programs.user_id` foreign key, NOT NULL triggers kept), with a comment saying the history lives in git; remove the stage-one local-dev seed (`scripts/seed-local-dev-user.sql`, its `db:seed:local` npm script, the seed in `test/apply-migrations.js`, and the `migrations.test.js` assertions about the identity tables and foreign key); verify 1.1 passes and `npm test` in `src/Trainfree.AdminApi` stays green
-- [ ] 1.3 Compare the baseline against the live schema (`wrangler d1 export --remote --no-data` on the original) and verify the only differences are the removed identity tables and foreign key
-- [ ] 1.4 Run the one-time `wrangler d1 create` for the new database (name it per the repo convention, e.g. `trainfree_db_v2`), record its `database_id`, and verify it appears in `wrangler d1 list`
+- [x] 1.1 Write a failing vitest case (real D1 binding) asserting the baseline schema: every app table exists, `logins`/`users`/`roles` do not, `programs.user_id` has no foreign key, and a NULL `user_id` insert and update both abort; confirm red
+- [x] 1.2 Replace `src/Trainfree.AdminApi/migrations/0001`-`0017` with a single baseline migration generated from the current app schema (no identity tables, no `programs.user_id` foreign key, NOT NULL triggers kept), with a comment saying the history lives in git; remove the stage-one local-dev seed (`scripts/seed-local-dev-user.sql`, its `db:seed:local` npm script, the seed in `test/apply-migrations.js`, and the `migrations.test.js` assertions about the identity tables and foreign key); verify 1.1 passes and `npm test` in `src/Trainfree.AdminApi` stays green
+- [x] 1.3 Compare the baseline against the live schema (`wrangler d1 export --remote --no-data` on the original) and verify the only differences are the removed identity tables and foreign key
+- [x] 1.4 Run the one-time `wrangler d1 create` for the new database (name it per the repo convention, e.g. `trainfree_db_v2`), record its `database_id`, and verify it appears in `wrangler d1 list` (created: `trainfree_db_v2`, `database_id` `3b4d4abf-993f-43a3-ab09-f5eb1c4353fa`)
 
 ## 2. Cutover to the new database
 
@@ -15,7 +15,7 @@
 - [ ] 2.6 Squash merge with `gh pr merge --squash`, push the next version tag, and verify `deploy.yaml` succeeds and its version poll passes
 - [ ] 2.7 In production, sign in as the admin and verify `GET /api/me` returns `200` with role `Administrator`, creating a program records `user_id` `USR-S6PHKJ`, and an existing program and its children load; record the results in the stage-two PR
 - [ ] 2.8 Verify the no-access path in production returns `403` (a login with no `Trainfree.Admin` role); this was not checked in stage one; record the result in the stage-two PR
-- [ ] 2.9 If any production check fails, repoint `database_id` back to the original database and redeploy (rollback); the original has been unmodified throughout
+- [ ] 2.9 If any production check fails, roll back by reverting the cutover PR with `git revert` (restoring `database_id`, the database name used by `deploy.yaml`, and migrations `0001`-`0017`) and pushing the next version tag; do not just repoint `database_id`, because the original database has the old migration names recorded as applied and the migrate step would try to run `0001_baseline.sql` against its existing tables. The original has been unmodified throughout
 
 ## 3. Cleanup and close-out
 

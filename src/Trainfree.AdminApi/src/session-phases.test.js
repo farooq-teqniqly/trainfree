@@ -12,7 +12,7 @@ import {
 import { deletePhase } from "./phases.js";
 import { SessionNotFoundError, SessionPhaseInvalidPhaseError } from "./errors.js";
 
-// test/apply-migrations.js seeds this local-dev user for every test file's D1 instance.
+// The fixed synthetic local-dev owner id (see identity.js); programs.user_id has no foreign key.
 const SEEDED_USER_ID = "USR-LOCALDEV";
 
 describe("sessionExists", () => {

@@ -2,8 +2,7 @@ import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { createProgram } from "./programs.js";
 
-// programs.user_id is a foreign key into users(user_id), so the passed value must name a
-// real row -- test/apply-migrations.js seeds exactly this one for every test file.
+// The fixed synthetic local-dev owner id (see identity.js); programs.user_id has no foreign key.
 const SEEDED_USER_ID = "USR-LOCALDEV";
 
 describe("createProgram", () => {
