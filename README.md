@@ -219,7 +219,7 @@ same saved value on both Workers.
 
 ## Database migrations
 
-The API is backed by Cloudflare D1 (`trainfree_db`). Schema changes are versioned as SQL
+The API is backed by Cloudflare D1 (`trainfree_db_v2`). Schema changes are versioned as SQL
 files under `src/Trainfree.AdminApi/migrations/`, applied with `wrangler d1 migrations`. All
 commands below run from `src/Trainfree.AdminApi`.
 
@@ -255,7 +255,7 @@ same migrations to a throwaway Miniflare D1 instance on every run (see
 ### Add a migration
 
 ```sh
-npx wrangler d1 migrations create trainfree_db <short_description>
+npx wrangler d1 migrations create trainfree_db_v2 <short_description>
 ```
 
 This creates the next numbered file (e.g. `0003_<short_description>.sql`); write the SQL
@@ -265,7 +265,7 @@ the same PR as the code that depends on it.
 ### Apply migrations remotely
 
 You normally do not run this by hand. `deploy.yaml` runs
-`wrangler d1 migrations apply trainfree_db --remote` on every `v*.*.*` tag, before the
+`wrangler d1 migrations apply trainfree_db_v2 --remote` on every `v*.*.*` tag, before the
 Worker deploy. The tag must point at a commit on `main` -- the workflow verifies this and
 fails the deploy otherwise, because a single fixed Worker name means a deploy from a
 feature branch would overwrite production. The manual equivalent, which needs Cloudflare

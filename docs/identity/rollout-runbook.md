@@ -55,8 +55,11 @@ If step 3 or 4 fails, redeploy the previous tag; the database is untouched in th
 6. Re-run the production checks from stage one and confirm an existing program and its
    children load.
 
-Rollback: repoint `database_id` back to the original database and redeploy. The original
-is unmodified throughout.
+Rollback: `git revert` the cutover PR (restoring `database_id`, the database name used by
+`deploy.yaml`, and migrations `0001`-`0017`) and push the next version tag. Do not just
+repoint `database_id`: the original database has the old migration names recorded as
+applied, so the migrate step would try to run `0001_baseline.sql` against its existing
+tables. The original is unmodified throughout.
 
 ## Cleanup
 
