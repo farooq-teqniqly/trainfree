@@ -52,6 +52,12 @@ indent_size = 2
 [*.md]
 trim_trailing_whitespace = false
 
+# CA1014: CLS compliance only matters for assemblies consumed by other .NET languages;
+# each project listed here is an app, an app-private library, or a test project. A new
+# project is not listed, so it keeps the warning until someone decides it is app-private.
+[{src/Trainfree.Admin,src/Trainfree.ApiClients,src/Trainfree.AppHost,src/Trainfree.Domain,src/Trainfree.UI,src/Trainfree.Versioning,tests/Trainfree.Admin.Tests,tests/Trainfree.ApiClients.Tests,tests/Trainfree.ArchitectureTests,tests/Trainfree.Domain.Tests,tests/Trainfree.UI.Tests,tests/Trainfree.Versioning.Tests,tests/Trainfree.Web.Tests}/**.cs]
+dotnet_diagnostic.CA1014.severity = none
+
 [*.{cs,vb}]
 #### Naming styles ####
 
@@ -106,6 +112,25 @@ dotnet_style_object_initializer = true:suggestion
 # of what we want.
 dotnet_diagnostic.CA2007.severity = none
 
+[src/Trainfree.Admin/**.cs]
+# CA1515: Consider making public types internal. Razor-generated components are always
+# public (the Razor SDK has no way to make them internal), and the view-models, summaries
+# and form submissions are their [Parameter] types, so internalizing them is a CS0053
+# inconsistent-accessibility error. The rule is unsatisfiable for this Blazor app project.
+dotnet_diagnostic.CA1515.severity = none
+
+[src/Trainfree.Admin/Admin/ExerciseSummary.cs]
+# CA1054/CA1056: ImageUrl is a same-origin relative path mirroring the Worker's wire shape,
+# not an absolute URI; System.Uri would add relative-vs-absolute parsing semantics with no
+# caller that needs them. The UI maps it to an ExerciseImage.
+dotnet_diagnostic.CA1054.severity = none
+dotnet_diagnostic.CA1056.severity = none
+
+[src/Trainfree.AppHost/**.cs]
+# CA2007: the AppHost is a console process with no SynchronizationContext, so
+# ConfigureAwait(false) would be a no-op on its one top-level await.
+dotnet_diagnostic.CA2007.severity = none
+
 [*Tests.cs]
 # CA1707: Identifiers should not contain underscores
 dotnet_diagnostic.CA1707.severity = none
@@ -118,3 +143,11 @@ dotnet_diagnostic.CA2007.severity = none
 # fakes that throw on Dispose, or objects tracked in a shared _disposables list.
 dotnet_diagnostic.CA2000.severity = none
 dotnet_diagnostic.CA2215.severity = none
+
+# CA2012: NSubstitute arrange calls such as `sub.Method(...).Returns(...)` on a ValueTask-returning
+# member are flagged as an unconsumed ValueTask, but the call only configures the substitute.
+dotnet_diagnostic.CA2012.severity = none
+
+# CA1812: nested test helper types are often used only for their static members (to reach a
+# protected member of the type under test) and are never instantiated.
+dotnet_diagnostic.CA1812.severity = none
