@@ -14,10 +14,6 @@ trim_trailing_whitespace = true
 dotnet_diagnostic.IDE0290.severity = none
 csharp_style_prefer_primary_constructors = false
 
-# CA1014: CLS compliance only matters for assemblies consumed by other .NET languages;
-# every assembly here is an app or an app-private library.
-dotnet_diagnostic.CA1014.severity = none
-
 # Namespace must match folder structure (baseline convention).
 dotnet_style_namespace_match_folder = true
 dotnet_diagnostic.IDE0130.severity = warning
@@ -55,6 +51,12 @@ indent_size = 2
 # reflows the rendered output.
 [*.md]
 trim_trailing_whitespace = false
+
+# CA1014: CLS compliance only matters for assemblies consumed by other .NET languages;
+# each project listed here is an app, an app-private library, or a test project. A new
+# project is not listed, so it keeps the warning until someone decides it is app-private.
+[{src/Trainfree.Admin,src/Trainfree.ApiClients,src/Trainfree.AppHost,src/Trainfree.Domain,src/Trainfree.UI,src/Trainfree.Versioning,tests/Trainfree.Admin.Tests,tests/Trainfree.ApiClients.Tests,tests/Trainfree.ArchitectureTests,tests/Trainfree.Domain.Tests,tests/Trainfree.UI.Tests,tests/Trainfree.Versioning.Tests,tests/Trainfree.Web.Tests}/**.cs]
+dotnet_diagnostic.CA1014.severity = none
 
 [*.{cs,vb}]
 #### Naming styles ####
