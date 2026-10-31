@@ -22,12 +22,15 @@ bodies, and response bodies use this surrogate key as `id`.
 
 ### Requirement: List exercises
 
-The system SHALL provide `GET /api/exercises`, returning all exercises in
-creation order. When two or more exercises share the same `created_at`
-timestamp, the system SHALL break the tie by the `exercises` table's internal
-auto-incrementing row key (not the external `id` surrogate returned in API
-responses) ascending, so the order is deterministic across repeated calls and
-matches insertion order.
+The system SHALL provide `GET /api/exercises`, returning all exercises ordered
+by `name` ascending, compared case-insensitively. Exercise names are unique
+case-insensitively, so no two exercises compare equal and the order is
+deterministic across repeated calls.
+
+**Rationale**: The Exercises page is a library the owner scans by name, so
+creation order makes a long list hard to browse. Sorting in the query keeps the
+page free of a client-side sort on load, and name uniqueness removes the need
+for a tiebreak.
 
 #### Scenario: No exercises exist
 
@@ -38,15 +41,22 @@ matches insertion order.
 
 - **WHEN** a client calls `GET /api/exercises` and exercises exist
 - **THEN** the Worker responds `200` with a JSON array of exercises ordered by
-  `created_at` ascending
+  `name` ascending, compared case-insensitively
+
+#### Scenario: Names differ only by case in their first letters
+
+- **WHEN** exercises named `bench`, `Archer`, and `curl` were created in that
+  order and a client calls `GET /api/exercises`
+- **THEN** the Worker responds `200` with the exercises in the order `Archer`,
+  `bench`, `curl`
 
 #### Scenario: Two exercises share the same created_at
 
 - **WHEN** a client calls `GET /api/exercises` and two exercises have an
   identical `created_at` value
-- **THEN** the Worker responds `200` with those two exercises ordered by the
-  `exercises` table's internal row key (not the external `id` surrogate)
-  ascending relative to each other, and this order is the same on every call
+- **THEN** the Worker responds `200` with those two exercises ordered by `name`
+  ascending, compared case-insensitively, regardless of which was inserted
+  first, and this order is the same on every call
 
 ### Requirement: Exercise name length
 
@@ -278,3 +288,24 @@ exercises existed. The image column is now present because the upload flow exist
 - **WHEN** `GET /api/exercises` fails on page load
 - **THEN** the page shows a load-failed message and remains usable, not skeleton rows
   or the empty-state view
+
+## Decisions
+
+- List exercises are sorted by `ORDER BY name COLLATE NOCASE` in the Worker's list query,
+  not by adding a sort direction to `idx_exercises_name_nocase`. An index never fixes
+  result order by itself -- SQLite guarantees order only from `ORDER BY` -- and that
+  index is already ascending `NOCASE`; the matching collation lets the planner use it.
+  No migration is needed. Changing the index would be right only if the planner were
+  shown to ignore it on a measured slow path, which a single-user library will not hit.
+- The sort is server-side rather than a client-side `OrderBy` on the Exercises page. The
+  page does not re-sort live after create or rename: a new exercise stays appended and a
+  renamed row stays in place until the page is reloaded, so a client sort's main
+  advantage does not apply. A client sort would be right if the page ever needs to
+  re-sort live, or if accent-aware ordering is wanted.
+- `NOCASE` folds ASCII letters only, so names starting with accented characters sort
+  after `z`. Accepted for a single-user app; revisit with a client-side culture-aware
+  sort if accented names appear.
+- The Programs page add-exercise picker already re-sorts the list with
+  `StringComparer.OrdinalIgnoreCase`. That sort is now redundant but harmless and is left
+  in place.
+- Only the exercises list changes order. The phases list keeps creation order.

@@ -335,12 +335,10 @@ describe("listPhases SQL", () => {
 });
 
 describe("listExercises SQL", () => {
-    it("qualifies the id tiebreaker to the exercises table", async () => {
+    it("orders by name with the collation of idx_exercises_name_nocase", async () => {
         const { LIST_EXERCISES_QUERY } = await import("./exercises.js");
 
-        expect(LIST_EXERCISES_QUERY).toMatch(
-            /order by created_at asc, exercises\.id asc/i,
-        );
+        expect(LIST_EXERCISES_QUERY).toMatch(/order by name collate nocase asc/i);
     });
 });
 
@@ -1100,35 +1098,34 @@ describe("GET /api/exercises", () => {
         expect(await response.json()).toEqual([]);
     });
 
-    it("returns exercises in creation order", async () => {
-        await createExercise("Bodyweight Squat");
-        await createExercise("Skater Jump");
+    it("returns exercises ordered by name, ignoring case", async () => {
+        await createExercise("bench");
+        await createExercise("Archer");
+        await createExercise("curl");
 
         const response = await SELF.fetch("http://worker/api/exercises");
         const exercises = await response.json();
 
-        expect(exercises.map((e) => e.name)).toEqual(["Bodyweight Squat", "Skater Jump"]);
+        expect(exercises.map((e) => e.name)).toEqual(["Archer", "bench", "curl"]);
     });
 
-    // RED-phase note: see the identical caveat on the phases test above -- `exercises.id`
-    // is also an AUTOINCREMENT rowid alias, so this can't be proven RED locally either.
-    it("breaks a created_at tie using insertion order", async () => {
+    it("orders by name when created_at values are identical", async () => {
         const tiedTimestamp = new Date().toISOString();
         await env.DB.prepare(
             "INSERT INTO exercises (exercise_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
         )
-            .bind("EXR-ZZZZZZ", "Inserted First", tiedTimestamp, tiedTimestamp)
+            .bind("EXR-ZZZZZZ", "Zulu Press", tiedTimestamp, tiedTimestamp)
             .run();
         await env.DB.prepare(
             "INSERT INTO exercises (exercise_id, name, created_at, updated_at) VALUES (?, ?, ?, ?)",
         )
-            .bind("EXR-AAAAAA", "Inserted Second", tiedTimestamp, tiedTimestamp)
+            .bind("EXR-AAAAAA", "Alpha Press", tiedTimestamp, tiedTimestamp)
             .run();
 
         const response = await SELF.fetch("http://worker/api/exercises");
         const exercises = await response.json();
 
-        expect(exercises.map((e) => e.name)).toEqual(["Inserted First", "Inserted Second"]);
+        expect(exercises.map((e) => e.name)).toEqual(["Alpha Press", "Zulu Press"]);
     });
 });
 
