@@ -19,9 +19,11 @@ function toExercise({ id, name, imageKey, createdAt, updatedAt }) {
 // unlikely; this bound only guards against pathological bad luck, not a real retry loop.
 const MAX_ID_GENERATION_ATTEMPTS = 5;
 
-// Exported so tests can assert on the literal tiebreak clause without mocking the D1
-// binding (CLAUDE-baseline.md forbids mocking Worker/D1 test dependencies).
-export const LIST_EXERCISES_QUERY = `SELECT ${SELECT_COLUMNS} FROM exercises ORDER BY created_at ASC, exercises.id ASC`;
+// COLLATE NOCASE must match idx_exercises_name_nocase so the planner can walk that index.
+// Names are unique case-insensitively, so no tiebreak column is needed. Exported so tests
+// can assert on the literal clause without mocking the D1 binding (CLAUDE-baseline.md
+// forbids mocking Worker/D1 test dependencies).
+export const LIST_EXERCISES_QUERY = `SELECT ${SELECT_COLUMNS} FROM exercises ORDER BY name COLLATE NOCASE ASC`;
 
 export async function exerciseExists(db, id) {
     const row = await db
